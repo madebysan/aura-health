@@ -39,14 +39,6 @@ struct HealthScoreRingView: View {
                 )
                 .rotationEffect(.degrees(-90))
 
-            // Glow dot at end of arc
-            Circle()
-                .fill(scoreColor.shadow(.drop(color: scoreColor.opacity(0.5), radius: 4)))
-                .frame(width: ringWidth + 2, height: ringWidth + 2)
-                .offset(y: -size / 2 + ringWidth / 2)
-                .rotationEffect(.degrees(animatedProgress * 360 - 90))
-                .opacity(animatedProgress > 0 ? 1 : 0)
-
             // Center text
             VStack(spacing: 1) {
                 Text("\(Int(score))")
@@ -55,7 +47,7 @@ struct HealthScoreRingView: View {
                     .contentTransition(.numericText())
 
                 Text(label)
-                    .font(.system(size: size * 0.09, weight: .medium))
+                    .font(.system(size: size * 0.1, weight: .medium))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -75,7 +67,7 @@ struct HealthScoreRingView: View {
     }
 
     private var ringWidth: CGFloat {
-        size * 0.09
+        size * 0.12
     }
 }
 

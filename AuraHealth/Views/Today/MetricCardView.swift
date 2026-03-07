@@ -66,6 +66,7 @@ struct MetricCardView: View {
                 if recentValues.count >= 2 {
                     SparklineView(values: recentValues, color: metricType.iconColor)
                         .frame(height: 30)
+                        .clipped()
                 } else {
                     Rectangle()
                         .fill(Color.clear)
@@ -83,6 +84,7 @@ struct MetricCardView: View {
                         .foregroundStyle(.quaternary)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .cardStyle(padding: 14, cornerRadius: 12)
             .contentShape(RoundedRectangle(cornerRadius: 12))
         }
@@ -97,7 +99,7 @@ struct MetricCardView: View {
         let inRange = measurement.value >= range.low && measurement.value <= range.high
         return Circle()
             .fill(inRange ? AppColors.statusGreen : AppColors.statusOrange)
-            .frame(width: 7, height: 7)
+            .frame(width: 8, height: 8)
             .shadow(color: (inRange ? AppColors.statusGreen : AppColors.statusOrange).opacity(0.4), radius: 3)
     }
 
@@ -127,8 +129,12 @@ struct MetricCardView: View {
         let direction: Direction = diff > 0 ? .up : .down
         let color: Color
         switch metricType {
-        case .recovery, .sleepScore, .hrv, .spo2:
+        case .recovery, .sleepScore, .hrv, .spo2, .sleepDuration, .steps, .activeMinutes:
+            // Higher is better
             color = diff > 0 ? AppColors.statusGreen : AppColors.statusOrange
+        case .heartRate, .strain:
+            // Lower is generally better at rest
+            color = diff < 0 ? AppColors.statusGreen : AppColors.statusOrange
         default:
             color = .secondary
         }

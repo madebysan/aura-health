@@ -83,12 +83,13 @@ enum BiomarkerReference {
         // Heart / Lipids
         if lower.contains("cholesterol") || lower.contains("ldl") || lower.contains("hdl")
             || lower.contains("triglyceride") || lower.contains("lipoprotein")
-            || lower.contains("apolipoprotein") {
+            || lower.contains("apolipoprotein") || lower.contains("apob") {
             return .heart
         }
         // Metabolic
         if lower.contains("glucose") || lower.contains("hba1c") || lower.contains("a1c")
-            || lower.contains("insulin") || lower.contains("homa") {
+            || lower.contains("insulin") || lower.contains("homa")
+            || lower == "carbon dioxide" {
             return .metabolic
         }
         // Liver
@@ -100,7 +101,8 @@ enum BiomarkerReference {
         // Kidney
         if lower.contains("creatinine") || lower.contains("egfr") || lower.contains("bun")
             || lower.contains("urea") || lower.contains("uric acid")
-            || lower.contains("cystatin") {
+            || lower.contains("cystatin") || lower == "sodium" || lower == "potassium"
+            || lower == "chloride" || lower == "calcium" {
             return .kidney
         }
         // Thyroid
@@ -112,13 +114,15 @@ enum BiomarkerReference {
         if lower.contains("hemoglobin") || lower.contains("hematocrit")
             || lower.contains("rbc") || lower.contains("wbc") || lower.contains("platelet")
             || lower.contains("mcv") || lower.contains("mch") || lower.contains("ferritin")
-            || lower.contains("iron") || lower.contains("transferrin") {
+            || lower.contains("iron") || lower.contains("transferrin")
+            || lower == "rdw" || lower == "mpv" {
             return .blood
         }
         // Hormones
         if lower.contains("testosterone") || lower.contains("estrogen") || lower.contains("cortisol")
             || lower.contains("dhea") || lower.contains("shbg") || lower.contains("progesterone")
-            || lower.contains("prolactin") || lower.contains("igf") {
+            || lower.contains("prolactin") || lower.contains("igf") || lower.contains("estradiol")
+            || lower == "lh" || lower == "fsh" || lower == "psa" || lower == "insulin" {
             return .hormones
         }
         // Inflammation

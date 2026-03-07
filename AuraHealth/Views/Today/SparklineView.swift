@@ -27,7 +27,7 @@ struct SparklineView: View {
                 )
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(color.opacity(0.7))
-                .lineStyle(StrokeStyle(lineWidth: 1.5))
+                .lineStyle(StrokeStyle(lineWidth: 2))
             }
 
             // Latest value dot

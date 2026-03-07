@@ -4,12 +4,15 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(WhoopService.self) private var whoopService
+    @Environment(HealthKitService.self) private var healthKitService
+    @Environment(HealthAutoExportService.self) private var healthAutoExportService
     @AppStorage("weightUnit") private var weightUnit: WeightUnit = .kg
     @AppStorage("temperatureUnit") private var temperatureUnit: TemperatureUnit = .celsius
 
-    @State private var showingChangePassword = false
     @State private var showingClearConfirmation = false
     @State private var sampleDataLoaded = false
+    @State private var labDataImported = false
 
     // Import/Export
     @State private var showingExporter = false
@@ -20,10 +23,6 @@ struct SettingsView: View {
     // API Key
     @State private var claudeAPIKey = ""
     @State private var showingAPIKeyField = false
-
-    // Integration services
-    @State private var whoopService = WhoopService()
-    @State private var healthKitService = HealthKitService()
 
     var body: some View {
         Form {
@@ -37,96 +36,24 @@ struct SettingsView: View {
             }
 
             Section("Integrations") {
-                // WHOOP
-                HStack {
-                    Label("WHOOP", systemImage: "heart.circle.fill")
-                    Spacer()
-                    if whoopService.isConnected {
-                        StatusBadge(label: "Connected", color: .green)
-                        Button("Sync") {
-                            Task { await whoopService.syncData(into: modelContext) }
-                        }
-                        .disabled(whoopService.isSyncing)
-                        Button("Disconnect", role: .destructive) {
-                            whoopService.disconnect()
-                        }
-                        .foregroundStyle(.red)
-                    } else {
-                        StatusBadge(label: "Not Connected", color: .secondary)
-                    }
-                }
-                if let lastSync = whoopService.lastSyncDate {
-                    Text("Last synced: \(lastSync, format: .relative(presentation: .named))")
-                        .font(.caption).foregroundStyle(.tertiary)
-                }
-                if let error = whoopService.error {
-                    Text(error).font(.caption).foregroundStyle(.red)
-                }
-
-                // Apple Health
-                HStack {
-                    Label("Apple Health", systemImage: "heart.text.square")
-                    Spacer()
-                    if healthKitService.isAuthorized {
-                        StatusBadge(label: "Connected", color: .green)
-                        Button("Sync") {
-                            Task { await healthKitService.syncData(into: modelContext) }
-                        }
-                        .disabled(healthKitService.isSyncing)
-                    } else if healthKitService.isAvailable {
-                        Button("Connect") {
-                            Task { await healthKitService.requestAuthorization() }
-                        }
-                    } else {
-                        Text("Not Available")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                if let lastSync = healthKitService.lastSyncDate {
-                    Text("Last synced: \(lastSync, format: .relative(presentation: .named))")
-                        .font(.caption).foregroundStyle(.tertiary)
-                }
-                if let error = healthKitService.error {
-                    Text(error).font(.caption).foregroundStyle(.red)
-                }
-
-                // Claude API
-                HStack {
-                    Label("Claude API", systemImage: "sparkles")
-                    Spacer()
-                    if KeychainService.getValue(for: "claude-api-key") != nil {
-                        StatusBadge(label: "Configured", color: .green)
-                        Button("Remove") {
-                            KeychainService.deleteValue(for: "claude-api-key")
-                        }
-                        .foregroundStyle(.red)
-                    } else {
-                        Button("Add Key") { showingAPIKeyField.toggle() }
-                    }
-                }
-                if showingAPIKeyField {
-                    HStack {
-                        SecureField("sk-ant-...", text: $claudeAPIKey)
-                            .textFieldStyle(.roundedBorder)
-                        Button("Save") {
-                            if !claudeAPIKey.isEmpty {
-                                KeychainService.setValue(claudeAPIKey, for: "claude-api-key")
-                                claudeAPIKey = ""
-                                showingAPIKeyField = false
-                            }
-                        }
-                        .disabled(claudeAPIKey.isEmpty)
-                    }
-                }
-            }
-
-            Section("Vault") {
-                if KeychainService.hasVaultPassword {
-                    Button("Change Vault Password") { showingChangePassword = true }
-                }
+                whoopSection
+                #if os(iOS)
+                appleHealthSection
+                #else
+                healthAutoExportSection
+                #endif
+                claudeAPISection
             }
 
             Section("Data") {
+                Button {
+                    LabDataSeeder.importAllLabs(into: modelContext)
+                    labDataImported = true
+                } label: {
+                    Label("Import Lab Results", systemImage: "cross.vial")
+                }
+                .disabled(labDataImported)
+
                 Button {
                     exportData()
                 } label: {
@@ -183,8 +110,8 @@ struct SettingsView: View {
                 }
             }
         }
+        .formStyle(.grouped)
         .navigationTitle("Settings")
-        .sheet(isPresented: $showingChangePassword) { ChangePasswordSheet() }
         .fileImporter(
             isPresented: $showingImporter,
             allowedContentTypes: [.json],
@@ -196,6 +123,265 @@ struct SettingsView: View {
             Button("OK") {}
         } message: {
             Text(importExportMessage)
+        }
+    }
+
+    // MARK: - WHOOP Section
+
+    private var whoopSection: some View {
+        Group {
+            HStack {
+                Label {
+                    Text("WHOOP")
+                        .font(.body)
+                } icon: {
+                    Image(systemName: "heart.circle.fill")
+                        .foregroundStyle(.green)
+                }
+
+                Spacer()
+
+                if whoopService.isConnected {
+                    StatusBadge(label: "Connected", color: .green)
+                } else {
+                    StatusBadge(label: "Not Connected", color: .secondary)
+                }
+            }
+
+            if whoopService.isConnected {
+                // Sync button with progress
+                HStack {
+                    Button {
+                        Task { await whoopService.syncData(into: modelContext) }
+                    } label: {
+                        if whoopService.isSyncing {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                if let progress = whoopService.syncProgress {
+                                    Text("Syncing \(progress.phase)... (\(progress.imported) imported)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        } else {
+                            Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .disabled(whoopService.isSyncing)
+
+                    Spacer()
+
+                    Button("Disconnect", role: .destructive) {
+                        whoopService.disconnect()
+                    }
+                    .font(.caption)
+                }
+
+                if let lastSync = whoopService.lastSyncDate {
+                    Text("Last synced \(lastSync, format: .relative(presentation: .named))")
+                        .font(.caption).foregroundStyle(.tertiary)
+                }
+            } else {
+                Button {
+                    whoopService.startOAuth()
+                } label: {
+                    Label("Connect WHOOP", systemImage: "link")
+                }
+            }
+
+            if let error = whoopService.error {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
+        }
+    }
+
+    // MARK: - Apple Health Section
+
+    private var appleHealthSection: some View {
+        Group {
+            HStack {
+                Label {
+                    Text("Apple Health")
+                        .font(.body)
+                } icon: {
+                    Image(systemName: "heart.text.square")
+                        .foregroundStyle(.red)
+                }
+
+                Spacer()
+
+                if healthKitService.isAuthorized {
+                    StatusBadge(label: "Connected", color: .green)
+                } else if healthKitService.isAvailable {
+                    StatusBadge(label: "Available", color: .secondary)
+                } else {
+                    StatusBadge(label: "Not Available", color: .secondary)
+                }
+            }
+
+            if healthKitService.isAuthorized {
+                HStack {
+                    Button {
+                        Task { await healthKitService.syncData(into: modelContext) }
+                    } label: {
+                        if healthKitService.isSyncing {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                if let progress = healthKitService.syncProgress {
+                                    Text("Syncing \(progress.phase)... (\(progress.imported) imported)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        } else {
+                            Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .disabled(healthKitService.isSyncing)
+
+                    Spacer()
+
+                    Button("Disconnect", role: .destructive) {
+                        healthKitService.disconnect()
+                    }
+                    .font(.caption)
+                }
+
+                if let lastSync = healthKitService.lastSyncDate {
+                    Text("Last synced \(lastSync, format: .relative(presentation: .named))")
+                        .font(.caption).foregroundStyle(.tertiary)
+                }
+            } else if healthKitService.isAvailable {
+                Button {
+                    Task { await healthKitService.requestAuthorization() }
+                } label: {
+                    Label("Connect Apple Health", systemImage: "link")
+                }
+            }
+
+            if let error = healthKitService.error {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
+        }
+    }
+
+    // MARK: - Health Auto Export Section
+
+    private var healthAutoExportSection: some View {
+        Group {
+            HStack {
+                Label {
+                    Text("Apple Health")
+                        .font(.body)
+                } icon: {
+                    Image(systemName: "heart.text.square")
+                        .foregroundStyle(.red)
+                }
+
+                Spacer()
+
+                if healthAutoExportService.isEnabled {
+                    StatusBadge(label: "Connected", color: .green)
+                } else {
+                    StatusBadge(label: "Not Found", color: .secondary)
+                }
+            }
+
+            if healthAutoExportService.isEnabled {
+                HStack {
+                    Button {
+                        Task { await healthAutoExportService.syncData(into: modelContext) }
+                    } label: {
+                        if healthAutoExportService.isSyncing {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                if let progress = healthAutoExportService.syncProgress {
+                                    Text("Syncing \(progress.phase)... (\(progress.imported) imported)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        } else {
+                            Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .disabled(healthAutoExportService.isSyncing)
+
+                    Spacer()
+
+                    Button("Disconnect", role: .destructive) {
+                        healthAutoExportService.disconnect()
+                    }
+                    .font(.caption)
+                }
+
+                if let lastSync = healthAutoExportService.lastSyncDate {
+                    Text("Last synced \(lastSync, format: .relative(presentation: .named))")
+                        .font(.caption).foregroundStyle(.tertiary)
+                }
+
+                Text("Via Health Auto Export → iCloud Drive")
+                    .font(.caption2).foregroundStyle(.quaternary)
+            } else {
+                Button {
+                    healthAutoExportService.pickFolder()
+                } label: {
+                    Label("Connect Apple Health", systemImage: "link")
+                }
+
+                Text("Requires Health Auto Export on iPhone syncing to iCloud Drive.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            if let error = healthAutoExportService.error {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
+        }
+    }
+
+    // MARK: - Claude API Section
+
+    private var claudeAPISection: some View {
+        Group {
+            HStack {
+                Label {
+                    Text("Claude API")
+                        .font(.body)
+                } icon: {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(.purple)
+                }
+
+                Spacer()
+
+                if KeychainService.getValue(for: "claude-api-key") != nil {
+                    StatusBadge(label: "Configured", color: .green)
+                    Button("Remove") {
+                        KeychainService.deleteValue(for: "claude-api-key")
+                    }
+                    .foregroundStyle(.red)
+                    .font(.caption)
+                } else {
+                    Button("Add Key") { showingAPIKeyField.toggle() }
+                }
+            }
+            if showingAPIKeyField {
+                HStack {
+                    SecureField("sk-ant-...", text: $claudeAPIKey)
+                        .textFieldStyle(.roundedBorder)
+                    Button("Save") {
+                        if !claudeAPIKey.isEmpty {
+                            KeychainService.setValue(claudeAPIKey, for: "claude-api-key")
+                            claudeAPIKey = ""
+                            showingAPIKeyField = false
+                        }
+                    }
+                    .disabled(claudeAPIKey.isEmpty)
+                }
+            }
         }
     }
 
@@ -259,51 +445,5 @@ struct SettingsView: View {
             importExportMessage = "Failed to select file: \(error.localizedDescription)"
             showingImportResult = true
         }
-    }
-}
-
-// MARK: - Change Password
-
-struct ChangePasswordSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var currentPassword = ""
-    @State private var newPassword = ""
-    @State private var confirmPassword = ""
-    @State private var error = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                SecureField("Current Password", text: $currentPassword)
-                SecureField("New Password", text: $newPassword)
-                SecureField("Confirm New Password", text: $confirmPassword)
-                if !error.isEmpty {
-                    Text(error).foregroundStyle(.red).font(.caption)
-                }
-            }
-            .navigationTitle("Change Password")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
-                        .disabled(currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty)
-                }
-            }
-        }
-        #if os(macOS)
-        .frame(minWidth: 350, minHeight: 250)
-        #endif
-    }
-
-    private func save() {
-        guard KeychainService.verifyVaultPassword(currentPassword) else { error = "Current password is incorrect"; return }
-        guard newPassword == confirmPassword else { error = "New passwords don't match"; return }
-        guard newPassword.count >= 4 else { error = "Minimum 4 characters"; return }
-        if KeychainService.saveVaultPassword(newPassword) { dismiss() }
-        else { error = "Failed to save new password" }
     }
 }

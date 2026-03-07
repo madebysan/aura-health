@@ -18,11 +18,14 @@ struct ConditionsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Section", selection: $selectedTab) {
+            Picker(selection: $selectedTab) {
                 Text("Conditions").tag(0)
                 Text("Diet Plans").tag(1)
+            } label: {
+                EmptyView()
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             .padding()
 
             ScrollView {
@@ -80,15 +83,28 @@ struct ConditionsView: View {
                         Spacer()
 
                         StatusBadge(label: condition.status.displayName, color: conditionColor(condition.status))
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.quaternary)
                     }
                     .cardStyle(padding: 12, cornerRadius: 10)
                     .contentShape(RoundedRectangle(cornerRadius: 10))
                     .onTapGesture { editingCondition = condition }
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            modelContext.delete(condition)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                     .hoverCard()
                     .staggeredAppearance(index: index)
                 }
             }
         }
+        .frame(maxWidth: 600)
+        .frame(maxWidth: .infinity)
         .padding()
     }
 
@@ -126,15 +142,28 @@ struct ConditionsView: View {
                             label: plan.active ? "Active" : "Archived",
                             color: plan.active ? .green : .secondary
                         )
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.quaternary)
                     }
                     .cardStyle(padding: 12, cornerRadius: 10)
                     .contentShape(RoundedRectangle(cornerRadius: 10))
                     .onTapGesture { editingDiet = plan }
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            modelContext.delete(plan)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                     .hoverCard()
                     .staggeredAppearance(index: index)
                 }
             }
         }
+        .frame(maxWidth: 600)
+        .frame(maxWidth: .infinity)
         .padding()
     }
 
@@ -163,18 +192,25 @@ struct ConditionFormSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Condition Name", text: $name)
-                Picker("Status", selection: $status) {
-                    ForEach(ConditionStatus.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                Section {
+                    TextField("Condition Name", text: $name)
+                    Picker("Status", selection: $status) {
+                        ForEach(ConditionStatus.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }
                 }
-                Toggle("Diagnosed Date", isOn: $hasDiagnosedDate)
-                if hasDiagnosedDate {
-                    DatePicker("Date", selection: $diagnosedDate, displayedComponents: .date)
+
+                Section {
+                    Toggle("Diagnosed Date", isOn: $hasDiagnosedDate)
+                    if hasDiagnosedDate {
+                        DatePicker("Date", selection: $diagnosedDate, displayedComponents: .date)
+                    }
                 }
+
                 Section("Notes") {
                     TextField("Optional notes", text: $notes, axis: .vertical).lineLimit(3)
                 }
             }
+            .formStyle(.grouped)
             .navigationTitle(condition != nil ? "Edit Condition" : "Add Condition")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -227,18 +263,28 @@ struct DietPlanFormSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Plan Name", text: $name)
-                TextField("Diet Type (Mediterranean, Keto, etc.)", text: $dietType)
-                DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
-                Toggle("Has End Date", isOn: $hasEndDate)
-                if hasEndDate {
-                    DatePicker("End Date", selection: $endDate, displayedComponents: .date)
+                Section {
+                    TextField("Plan Name", text: $name)
+                    TextField("Diet Type (Mediterranean, Keto, etc.)", text: $dietType)
                 }
-                Toggle("Active", isOn: $active)
+
+                Section {
+                    DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
+                    Toggle("Has End Date", isOn: $hasEndDate)
+                    if hasEndDate {
+                        DatePicker("End Date", selection: $endDate, displayedComponents: .date)
+                    }
+                }
+
+                Section {
+                    Toggle("Active", isOn: $active)
+                }
+
                 Section("Notes") {
                     TextField("Optional notes", text: $notes, axis: .vertical).lineLimit(3)
                 }
             }
+            .formStyle(.grouped)
             .navigationTitle(dietPlan != nil ? "Edit Diet Plan" : "Add Diet Plan")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

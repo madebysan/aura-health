@@ -56,7 +56,8 @@ enum AppColors {
     static func scoreColor(for score: Double) -> Color {
         switch score {
         case 80...100: .green
-        case 60..<80: .yellow
+        case 70..<80: Color(red: 0.45, green: 0.75, blue: 0.15) // lime green
+        case 60..<70: .yellow
         case 40..<60: .orange
         default: .red
         }
@@ -85,8 +86,11 @@ struct CardStyle: ViewModifier {
             #if os(macOS)
             .background(AppColors.cardBackground, in: RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(AppColors.cardBorder, lineWidth: 1))
+            .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             #else
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             #endif
     }
 }
@@ -211,7 +215,8 @@ struct FilterPill: View {
                 .font(.subheadline.weight(isActive ? .semibold : .regular))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isActive ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.08), in: Capsule())
+                .background(isActive ? Color.accentColor.opacity(0.16) : Color.secondary.opacity(0.08), in: Capsule())
+                .overlay(isActive ? Capsule().stroke(Color.accentColor.opacity(0.2), lineWidth: 1) : nil)
                 .foregroundStyle(isActive ? Color.accentColor : .secondary)
         }
         .buttonStyle(.plain)
@@ -231,8 +236,8 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 44, weight: .thin))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 48, weight: .thin))
+                .foregroundStyle(.secondary.opacity(0.5))
 
             Text(title)
                 .font(.title3.weight(.medium))

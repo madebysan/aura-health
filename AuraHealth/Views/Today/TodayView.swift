@@ -1,7 +1,39 @@
 import SwiftUI
 import SwiftData
+import Charts
 
-struct TodayView: View {
+// MARK: - Vitals Range
+
+enum VitalsRange: String, CaseIterable, Identifiable {
+    case today = "Today"
+    case week = "7d"
+    case month = "30d"
+    case quarter = "90d"
+    case year = "1y"
+    case all = "All"
+
+    var id: String { rawValue }
+
+    var days: Int? {
+        switch self {
+        case .today: 1
+        case .week: 7
+        case .month: 30
+        case .quarter: 90
+        case .year: 365
+        case .all: nil
+        }
+    }
+
+    var startDate: Date? {
+        guard let days else { return nil }
+        return Calendar.current.date(byAdding: .day, value: -days, to: Date())
+    }
+}
+
+// MARK: - Vitals View
+
+struct VitalsView: View {
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: \Measurement.timestamp, order: .reverse)
@@ -13,131 +45,135 @@ struct TodayView: View {
     @Query(filter: #Predicate<Habit> { $0.active })
     private var activeHabits: [Habit]
 
+    @State private var selectedRange: VitalsRange = .today
     @State private var selectedMetricType: MetricType?
+    @State private var detailMetricType: MetricType?
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                headerSection
-                healthScoreSection
-                metricsSection
-                suggestedStepsSection
+            VStack(spacing: 20) {
+                // Range picker
+                HStack(spacing: 6) {
+                    ForEach(VitalsRange.allCases) { range in
+                        FilterPill(label: range.rawValue, isActive: selectedRange == range) {
+                            withAnimation(AppAnimation.viewSwitch) {
+                                selectedRange = range
+                            }
+                        }
+                    }
+                    Spacer()
+                }
+
+                if selectedRange == .today {
+                    todayContent
+                } else {
+                    trendsContent
+                }
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
-        .navigationTitle("Today")
+        .navigationTitle("Vitals")
         #if os(macOS)
         .frame(minWidth: 600)
         #endif
         .sheet(item: $selectedMetricType) { metricType in
             AddMeasurementSheet(metricType: metricType)
         }
+        .sheet(item: $detailMetricType) { metricType in
+            MetricDetailSheet(metricType: metricType)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .addMeasurement)) { _ in
             selectedMetricType = .weight
         }
     }
 
-    // MARK: - Header
+    // MARK: - Today Content (card grid)
 
-    private var headerSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
+    private var todayContent: some View {
+        VStack(spacing: 24) {
+            // Date header
+            HStack {
                 Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day())
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-    }
-
-    // MARK: - Health Score
-
-    private var healthScoreSection: some View {
-        HStack(spacing: 28) {
-            HealthScoreRingView(
-                score: dailyHealthScore,
-                label: "Daily Health"
-            )
-            .staggeredAppearance(index: 0)
-
-            VStack(alignment: .leading, spacing: 12) {
-                scoreBreakdownRow(
-                    icon: "arrow.counterclockwise.heart",
-                    label: "Recovery",
-                    value: latestValue(for: .recovery),
-                    color: .green,
-                    weight: "40%"
-                )
-                scoreBreakdownRow(
-                    icon: "moon.fill",
-                    label: "Sleep Score",
-                    value: latestValue(for: .sleepScore),
-                    color: .purple,
-                    weight: "35%"
-                )
-                scoreBreakdownRow(
-                    icon: "waveform.path.ecg.rectangle",
-                    label: "HRV",
-                    value: latestValue(for: .hrv),
-                    color: .cyan,
-                    weight: "25%"
-                )
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .cardStyle()
-        .staggeredAppearance(index: 1)
-    }
-
-    private func scoreBreakdownRow(icon: String, label: String, value: Double?, color: Color, weight: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(color)
-                .frame(width: 18, height: 18)
-                .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
-
-            Text(label)
-                .font(.subheadline)
-
-            Spacer()
-
-            if let value {
-                Text("\(Int(value))")
-                    .font(.subheadline.monospacedDigit().bold())
-                    .contentTransition(.numericText())
-            } else {
-                Text("--")
-                    .font(.subheadline)
-                    .foregroundStyle(.quaternary)
+                Spacer()
             }
 
-            Text(weight)
-                .font(.caption2)
-                .foregroundStyle(.quaternary)
-                .frame(width: 28, alignment: .trailing)
-        }
-    }
-
-    // MARK: - Metrics Grid
-
-    private var metricsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Vitals")
-
+            // Metrics grid
             LazyVGrid(columns: gridColumns, spacing: 10) {
+                HealthScoreCard(
+                    score: dailyHealthScore,
+                    recentScores: recentHealthScores
+                )
+                .staggeredAppearance(index: 0)
+
                 ForEach(Array(MetricType.allCases.enumerated()), id: \.element) { index, metricType in
                     MetricCardView(
                         metricType: metricType,
                         latest: latestMeasurement(for: metricType),
                         previous: previousMeasurement(for: metricType),
                         recentValues: recentValues(for: metricType, days: 7),
-                        onAdd: { selectedMetricType = metricType }
+                        onAdd: {
+                            if latestMeasurement(for: metricType) != nil {
+                                detailMetricType = metricType
+                            } else {
+                                selectedMetricType = metricType
+                            }
+                        }
                     )
-                    .staggeredAppearance(index: index + 2)
+                    .contextMenu {
+                        Button {
+                            selectedMetricType = metricType
+                        } label: {
+                            Label("Add Measurement", systemImage: "plus")
+                        }
+                    }
+                    .staggeredAppearance(index: index + 1)
                 }
             }
+
+            // Insights
+            suggestedStepsSection
+        }
+    }
+
+    // MARK: - Trends Content (charts for selected range)
+
+    private var trendsContent: some View {
+        VStack(spacing: 14) {
+            let filtered = filteredMeasurements()
+            if filtered.isEmpty {
+                EmptyStateView(
+                    icon: "chart.xyaxis.line",
+                    title: "No Data Yet",
+                    message: "Start logging measurements from the Today view to see trends here."
+                )
+                .padding(.top, 40)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 340, maximum: 520))], spacing: 14) {
+                    ForEach(Array(MetricType.allCases.enumerated()), id: \.element) { index, metricType in
+                        let data = filteredMeasurements(for: metricType)
+                        if !data.isEmpty {
+                            TrendChartCard(metricType: metricType, measurements: data)
+                                .staggeredAppearance(index: index)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func filteredMeasurements(for type: MetricType? = nil) -> [Measurement] {
+        allMeasurements.filter { m in
+            let typeMatch = type == nil || m.metricType == type
+            let dateMatch: Bool
+            if let start = selectedRange.startDate {
+                dateMatch = m.timestamp >= start
+            } else {
+                dateMatch = true
+            }
+            return typeMatch && dateMatch
         }
     }
 
@@ -188,6 +224,39 @@ struct TodayView: View {
             .filter { $0.metricType == type && $0.timestamp >= cutoff }
             .sorted { $0.timestamp < $1.timestamp }
             .map(\.value)
+    }
+
+    private var recentHealthScores: [Double] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        return (0..<7).reversed().compactMap { daysAgo -> Double? in
+            guard let date = cal.date(byAdding: .day, value: -daysAgo, to: today) else { return nil }
+            let nextDay = cal.date(byAdding: .day, value: 1, to: date)!
+            let dayMeasurements = allMeasurements.filter { $0.timestamp >= date && $0.timestamp < nextDay }
+            return computeHealthScore(from: dayMeasurements)
+        }.filter { $0 > 0 }
+    }
+
+    private func computeHealthScore(from measurements: [Measurement]) -> Double {
+        var total: Double = 0
+        var totalWeight: Double = 0
+
+        if let recovery = measurements.first(where: { $0.metricType == .recovery })?.value {
+            total += min(recovery, 100) * 0.4
+            totalWeight += 0.4
+        }
+        if let sleepScore = measurements.first(where: { $0.metricType == .sleepScore })?.value {
+            total += min(sleepScore, 100) * 0.35
+            totalWeight += 0.35
+        }
+        if let hrv = measurements.first(where: { $0.metricType == .hrv })?.value {
+            let normalized = min(max((hrv - 20) / 80 * 100, 0), 100)
+            total += normalized * 0.25
+            totalWeight += 0.25
+        }
+
+        guard totalWeight > 0 else { return 0 }
+        return total / totalWeight
     }
 
     private var dailyHealthScore: Double {
@@ -244,6 +313,97 @@ struct TodayView: View {
         }
 
         return Array(steps.prefix(5))
+    }
+}
+
+// MARK: - Health Score Card
+
+struct HealthScoreCard: View {
+    let score: Double
+    let recentScores: [Double]
+
+    private var scoreColor: Color {
+        AppColors.scoreColor(for: score)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: "heart.text.square.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.pink)
+                    .frame(width: 20, height: 20)
+                    .background(Color.pink.opacity(0.1), in: RoundedRectangle(cornerRadius: 5))
+
+                Text("Daily Health")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Spacer()
+
+                if score > 0 {
+                    Circle()
+                        .fill(scoreColor)
+                        .frame(width: 8, height: 8)
+                        .shadow(color: scoreColor.opacity(0.4), radius: 3)
+                }
+            }
+
+            // Score value
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                if score > 0 {
+                    Text("\(Int(score))")
+                        .font(.title2.weight(.bold).monospacedDigit())
+                        .contentTransition(.numericText())
+
+                    Text("/ 100")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Text("--")
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.quaternary)
+                }
+            }
+
+            // Score label
+            if score > 0 {
+                Text(scoreLabel)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(scoreColor)
+            } else {
+                Text(" ")
+                    .font(.caption2)
+            }
+
+            // Sparkline
+            if recentScores.count >= 2 {
+                SparklineView(values: recentScores, color: scoreColor)
+                    .frame(height: 30)
+                    .clipped()
+            } else {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(height: 30)
+            }
+
+            // Timestamp
+            Text("Updated now")
+                .font(.caption2)
+                .foregroundStyle(.quaternary)
+        }
+        .cardStyle(padding: 14, cornerRadius: 12)
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .hoverCard()
+    }
+
+    private var scoreLabel: String {
+        if score >= 80 { return "Excellent" }
+        if score >= 60 { return "Good" }
+        if score >= 40 { return "Fair" }
+        return "Low"
     }
 }
 
@@ -308,10 +468,6 @@ struct AddMeasurementSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker("Date & Time", selection: $timestamp)
-                }
-
-                Section("Value") {
                     HStack {
                         TextField(metricType.hasDualValue ? "Systolic" : "Value", text: $value)
                             #if os(iOS)
@@ -332,11 +488,13 @@ struct AddMeasurementSheet: View {
                     }
                 }
 
-                Section("Notes") {
-                    TextField("Optional notes", text: $notes, axis: .vertical)
+                Section {
+                    DatePicker("Date", selection: $timestamp)
+                    TextField("Notes", text: $notes, axis: .vertical)
                         .lineLimit(3)
                 }
             }
+            .formStyle(.grouped)
             .navigationTitle("Add \(metricType.displayName)")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -352,7 +510,7 @@ struct AddMeasurementSheet: View {
             }
         }
         #if os(macOS)
-        .frame(minWidth: 400, minHeight: 300)
+        .frame(minWidth: 380, minHeight: 260)
         #endif
     }
 
@@ -376,7 +534,7 @@ struct AddMeasurementSheet: View {
 
 #Preview {
     NavigationStack {
-        TodayView()
+        VitalsView()
     }
     .modelContainer(for: [Measurement.self, Medication.self, MedicationLog.self, Habit.self, HabitLog.self, Biomarker.self, Condition.self, DietPlan.self, MetricRange.self, VaultDocument.self, HealthMemory.self, Conversation.self], inMemory: true)
 }

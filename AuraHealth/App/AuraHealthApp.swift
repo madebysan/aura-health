@@ -3,9 +3,21 @@ import SwiftData
 
 @main
 struct AuraHealthApp: App {
+    @State private var whoopService = WhoopService()
+    @State private var healthKitService = HealthKitService()
+    @State private var healthAutoExportService = HealthAutoExportService()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(whoopService)
+                .environment(healthKitService)
+                .environment(healthAutoExportService)
+                .onOpenURL { url in
+                    if url.host == "whoop" {
+                        Task { await whoopService.handleCallback(url: url) }
+                    }
+                }
         }
         .modelContainer(for: [
             Measurement.self,
@@ -38,13 +50,13 @@ struct AuraHealthApp: App {
 
             CommandGroup(after: .sidebar) {
                 Divider()
-                Button("Today") {
-                    NotificationCenter.default.post(name: .navigateTo, object: AppSection.today)
+                Button("Vitals") {
+                    NotificationCenter.default.post(name: .navigateTo, object: AppSection.vitals)
                 }
                 .keyboardShortcut("1", modifiers: .command)
 
-                Button("Trends") {
-                    NotificationCenter.default.post(name: .navigateTo, object: AppSection.trends)
+                Button("Correlations") {
+                    NotificationCenter.default.post(name: .navigateTo, object: AppSection.correlations)
                 }
                 .keyboardShortcut("2", modifiers: .command)
 

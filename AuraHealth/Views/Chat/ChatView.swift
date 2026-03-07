@@ -11,8 +11,10 @@ struct ChatView: View {
     @State private var inputText = ""
     @State private var claudeService = ClaudeService()
     @State private var errorMessage: String?
+    @State private var showingHistory = false
 
-    private var activeConversation: Conversation {
+    /// Returns existing conversation or creates one on demand (only called when sending)
+    private func ensureConversation() -> Conversation {
         if let current = currentConversation {
             return current
         }
@@ -20,6 +22,11 @@ struct ChatView: View {
         modelContext.insert(conv)
         currentConversation = conv
         return conv
+    }
+
+    /// For read-only access (message display) — returns current or empty
+    private var displayMessages: [ChatMessage] {
+        currentConversation?.messages ?? []
     }
 
     var body: some View {
@@ -32,10 +39,10 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 16) {
-                        if activeConversation.messages.isEmpty {
+                        if displayMessages.isEmpty {
                             chatEmptyState
                         }
-                        ForEach(Array(activeConversation.messages.enumerated()), id: \.element.id) { index, message in
+                        ForEach(Array(displayMessages.enumerated()), id: \.element.id) { index, message in
                             ChatBubble(message: message)
                                 .id(message.id)
                                 .staggeredAppearance(index: index)
@@ -57,8 +64,8 @@ struct ChatView: View {
                     }
                     .padding()
                 }
-                .onChange(of: activeConversation.messages.count) {
-                    if let last = activeConversation.messages.last {
+                .onChange(of: displayMessages.count) {
+                    if let last = displayMessages.last {
                         withAnimation(AppAnimation.appear) {
                             proxy.scrollTo(last.id, anchor: .bottom)
                         }
@@ -95,19 +102,48 @@ struct ChatView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    currentConversation = nil
-                    inputText = ""
-                    errorMessage = nil
+                    startNewChat()
                 } label: {
                     Image(systemName: "plus.bubble")
                 }
             }
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    showingHistory = true
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+            }
+        }
+        .sheet(isPresented: $showingHistory) {
+            ConversationHistorySheet(
+                conversations: conversations,
+                currentConversation: currentConversation,
+                onSelect: { conversation in
+                    currentConversation = conversation
+                    showingHistory = false
+                },
+                onDelete: { conversation in
+                    if conversation.id == currentConversation?.id {
+                        currentConversation = nil
+                    }
+                    modelContext.delete(conversation)
+                },
+                onNewChat: {
+                    startNewChat()
+                    showingHistory = false
+                }
+            )
         }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
-            currentConversation = nil
-            inputText = ""
-            errorMessage = nil
+            startNewChat()
         }
+    }
+
+    private func startNewChat() {
+        currentConversation = nil
+        inputText = ""
+        errorMessage = nil
     }
 
     private var canSend: Bool {
@@ -119,7 +155,7 @@ struct ChatView: View {
     private var apiKeyBanner: some View {
         HStack(spacing: 8) {
             Image(systemName: "key.fill")
-                .foregroundStyle(.orange)
+                .foregroundStyle(.secondary)
             Text("Add your Claude API key in Settings to enable AI chat")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -127,16 +163,18 @@ struct ChatView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(.orange.opacity(0.08))
+        .background(Color.primary.opacity(0.03))
     }
 
     // MARK: - Empty State
 
     private var chatEmptyState: some View {
         VStack(spacing: 16) {
+            Spacer()
+
             Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 44, weight: .thin))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 48, weight: .thin))
+                .foregroundStyle(.secondary.opacity(0.5))
 
             VStack(spacing: 4) {
                 Text("Health Assistant")
@@ -149,13 +187,16 @@ struct ChatView: View {
             }
 
             VStack(spacing: 8) {
-                suggestionChip("How's my sleep trend this week?")
                 suggestionChip("What biomarkers are out of range?")
-                suggestionChip("Summarize my health data")
+                suggestionChip("How are my vitals this week?")
+                suggestionChip("Log my weight at 175 lbs")
             }
             .padding(.top, 4)
+
+            Spacer()
+            Spacer()
         }
-        .padding(.vertical, 60)
+        .frame(maxHeight: .infinity)
     }
 
     private func suggestionChip(_ text: String) -> some View {
@@ -196,33 +237,32 @@ struct ChatView: View {
 
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty, !claudeService.isResponding else { return }
 
-        activeConversation.addMessage(role: .user, content: text)
+        let conversation = ensureConversation()
+        conversation.addMessage(role: .user, content: text)
+
+        // Auto-title from first message
+        if conversation.title == "New Chat" {
+            conversation.title = String(text.prefix(50))
+        }
+
         inputText = ""
         errorMessage = nil
 
         Task {
             if claudeService.hasAPIKey {
                 do {
-                    let context = ClaudeService.buildContext(from: modelContext)
                     let response = try await claudeService.sendMessage(
-                        text,
-                        conversationHistory: activeConversation.messages,
-                        healthContext: context
+                        conversationHistory: conversation.messages,
+                        context: modelContext
                     )
-                    activeConversation.addMessage(role: .assistant, content: response)
+                    conversation.addMessage(role: .assistant, content: response)
                 } catch {
                     errorMessage = error.localizedDescription
-                    activeConversation.addMessage(role: .assistant, content: "Sorry, I couldn't process that. \(error.localizedDescription)")
                 }
             } else {
-                // Fallback without API key
-                try? await Task.sleep(for: .seconds(0.5))
-                activeConversation.addMessage(
-                    role: .assistant,
-                    content: "To enable AI responses, add your Claude API key in Settings > Integrations > Claude API."
-                )
+                errorMessage = "Add your Claude API key in Settings to enable AI chat."
             }
         }
     }
@@ -247,7 +287,15 @@ struct ChatBubble: View {
             }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
-                Text(message.content)
+                Group {
+                    if isUser {
+                        Text(message.content)
+                    } else if let attributed = try? AttributedString(markdown: message.content, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+                        Text(attributed)
+                    } else {
+                        Text(message.content)
+                    }
+                }
                     .font(.body)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
@@ -264,5 +312,175 @@ struct ChatBubble: View {
 
             if !isUser { Spacer(minLength: 60) }
         }
+    }
+}
+
+// MARK: - Conversation History Sheet
+
+struct ConversationHistorySheet: View {
+    let conversations: [Conversation]
+    let currentConversation: Conversation?
+    let onSelect: (Conversation) -> Void
+    let onDelete: (Conversation) -> Void
+    let onNewChat: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var nonEmptyConversations: [Conversation] {
+        conversations.filter { !$0.messages.isEmpty }
+    }
+
+    private var groupedConversations: [(String, [Conversation])] {
+        let calendar = Calendar.current
+        let now = Date()
+
+        var today: [Conversation] = []
+        var yesterday: [Conversation] = []
+        var thisWeek: [Conversation] = []
+        var thisMonth: [Conversation] = []
+        var older: [Conversation] = []
+
+        for conv in nonEmptyConversations {
+            if calendar.isDateInToday(conv.updatedAt) {
+                today.append(conv)
+            } else if calendar.isDateInYesterday(conv.updatedAt) {
+                yesterday.append(conv)
+            } else if let weekAgo = calendar.date(byAdding: .day, value: -7, to: now), conv.updatedAt >= weekAgo {
+                thisWeek.append(conv)
+            } else if let monthAgo = calendar.date(byAdding: .month, value: -1, to: now), conv.updatedAt >= monthAgo {
+                thisMonth.append(conv)
+            } else {
+                older.append(conv)
+            }
+        }
+
+        var groups: [(String, [Conversation])] = []
+        if !today.isEmpty { groups.append(("Today", today)) }
+        if !yesterday.isEmpty { groups.append(("Yesterday", yesterday)) }
+        if !thisWeek.isEmpty { groups.append(("This Week", thisWeek)) }
+        if !thisMonth.isEmpty { groups.append(("This Month", thisMonth)) }
+        if !older.isEmpty { groups.append(("Older", older)) }
+        return groups
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if nonEmptyConversations.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                            .font(.system(size: 36, weight: .thin))
+                            .foregroundStyle(.tertiary)
+                        Text("No conversations yet")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(groupedConversations, id: \.0) { group, convos in
+                            Section(group) {
+                                ForEach(convos) { conversation in
+                                    ConversationRow(
+                                        conversation: conversation,
+                                        isActive: conversation.id == currentConversation?.id
+                                    )
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        onSelect(conversation)
+                                    }
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            onDelete(conversation)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Conversations")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { dismiss() }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        onNewChat()
+                    } label: {
+                        Image(systemName: "plus.bubble")
+                    }
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 400, idealWidth: 480, minHeight: 400, idealHeight: 540)
+        #endif
+    }
+}
+
+// MARK: - Conversation Row
+
+struct ConversationRow: View {
+    let conversation: Conversation
+    let isActive: Bool
+
+    private var messageCount: Int {
+        conversation.messages.count
+    }
+
+    private var preview: String {
+        if let lastMessage = conversation.messages.last {
+            return String(lastMessage.content.prefix(80))
+        }
+        return ""
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icon
+            Image(systemName: isActive ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(isActive ? Color.accentColor : .secondary)
+                .frame(width: 28, height: 28)
+                .background(
+                    (isActive ? Color.accentColor : Color.secondary).opacity(0.1),
+                    in: RoundedRectangle(cornerRadius: 6)
+                )
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Text(conversation.title)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Text(conversation.updatedAt, format: .dateTime.month(.abbreviated).day())
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
+                HStack(spacing: 4) {
+                    Text(preview)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Text("\(messageCount) msgs")
+                        .font(.caption2)
+                        .foregroundStyle(.quaternary)
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 }

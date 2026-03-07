@@ -1,12 +1,11 @@
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable {
-    case today
-    case trends
+    case vitals
+    case correlations
     case biomarkers
     case medications
-    case adherence
-    case habits
+    case tracking
     case conditions
     case vault
     case chat
@@ -16,12 +15,11 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .today: "Today"
-        case .trends: "Trends"
+        case .vitals: "Vitals"
+        case .correlations: "Correlations"
         case .biomarkers: "Biomarkers"
         case .medications: "Medications"
-        case .adherence: "Adherence"
-        case .habits: "Habits"
+        case .tracking: "Tracking"
         case .conditions: "Conditions"
         case .vault: "Vault"
         case .chat: "Chat"
@@ -31,12 +29,11 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var iconName: String {
         switch self {
-        case .today: "heart.text.square.fill"
-        case .trends: "chart.xyaxis.line"
+        case .vitals: "heart.text.square.fill"
+        case .correlations: "chart.xyaxis.line"
         case .biomarkers: "cross.vial.fill"
         case .medications: "pills.fill"
-        case .adherence: "checkmark.circle.fill"
-        case .habits: "repeat"
+        case .tracking: "checkmark.rectangle.stack.fill"
         case .conditions: "stethoscope"
         case .vault: "lock.doc.fill"
         case .chat: "bubble.left.and.bubble.right.fill"
@@ -44,46 +41,121 @@ enum AppSection: String, CaseIterable, Identifiable {
         }
     }
 
-    static let tabBarSections: [AppSection] = [.today, .trends, .biomarkers, .medications, .habits]
+    var iconColor: Color {
+        switch self {
+        case .vitals: .pink
+        case .correlations: .indigo
+        case .biomarkers: .green
+        case .medications: .blue
+        case .tracking: .orange
+        case .conditions: .purple
+        case .vault: .gray
+        case .chat: .cyan
+        case .settings: .gray
+        }
+    }
+
+    static let tabBarSections: [AppSection] = [.vitals, .correlations, .biomarkers, .medications, .tracking]
 }
 
 struct ContentView: View {
-    @State private var selectedSection: AppSection = .today
+    @Environment(\.modelContext) private var modelContext
+    @Environment(WhoopService.self) private var whoopService
+    @Environment(HealthKitService.self) private var healthKitService
+    @Environment(HealthAutoExportService.self) private var healthAutoExportService
+    @State private var selectedSection: AppSection = .vitals
+    @State private var showingChat = false
 
     var body: some View {
-        #if os(macOS)
-        NavigationSplitView {
-            SidebarView(selection: $selectedSection)
-        } detail: {
-            DetailView(section: selectedSection)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .navigateTo)) { notification in
-            if let section = notification.object as? AppSection {
-                withAnimation(AppAnimation.viewSwitch) {
-                    selectedSection = section
+        Group {
+            #if os(macOS)
+            NavigationSplitView {
+                SidebarView(selection: $selectedSection)
+            } detail: {
+                DetailView(section: selectedSection)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .navigateTo)) { notification in
+                if let section = notification.object as? AppSection {
+                    withAnimation(AppAnimation.viewSwitch) {
+                        selectedSection = section
+                    }
                 }
             }
-        }
-        #else
-        TabView(selection: $selectedSection) {
-            ForEach(AppSection.tabBarSections) { section in
+            #else
+            TabView(selection: $selectedSection) {
+                ForEach(AppSection.tabBarSections) { section in
+                    NavigationStack {
+                        DetailView(section: section)
+                    }
+                    .tabItem {
+                        Label(section.label, systemImage: section.iconName)
+                    }
+                    .tag(section)
+                }
                 NavigationStack {
-                    DetailView(section: section)
+                    MoreMenuView(selection: $selectedSection)
                 }
                 .tabItem {
-                    Label(section.label, systemImage: section.iconName)
+                    Label("More", systemImage: "ellipsis")
                 }
-                .tag(section)
+                .tag(AppSection.settings)
             }
+            #endif
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if selectedSection != .chat {
+                FloatingChatButton(isShowingChat: $showingChat)
+            }
+        }
+        .sheet(isPresented: $showingChat) {
             NavigationStack {
-                MoreMenuView(selection: $selectedSection)
+                ChatView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { showingChat = false }
+                        }
+                    }
             }
-            .tabItem {
-                Label("More", systemImage: "ellipsis")
-            }
-            .tag(AppSection.settings)
+            #if os(macOS)
+            .frame(minWidth: 480, idealWidth: 540, minHeight: 500, idealHeight: 650)
+            #endif
+        }
+        .task { await autoSync() }
+        #if os(macOS)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await autoSync() }
+        }
+        #else
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            Task { await autoSync() }
         }
         #endif
+    }
+
+    /// Auto-sync connected services (debounced — skip if synced within last 15 minutes)
+    private func autoSync() async {
+        let fifteenMinutes: TimeInterval = 15 * 60
+
+        if whoopService.isConnected && !whoopService.isSyncing {
+            let shouldSync = whoopService.lastSyncDate.map { Date().timeIntervalSince($0) > fifteenMinutes } ?? true
+            if shouldSync {
+                await whoopService.syncData(into: modelContext)
+            }
+        }
+
+        if healthKitService.isAuthorized && !healthKitService.isSyncing {
+            let shouldSync = healthKitService.lastSyncDate.map { Date().timeIntervalSince($0) > fifteenMinutes } ?? true
+            if shouldSync {
+                await healthKitService.syncData(into: modelContext)
+            }
+        }
+
+        if healthAutoExportService.isEnabled && !healthAutoExportService.isSyncing {
+            let shouldSync = healthAutoExportService.lastSyncDate.map { Date().timeIntervalSince($0) > fifteenMinutes } ?? true
+            if shouldSync {
+                await healthAutoExportService.syncData(into: modelContext)
+            }
+        }
     }
 }
 
@@ -94,36 +166,64 @@ struct SidebarView: View {
     @Binding var selection: AppSection
 
     var body: some View {
-        List(selection: $selection) {
-            Section("Health") {
-                sidebarItem(.today)
-                sidebarItem(.trends)
-                sidebarItem(.biomarkers)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 2) {
+                sidebarSection("Health", items: [.vitals, .correlations, .biomarkers])
+                sidebarSection("Tracking", items: [.medications, .tracking, .conditions])
+                sidebarSection("Tools", items: [.vault, .chat])
+                Divider().padding(.horizontal, 12).padding(.vertical, 4)
+                sidebarRow(.settings)
+                    .padding(.horizontal, 8)
             }
-
-            Section("Tracking") {
-                sidebarItem(.medications)
-                sidebarItem(.adherence)
-                sidebarItem(.habits)
-                sidebarItem(.conditions)
-            }
-
-            Section("Tools") {
-                sidebarItem(.vault)
-                sidebarItem(.chat)
-            }
-
-            Section {
-                sidebarItem(.settings)
-            }
+            .padding(.vertical, 8)
         }
         .navigationTitle("Aura")
         .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 260)
     }
 
-    private func sidebarItem(_ section: AppSection) -> some View {
-        Label(section.label, systemImage: section.iconName)
-            .tag(section)
+    private func sidebarSection(_ title: String, items: [AppSection]) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 2)
+
+            ForEach(items) { section in
+                sidebarRow(section)
+                    .padding(.horizontal, 8)
+            }
+        }
+    }
+
+    private func sidebarRow(_ section: AppSection) -> some View {
+        let isSelected = selection == section
+        return Button {
+            withAnimation(AppAnimation.viewSwitch) {
+                selection = section
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: section.iconName)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isSelected ? section.iconColor : section.iconColor.opacity(0.7))
+                    .frame(width: 20)
+
+                Text(section.label)
+                    .font(.body)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                isSelected ? Color(.controlBackgroundColor) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .shadow(color: isSelected ? .black.opacity(0.04) : .clear, radius: 2, y: 1)
+        }
+        .buttonStyle(.plain)
     }
 }
 #endif
@@ -134,7 +234,7 @@ struct MoreMenuView: View {
     @Binding var selection: AppSection
 
     private let moreSections: [AppSection] = [
-        .adherence, .conditions, .vault, .chat, .settings
+        .conditions, .vault, .chat, .settings
     ]
 
     var body: some View {
@@ -158,12 +258,11 @@ struct DetailView: View {
 
     var body: some View {
         switch section {
-        case .today: TodayView()
-        case .trends: TrendsView()
+        case .vitals: VitalsView()
+        case .correlations: CorrelationsView()
         case .biomarkers: BiomarkersView()
         case .medications: MedicationsView()
-        case .adherence: AdherenceView()
-        case .habits: HabitsView()
+        case .tracking: HabitsView()
         case .conditions: ConditionsView()
         case .vault: VaultView()
         case .chat: ChatView()

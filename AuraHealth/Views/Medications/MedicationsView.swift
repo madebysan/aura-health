@@ -34,10 +34,9 @@ struct MedicationsView: View {
                                 withAnimation(AppAnimation.viewSwitch) { typeFilter = type }
                             }
                         }
-                        Divider().frame(height: 20)
-                        Toggle("Archived", isOn: $showArchived)
-                            .toggleStyle(.button)
-                            .controlSize(.small)
+                        FilterPill(label: "Archived", isActive: showArchived) {
+                            withAnimation(AppAnimation.viewSwitch) { showArchived.toggle() }
+                        }
                     }
                 }
 
@@ -51,15 +50,28 @@ struct MedicationsView: View {
                     )
                     .padding(.top, 20)
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300, maximum: 500))], spacing: 10) {
-                        ForEach(Array(filteredMedications.enumerated()), id: \.element.id) { index, medication in
-                            MedicationCardView(medication: medication)
-                                .onTapGesture { editingMedication = medication }
-                                .staggeredAppearance(index: index)
-                        }
+                    ForEach(Array(filteredMedications.enumerated()), id: \.element.id) { index, medication in
+                        MedicationCardView(medication: medication)
+                            .onTapGesture { editingMedication = medication }
+                            .contextMenu {
+                                Button {
+                                    medication.active.toggle()
+                                } label: {
+                                    Label(medication.active ? "Archive" : "Unarchive",
+                                          systemImage: medication.active ? "archivebox" : "archivebox.fill")
+                                }
+                                Button(role: .destructive) {
+                                    modelContext.delete(medication)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .staggeredAppearance(index: index)
                     }
                 }
             }
+            .frame(maxWidth: 600)
+            .frame(maxWidth: .infinity)
             .padding()
         }
         .navigationTitle("Medications")
@@ -158,9 +170,10 @@ struct MedicationFormSheet: View {
             Form {
                 Section {
                     TextField("Name", text: $name)
-                    TextField("Dosage", text: $dosage)
+                    TextField("Dosage (e.g. 500mg)", text: $dosage)
                     TextField("Condition", text: $condition)
                 }
+
                 Section {
                     Picker("Type", selection: $type) {
                         ForEach(MedicationType.allCases, id: \.self) { Text($0.displayName).tag($0) }
@@ -172,6 +185,7 @@ struct MedicationFormSheet: View {
                         ForEach(MedicationTiming.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
                 }
+
                 Section {
                     DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
                     Toggle("Has End Date", isOn: $hasEndDate)
@@ -179,10 +193,14 @@ struct MedicationFormSheet: View {
                         DatePicker("End Date", selection: $endDate, displayedComponents: .date)
                     }
                 }
+
                 if isEditing {
-                    Section { Toggle("Active", isOn: $active) }
+                    Section {
+                        Toggle("Active", isOn: $active)
+                    }
                 }
             }
+            .formStyle(.grouped)
             .navigationTitle(isEditing ? "Edit Medication" : "Add Medication")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

@@ -8,114 +8,10 @@ struct VaultView: View {
     @Query(sort: \VaultDocument.uploadedAt, order: .reverse)
     private var documents: [VaultDocument]
 
-    @State private var isUnlocked = false
-    @State private var passwordInput = ""
-    @State private var showingSetup = false
     @State private var showingUpload = false
     @State private var selectedDocument: VaultDocument?
-    @State private var errorMessage = ""
-    @State private var shakeOffset: CGFloat = 0
 
     var body: some View {
-        Group {
-            if !KeychainService.hasVaultPassword {
-                setupPrompt
-            } else if !isUnlocked {
-                passwordGate
-            } else {
-                vaultContent
-            }
-        }
-        .navigationTitle("Vault")
-        .sheet(isPresented: $showingSetup) {
-            VaultSetupSheet(isUnlocked: $isUnlocked)
-        }
-    }
-
-    // MARK: - Setup
-
-    private var setupPrompt: some View {
-        EmptyStateView(
-            icon: "lock.shield.fill",
-            title: "Secure Vault",
-            message: "Set a master password to protect your sensitive health documents.",
-            actionLabel: "Set Up Vault",
-            action: { showingSetup = true }
-        )
-    }
-
-    // MARK: - Password Gate
-
-    private var passwordGate: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            Image(systemName: "lock.fill")
-                .font(.system(size: 44, weight: .thin))
-                .foregroundStyle(.tertiary)
-
-            VStack(spacing: 4) {
-                Text("Vault Locked")
-                    .font(.title3.weight(.medium))
-                Text("Enter your master password")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-            }
-
-            VStack(spacing: 8) {
-                SecureField("Master Password", text: $passwordInput)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 260)
-                    .onSubmit { unlock() }
-                    .offset(x: shakeOffset)
-
-                if !errorMessage.isEmpty {
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundStyle(AppColors.statusRed)
-                }
-            }
-
-            Button("Unlock") { unlock() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
-                .disabled(passwordInput.isEmpty)
-
-            Spacer()
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func unlock() {
-        if KeychainService.verifyVaultPassword(passwordInput) {
-            withAnimation(AppAnimation.expand) {
-                isUnlocked = true
-            }
-            errorMessage = ""
-        } else {
-            errorMessage = "Incorrect password"
-            passwordInput = ""
-            // Shake animation
-            withAnimation(.spring(duration: 0.3, bounce: 0.5)) {
-                shakeOffset = -10
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(duration: 0.3, bounce: 0.5)) {
-                    shakeOffset = 10
-                }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                withAnimation(.spring(duration: 0.3, bounce: 0.5)) {
-                    shakeOffset = 0
-                }
-            }
-        }
-    }
-
-    // MARK: - Content
-
-    private var vaultContent: some View {
         ScrollView {
             if documents.isEmpty {
                 EmptyStateView(
@@ -131,26 +27,26 @@ struct VaultView: View {
                     ForEach(Array(documents.enumerated()), id: \.element.id) { index, doc in
                         DocumentCard(document: doc)
                             .onTapGesture { selectedDocument = doc }
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    modelContext.delete(doc)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                             .staggeredAppearance(index: index)
                     }
                 }
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
                 .padding()
             }
         }
+        .navigationTitle("Vault")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingUpload = true } label: {
                     Image(systemName: "plus")
-                }
-            }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    withAnimation(AppAnimation.collapse) {
-                        isUnlocked = false
-                        passwordInput = ""
-                    }
-                } label: {
-                    Image(systemName: "lock.fill")
                 }
             }
         }
@@ -261,55 +157,6 @@ struct FlowLayout: Layout {
     }
 }
 
-// MARK: - Vault Setup
-
-struct VaultSetupSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var isUnlocked: Bool
-
-    @State private var password = ""
-    @State private var confirm = ""
-    @State private var error = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    SecureField("Password", text: $password)
-                    SecureField("Confirm Password", text: $confirm)
-                }
-                if !error.isEmpty {
-                    Text(error).foregroundStyle(.red).font(.caption)
-                }
-            }
-            .navigationTitle("Set Vault Password")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }.disabled(password.isEmpty || confirm.isEmpty)
-                }
-            }
-        }
-        #if os(macOS)
-        .frame(minWidth: 350, minHeight: 200)
-        #endif
-    }
-
-    private func save() {
-        guard password == confirm else { error = "Passwords don't match"; return }
-        guard password.count >= 4 else { error = "Minimum 4 characters"; return }
-        if KeychainService.saveVaultPassword(password) {
-            isUnlocked = true
-            dismiss()
-        } else {
-            error = "Failed to save password"
-        }
-    }
-}
-
 // MARK: - Upload Sheet
 
 struct VaultUploadSheet: View {
@@ -357,6 +204,7 @@ struct VaultUploadSheet: View {
                         .lineLimit(3)
                 }
             }
+            .formStyle(.grouped)
             .navigationTitle("Upload Document")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

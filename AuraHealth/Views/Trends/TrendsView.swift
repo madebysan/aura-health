@@ -2,11 +2,22 @@ import SwiftUI
 import SwiftData
 import Charts
 
-struct TrendsView: View {
+// MARK: - Correlations View
+
+struct CorrelationsView: View {
     @Query(sort: \Measurement.timestamp, order: .reverse)
     private var measurements: [Measurement]
 
     @State private var selectedRange: TimeRange = .month
+
+    private let correlationPairs: [(MetricType, MetricType, String)] = [
+        (.sleepScore, .recovery, "Sleep Score vs Recovery"),
+        (.hrv, .strain, "HRV vs Strain"),
+        (.sleepDuration, .heartRate, "Sleep Duration vs Resting HR"),
+        (.steps, .calories, "Steps vs Calories"),
+        (.recovery, .strain, "Recovery vs Strain"),
+        (.sleepScore, .hrv, "Sleep Score vs HRV"),
+    ]
 
     var body: some View {
         ScrollView {
@@ -22,76 +33,49 @@ struct TrendsView: View {
                     }
                     Spacer()
                 }
-                .padding(.horizontal)
 
-                if filteredMeasurements().isEmpty {
+                let filtered = filteredMeasurements()
+                let availablePairs = correlationPairs.filter { pair in
+                    filtered.contains { $0.metricType == pair.0 } && filtered.contains { $0.metricType == pair.1 }
+                }
+
+                if availablePairs.isEmpty {
                     EmptyStateView(
                         icon: "chart.xyaxis.line",
-                        title: "No Data Yet",
-                        message: "Start logging measurements from the Today page to see trends here."
+                        title: "No Correlations Yet",
+                        message: "Log measurements for multiple metrics to see how they relate to each other."
                     )
                     .padding(.top, 40)
                 } else {
-                    // Metric trend charts
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 340, maximum: 520))], spacing: 14) {
-                        ForEach(Array(MetricType.allCases.enumerated()), id: \.element) { index, metricType in
-                            let data = filteredMeasurements(for: metricType)
-                            if !data.isEmpty {
-                                TrendChartCard(metricType: metricType, measurements: data)
-                                    .staggeredAppearance(index: index)
-                            }
+                        ForEach(Array(availablePairs.enumerated()), id: \.element.2) { index, pair in
+                            CorrelationCard(
+                                title: pair.2,
+                                typeA: pair.0,
+                                typeB: pair.1,
+                                measurements: filtered
+                            )
+                            .staggeredAppearance(index: index)
                         }
-                    }
-                    .padding(.horizontal)
-
-                    // Correlations
-                    let allFiltered = filteredMeasurements()
-                    let correlationPairs: [(MetricType, MetricType, String)] = [
-                        (.sleepScore, .recovery, "Sleep Score vs Recovery"),
-                        (.hrv, .strain, "HRV vs Strain"),
-                        (.sleepDuration, .heartRate, "Sleep Duration vs Resting HR"),
-                    ]
-
-                    let availablePairs = correlationPairs.filter { pair in
-                        allFiltered.contains { $0.metricType == pair.0 } && allFiltered.contains { $0.metricType == pair.1 }
-                    }
-
-                    if !availablePairs.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            SectionHeader(title: "Correlations")
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 340, maximum: 520))], spacing: 14) {
-                                ForEach(availablePairs, id: \.2) { pair in
-                                    CorrelationCard(
-                                        title: pair.2,
-                                        typeA: pair.0,
-                                        typeB: pair.1,
-                                        measurements: allFiltered
-                                    )
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
                     }
                 }
             }
-            .padding(.vertical, 8)
+            .padding()
         }
-        .navigationTitle("Trends")
+        .navigationTitle("Correlations")
     }
 
-    private func filteredMeasurements(for type: MetricType? = nil) -> [Measurement] {
+    private func filteredMeasurements() -> [Measurement] {
         measurements.filter { m in
-            let typeMatch = type == nil || m.metricType == type
-            let dateMatch: Bool
             if let start = selectedRange.startDate {
-                dateMatch = m.timestamp >= start
-            } else {
-                dateMatch = true
+                return m.timestamp >= start
             }
-            return typeMatch && dateMatch
+            return true
         }
     }
 }
+
+// MARK: - Trend Chart Card (used by VitalsView)
 
 struct TrendChartCard: View {
     let metricType: MetricType
@@ -106,6 +90,14 @@ struct TrendChartCard: View {
         guard !values.isEmpty else { return (0, 0, 0) }
         let avg = values.reduce(0, +) / Double(values.count)
         return (avg, values.min() ?? 0, values.max() ?? 0)
+    }
+
+    private var yDomain: ClosedRange<Double> {
+        var allValues = measurements.map(\.value)
+        allValues.append(contentsOf: measurements.compactMap(\.value2))
+        guard let lo = allValues.min(), let hi = allValues.max() else { return 0...100 }
+        let padding = max((hi - lo) * 0.15, 5)
+        return max(lo - padding, 0)...(hi + padding)
     }
 
     var body: some View {
@@ -136,17 +128,17 @@ struct TrendChartCard: View {
                         y: .value("Systolic", measurement.value)
                     )
                     .foregroundStyle(Color.red)
-                    .lineStyle(StrokeStyle(lineWidth: 2))
-                    .interpolationMethod(.catmullRom)
+                    .lineStyle(StrokeStyle(lineWidth: 1.5))
+                    .interpolationMethod(.monotone)
 
                     if let diastolic = measurement.value2 {
                         LineMark(
                             x: .value("Date", measurement.timestamp),
                             y: .value("Diastolic", diastolic)
                         )
-                        .foregroundStyle(Color.blue)
-                        .lineStyle(StrokeStyle(lineWidth: 2))
-                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Color.blue.opacity(0.6))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .interpolationMethod(.monotone)
                     }
                 } else {
                     AreaMark(
@@ -155,7 +147,7 @@ struct TrendChartCard: View {
                     )
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [metricType.iconColor.opacity(0.2), metricType.iconColor.opacity(0.02)],
+                            colors: [metricType.iconColor.opacity(0.1), metricType.iconColor.opacity(0.0)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -172,10 +164,10 @@ struct TrendChartCard: View {
                 }
             }
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 5)) { value in
+                AxisMarks(values: .automatic(desiredCount: 4)) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                         .foregroundStyle(Color.primary.opacity(0.06))
-                    AxisValueLabel()
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -186,10 +178,12 @@ struct TrendChartCard: View {
                         .foregroundStyle(Color.primary.opacity(0.06))
                     AxisValueLabel()
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color.secondary.opacity(0.6))
                 }
             }
+            .chartYScale(domain: yDomain)
             .frame(height: 160)
+            .clipped()
 
             // Stats
             HStack(spacing: 0) {
@@ -211,7 +205,7 @@ struct TrendChartCard: View {
                 .foregroundStyle(.tertiary)
                 .textCase(.uppercase)
             Text(value == value.rounded() ? "\(Int(value))" : String(format: "%.1f", value))
-                .font(.subheadline.monospacedDigit().bold())
+                .font(.callout.monospacedDigit().bold())
                 .foregroundStyle(color)
         }
     }
@@ -312,7 +306,7 @@ struct CorrelationCard: View {
 
 #Preview {
     NavigationStack {
-        TrendsView()
+        CorrelationsView()
     }
     .modelContainer(for: [Measurement.self, Medication.self, MedicationLog.self, Habit.self, HabitLog.self, Biomarker.self, Condition.self, DietPlan.self, MetricRange.self, VaultDocument.self, HealthMemory.self, Conversation.self], inMemory: true)
 }

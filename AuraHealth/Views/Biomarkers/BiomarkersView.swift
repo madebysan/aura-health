@@ -11,7 +11,10 @@ struct BiomarkersView: View {
     @State private var searchText = ""
     @State private var statusFilter: BiomarkerStatus?
     @State private var showingAddSheet = false
+    @State private var showingLabImport = false
     @State private var selectedBiomarker: Biomarker?
+
+    private var claudeService: ClaudeService { ClaudeService() }
 
     private var filteredBiomarkers: [Biomarker] {
         biomarkers.filter { bio in
@@ -53,6 +56,18 @@ struct BiomarkersView: View {
                     )
                     .padding(.top, 40)
                 } else {
+                    // Search
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 14))
+                        TextField("Search biomarkers", text: $searchText)
+                            .textFieldStyle(.plain)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+
                     // Status summary bar
                     statusSummaryBar
                         .staggeredAppearance(index: 0)
@@ -88,29 +103,51 @@ struct BiomarkersView: View {
                             }
                             .padding(.horizontal, 4)
 
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 300, maximum: 460))], spacing: 10) {
-                                ForEach(systemGroup.markers, id: \.marker) { group in
-                                    BiomarkerCardView(biomarker: group.latest, historyCount: group.history.count)
-                                        .onTapGesture { selectedBiomarker = group.latest }
-                                }
+                            ForEach(systemGroup.markers, id: \.marker) { group in
+                                BiomarkerCardView(biomarker: group.latest, historyCount: group.history.count)
+                                    .onTapGesture { selectedBiomarker = group.latest }
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            for bio in group.history {
+                                                modelContext.delete(bio)
+                                            }
+                                        } label: {
+                                            Label("Delete All \(group.marker) Records", systemImage: "trash")
+                                        }
+                                    }
                             }
                         }
                     }
                 }
             }
+            .frame(maxWidth: 600)
+            .frame(maxWidth: .infinity)
             .padding()
         }
-        .searchable(text: $searchText, prompt: "Search biomarkers")
         .navigationTitle("Biomarkers")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button { showingAddSheet = true } label: {
+                Menu {
+                    Button {
+                        showingAddSheet = true
+                    } label: {
+                        Label("Add Manually", systemImage: "plus")
+                    }
+                    Button {
+                        showingLabImport = true
+                    } label: {
+                        Label("Import from Lab Report", systemImage: "doc.text.magnifyingglass")
+                    }
+                } label: {
                     Image(systemName: "plus")
                 }
             }
         }
         .sheet(isPresented: $showingAddSheet) {
             AddBiomarkerSheet()
+        }
+        .sheet(isPresented: $showingLabImport) {
+            LabImportSheet(claudeService: claudeService)
         }
         .sheet(item: $selectedBiomarker) { biomarker in
             BiomarkerDetailSheet(marker: biomarker.marker, biomarkers: biomarkers)
@@ -125,34 +162,39 @@ struct BiomarkersView: View {
         guard total > 0 else { return AnyView(EmptyView()) }
 
         return AnyView(
-            HStack(spacing: 0) {
-                if counts.normal > 0 {
-                    statusSegment(count: counts.normal, total: total, color: AppColors.statusGreen, label: "Normal")
-                }
-                if counts.borderline > 0 {
-                    statusSegment(count: counts.borderline, total: total, color: AppColors.statusOrange, label: "Borderline")
-                }
-                if counts.abnormal > 0 {
-                    statusSegment(count: counts.abnormal, total: total, color: AppColors.statusRed, label: "Abnormal")
+            GeometryReader { geo in
+                let width = geo.size.width
+                HStack(spacing: 2) {
+                    if counts.normal > 0 {
+                        statusSegment(count: counts.normal, total: total, width: width, color: AppColors.statusGreen, label: "Normal")
+                    }
+                    if counts.borderline > 0 {
+                        statusSegment(count: counts.borderline, total: total, width: width, color: AppColors.statusOrange, label: "Borderline")
+                    }
+                    if counts.abnormal > 0 {
+                        statusSegment(count: counts.abnormal, total: total, width: width, color: AppColors.statusRed, label: "Abnormal")
+                    }
                 }
             }
             .frame(height: 32)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         )
     }
 
-    private func statusSegment(count: Int, total: Int, color: Color, label: String) -> some View {
-        color.opacity(0.7)
+    private func statusSegment(count: Int, total: Int, width: CGFloat, color: Color, label: String) -> some View {
+        let segmentCount = [statusCounts.normal > 0, statusCounts.borderline > 0, statusCounts.abnormal > 0].filter(\.self).count
+        let spacing = CGFloat(segmentCount - 1) * 2
+        let segmentWidth = max(40, (width - spacing) * CGFloat(count) / CGFloat(total))
+
+        return color.opacity(0.7)
+            .frame(width: segmentWidth)
             .overlay(
                 Text("\(count) \(label)")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.white)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.5)
             )
-            .frame(maxWidth: .infinity)
-            .frame(width: nil)
-            .layoutPriority(Double(count))
     }
 
     private var statusCounts: (normal: Int, borderline: Int, abnormal: Int) {
@@ -261,6 +303,7 @@ struct AddBiomarkerSheet: View {
                     TextField("Optional notes", text: $notes, axis: .vertical).lineLimit(3)
                 }
             }
+            .formStyle(.grouped)
             .navigationTitle("Add Biomarker")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

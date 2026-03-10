@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 struct ChatView: View {
     @Environment(\.modelContext) private var modelContext
@@ -12,6 +13,11 @@ struct ChatView: View {
     @State private var claudeService = ClaudeService()
     @State private var errorMessage: String?
     @State private var showingHistory = false
+    @State private var showingFilePicker = false
+    @State private var attachedFileURL: URL?
+    @FocusState private var isInputFocused: Bool
+    @State private var showingAPIKeyPrompt = false
+    @State private var apiKeyInput = ""
 
     /// Returns existing conversation or creates one on demand (only called when sending)
     private func ensureConversation() -> Conversation {
@@ -64,6 +70,10 @@ struct ChatView: View {
                     }
                     .padding()
                 }
+                #if os(iOS)
+                // Dismiss keyboard by dragging down on the message list
+                .scrollDismissesKeyboard(.interactively)
+                #endif
                 .onChange(of: displayMessages.count) {
                     if let last = displayMessages.last {
                         withAnimation(AppAnimation.appear) {
@@ -75,15 +85,65 @@ struct ChatView: View {
 
             Divider()
 
+            // Attachment preview
+            if let fileURL = attachedFileURL {
+                HStack(spacing: 8) {
+                    Image(systemName: fileURL.pathExtension.lowercased() == "pdf" ? "doc.fill" : "photo.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.accentColor)
+                    Text(fileURL.lastPathComponent)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        attachedFileURL = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(Color.primary.opacity(0.03))
+            }
+
             // Input
             HStack(spacing: 10) {
-                TextField("Ask about your health data...", text: $inputText, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .lineLimit(1...4)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
-                    .onSubmit { sendMessage() }
+                Button { showingFilePicker = true } label: {
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Attach file")
+                .disabled(!claudeService.hasAPIKey)
+
+                if claudeService.hasAPIKey {
+                    TextField("Ask about your health data...", text: $inputText, axis: .vertical)
+                        .focused($isInputFocused)
+                        .textFieldStyle(.plain)
+                        .lineLimit(1...4)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
+                        .onSubmit { sendMessage() }
+                } else {
+                    Button {
+                        showingAPIKeyPrompt = true
+                    } label: {
+                        Text("Add API key to start chatting...")
+                            .font(.body)
+                            .foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 Button { sendMessage() } label: {
                     Image(systemName: "arrow.up.circle.fill")
@@ -97,9 +157,26 @@ struct ChatView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            #if os(iOS)
+            // Keep the input bar above the home indicator and above the keyboard
+            .padding(.bottom, 4)
+            .background(.bar)
+            #endif
         }
         .navigationTitle("Chat")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .toolbar {
+            #if os(iOS)
+            if isInputFocused {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        isInputFocused = false
+                    }
+                }
+            }
+            #endif
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     startNewChat()
@@ -134,6 +211,29 @@ struct ChatView: View {
                     showingHistory = false
                 }
             )
+        }
+        .alert("Claude API Key", isPresented: $showingAPIKeyPrompt) {
+            SecureField("sk-ant-...", text: $apiKeyInput)
+            Button("Save") {
+                if !apiKeyInput.isEmpty {
+                    KeychainService.setValue(apiKeyInput, for: "claude-api-key")
+                    apiKeyInput = ""
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                apiKeyInput = ""
+            }
+        } message: {
+            Text("Enter your Claude API key to enable AI health chat.")
+        }
+        .fileImporter(
+            isPresented: $showingFilePicker,
+            allowedContentTypes: [.pdf, .png, .jpeg, .plainText],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                attachedFileURL = url
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             startNewChat()
@@ -202,12 +302,11 @@ struct ChatView: View {
     private func suggestionChip(_ text: String) -> some View {
         Button {
             inputText = text
-            sendMessage()
         } label: {
             Text(text)
                 .font(.subheadline)
                 .padding(.horizontal, 14)
-                .padding(.vertical, 8)
+                .padding(.vertical, 12)
                 .background(Color.primary.opacity(0.04), in: Capsule())
                 .overlay(Capsule().stroke(Color.primary.opacity(0.06), lineWidth: 1))
         }
@@ -240,15 +339,28 @@ struct ChatView: View {
         guard !text.isEmpty, !claudeService.isResponding else { return }
 
         let conversation = ensureConversation()
-        conversation.addMessage(role: .user, content: text)
+        let displayText = attachedFileURL != nil
+            ? "\(text)\n📎 \(attachedFileURL!.lastPathComponent)"
+            : text
+        conversation.addMessage(role: .user, content: displayText)
 
         // Auto-title from first message
         if conversation.title == "New Chat" {
             conversation.title = String(text.prefix(50))
         }
 
+        // Pass file to service before clearing
+        claudeService.pendingFileURL = attachedFileURL
+
+        // Auto-save attachment to Vault
+        if let fileURL = attachedFileURL {
+            saveToVault(url: fileURL)
+        }
+
         inputText = ""
+        attachedFileURL = nil
         errorMessage = nil
+        isInputFocused = true
 
         Task {
             if claudeService.hasAPIKey {
@@ -265,6 +377,47 @@ struct ChatView: View {
                 errorMessage = "Add your Claude API key in Settings to enable AI chat."
             }
         }
+    }
+
+    // MARK: - Save to Vault
+
+    private func saveToVault(url: URL) {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+
+        guard let data = try? Data(contentsOf: url) else { return }
+
+        let ext = url.pathExtension.lowercased()
+        let fileType: VaultFileType = switch ext {
+        case "pdf": .pdf
+        case "jpg", "jpeg", "png", "heic", "gif", "webp": .image
+        case "txt", "md", "csv", "rtf": .text
+        case "mp4", "mov", "m4v": .video
+        default: .text
+        }
+
+        let mimeType: String = switch ext {
+        case "pdf": "application/pdf"
+        case "jpg", "jpeg": "image/jpeg"
+        case "png": "image/png"
+        case "txt": "text/plain"
+        default: "application/octet-stream"
+        }
+
+        var tags = ["chat-attachment"]
+        if fileType == .pdf { tags.append("lab-report") }
+
+        let doc = VaultDocument(
+            title: url.deletingPathExtension().lastPathComponent,
+            fileName: url.lastPathComponent,
+            fileType: fileType,
+            mimeType: mimeType,
+            fileData: data,
+            fileSize: data.count,
+            tags: tags,
+            notes: "Attached via Chat"
+        )
+        modelContext.insert(doc)
     }
 }
 

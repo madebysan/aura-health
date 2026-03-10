@@ -7,6 +7,10 @@ options:
   xcodeVersion: "16.0"
   groupSortPosition: top
 
+configFiles:
+  Debug: Secrets.xcconfig
+  Release: Secrets.xcconfig
+
 settings:
   base:
     SWIFT_VERSION: "5.9"

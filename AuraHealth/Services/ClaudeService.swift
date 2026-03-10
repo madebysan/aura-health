@@ -96,6 +96,42 @@ final class ClaudeService {
                 "required": [] as [String]
             ]
         ],
+        [
+            "name": "get_habits",
+            "description": "Get habits list with recent completion status.",
+            "input_schema": [
+                "type": "object",
+                "properties": [:] as [String: Any],
+                "required": [] as [String]
+            ]
+        ],
+        [
+            "name": "get_diet",
+            "description": "Get the current active diet plan with approved and avoided food categories.",
+            "input_schema": [
+                "type": "object",
+                "properties": [:] as [String: Any],
+                "required": [] as [String]
+            ]
+        ],
+        [
+            "name": "get_health_summary",
+            "description": "Get a comprehensive health overview — latest vitals, active conditions, medications, habits, and recent biomarkers. Use when user asks for an overview, summary, or 'how am I doing'.",
+            "input_schema": [
+                "type": "object",
+                "properties": [:] as [String: Any],
+                "required": [] as [String]
+            ]
+        ],
+        [
+            "name": "import_lab_results",
+            "description": "Import biomarkers from an attached lab report file (PDF or image). ONLY use when the user attaches a file and asks to import lab results. The file is already attached to the conversation — just call this tool.",
+            "input_schema": [
+                "type": "object",
+                "properties": [:] as [String: Any],
+                "required": [] as [String]
+            ]
+        ],
         // WRITE tools
         [
             "name": "add_biomarker",
@@ -144,10 +180,152 @@ final class ClaudeService {
                 ],
                 "required": ["medicationName"]
             ]
+        ],
+        [
+            "name": "add_habit",
+            "description": "Create a new habit to track. ONLY use when user explicitly asks to add/create a habit.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "name": ["type": "string", "description": "Name of the habit (e.g. 'Reading', 'Meditation', 'Cold Shower')"],
+                    "category": [
+                        "type": "string",
+                        "enum": ["lifestyle", "therapy", "diet", "exercise"],
+                        "description": "Category. Default: lifestyle."
+                    ],
+                    "trackingType": [
+                        "type": "string",
+                        "enum": ["boolean", "quantity"],
+                        "description": "boolean = did/didn't do it, quantity = track a number (e.g. cups of water). Default: boolean."
+                    ],
+                    "unit": ["type": "string", "description": "Unit for quantity tracking (e.g. 'cups', 'minutes', 'pages'). Only needed if trackingType is quantity."],
+                    "gridSection": [
+                        "type": "string",
+                        "enum": ["morning", "afternoon", "evening", "night"],
+                        "description": "When in the day this habit is done. Default: morning."
+                    ]
+                ],
+                "required": ["name"]
+            ]
+        ],
+        [
+            "name": "log_habit",
+            "description": "Log a habit as completed for today or a given date. ONLY use when user says they did a habit.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "habitName": ["type": "string", "description": "Name of the habit"],
+                    "completed": ["type": "boolean", "description": "Whether the habit was completed. Default: true."],
+                    "quantity": ["type": "number", "description": "Quantity value (only for quantity-tracked habits)"],
+                    "date": ["type": "string", "description": "Date as YYYY-MM-DD. Use today if not specified."]
+                ],
+                "required": ["habitName"]
+            ]
+        ],
+        [
+            "name": "add_condition",
+            "description": "Add a health condition. ONLY use when user explicitly asks to add/record a condition.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "name": ["type": "string", "description": "Condition name (e.g. 'Asthma', 'Type 2 Diabetes', 'Anxiety')"],
+                    "status": [
+                        "type": "string",
+                        "enum": ["active", "managed", "resolved"],
+                        "description": "Condition status. Default: active."
+                    ],
+                    "notes": ["type": "string", "description": "Optional notes about the condition"]
+                ],
+                "required": ["name"]
+            ]
+        ],
+        [
+            "name": "add_medication",
+            "description": "Add a new medication to track. ONLY use when user explicitly asks to add a medication.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "name": ["type": "string", "description": "Medication name"],
+                    "dosage": ["type": "string", "description": "Dosage (e.g. '10mg', '500mg')"],
+                    "frequency": [
+                        "type": "string",
+                        "enum": ["daily", "twiceDaily", "threeTimesDaily", "weekly", "asNeeded"],
+                        "description": "How often. Default: daily."
+                    ],
+                    "type": [
+                        "type": "string",
+                        "enum": ["rx", "supplement", "otc"],
+                        "description": "Medication type. Default: rx."
+                    ],
+                    "timing": [
+                        "type": "string",
+                        "enum": ["amFasted", "withFood", "bedtime", "anyTime"],
+                        "description": "When to take it. Default: anyTime."
+                    ],
+                    "condition": ["type": "string", "description": "What condition this is for (optional)"]
+                ],
+                "required": ["name"]
+            ]
+        ],
+        [
+            "name": "deactivate_habit",
+            "description": "Deactivate/stop tracking a habit. ONLY use when user asks to stop, remove, or delete a habit.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "habitName": ["type": "string", "description": "Name of the habit to deactivate"]
+                ],
+                "required": ["habitName"]
+            ]
+        ],
+        [
+            "name": "deactivate_medication",
+            "description": "Deactivate/stop a medication. ONLY use when user says they stopped taking a medication.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "medicationName": ["type": "string", "description": "Name of the medication to deactivate"]
+                ],
+                "required": ["medicationName"]
+            ]
+        ],
+        [
+            "name": "update_condition",
+            "description": "Update a condition's status. Use when user says a condition is now managed, resolved, etc.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "name": ["type": "string", "description": "Condition name"],
+                    "status": [
+                        "type": "string",
+                        "enum": ["active", "managed", "resolved"],
+                        "description": "New status"
+                    ]
+                ],
+                "required": ["name", "status"]
+            ]
+        ],
+        [
+            "name": "navigate",
+            "description": "Navigate to a specific section of the app. Use when user says 'show me', 'go to', 'open' a section.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "section": [
+                        "type": "string",
+                        "enum": ["today", "vitals", "correlations", "conditions", "medications", "biomarkers", "diet", "exercise", "vault", "settings"],
+                        "description": "App section to navigate to"
+                    ]
+                ],
+                "required": ["section"]
+            ]
         ]
     ]
 
     // MARK: - Send Message (with tool use loop)
+
+    /// Attached file URL for the current message (set by the chat UI before calling sendMessage)
+    var pendingFileURL: URL?
 
     func sendMessage(
         conversationHistory: [ChatMessage],
@@ -156,18 +334,29 @@ final class ClaudeService {
         guard hasAPIKey else { throw ClaudeError.noAPIKey }
 
         isResponding = true
-        defer { isResponding = false }
+        hasFileAttachment = false
+        defer { isResponding = false; hasFileAttachment = false }
 
         // Build messages: last 10 for token efficiency
         // conversationHistory already includes the current user message
         // (appended by ChatView before calling sendMessage).
         var messages: [[String: Any]] = []
-        for msg in conversationHistory.suffix(10) {
+        let recentMessages = Array(conversationHistory.suffix(10))
+        for (index, msg) in recentMessages.enumerated() {
             guard msg.role == .user || msg.role == .assistant else { continue }
-            messages.append([
-                "role": msg.role.rawValue,
-                "content": msg.content
-            ])
+
+            // Attach file content to the last user message if we have a pending file
+            let isLastMessage = index == recentMessages.count - 1
+            if isLastMessage && msg.role == .user, let fileURL = pendingFileURL {
+                let contentBlocks = buildFileContentBlocks(text: msg.content, fileURL: fileURL)
+                messages.append(["role": "user", "content": contentBlocks])
+                pendingFileURL = nil
+            } else {
+                messages.append([
+                    "role": msg.role.rawValue,
+                    "content": msg.content
+                ])
+            }
         }
 
         // Tool use loop (max 3 rounds — most queries need 1 tool call)
@@ -214,14 +403,55 @@ final class ClaudeService {
         return "I'm having trouble processing this request. Please try again."
     }
 
+    // MARK: - File Content Helpers
+
+    private var hasFileAttachment = false
+
+    private func buildFileContentBlocks(text: String, fileURL: URL) -> [[String: Any]] {
+        let accessing = fileURL.startAccessingSecurityScopedResource()
+        defer { if accessing { fileURL.stopAccessingSecurityScopedResource() } }
+
+        let ext = fileURL.pathExtension.lowercased()
+        var blocks: [[String: Any]] = []
+
+        if ext == "pdf" {
+            if let data = try? Data(contentsOf: fileURL) {
+                blocks.append([
+                    "type": "document",
+                    "source": ["type": "base64", "media_type": "application/pdf", "data": data.base64EncodedString()]
+                ])
+                hasFileAttachment = true
+            }
+        } else if ["jpg", "jpeg", "png", "gif", "webp"].contains(ext) {
+            if let data = try? Data(contentsOf: fileURL) {
+                let mediaType = ext == "png" ? "image/png" : ext == "gif" ? "image/gif" : ext == "webp" ? "image/webp" : "image/jpeg"
+                blocks.append([
+                    "type": "image",
+                    "source": ["type": "base64", "media_type": mediaType, "data": data.base64EncodedString()]
+                ])
+                hasFileAttachment = true
+            }
+        } else {
+            // Plain text file
+            if let content = try? String(contentsOf: fileURL, encoding: .utf8) {
+                blocks.append(["type": "text", "text": "Attached file (\(fileURL.lastPathComponent)):\n\n\(content)"])
+            }
+        }
+
+        blocks.append(["type": "text", "text": text])
+        return blocks
+    }
+
     // MARK: - API Call
 
     private func callAPI(messages: [[String: Any]]) async throws -> ToolResponse {
         guard let url = URL(string: Self.apiURL) else { throw ClaudeError.invalidURL }
 
+        let maxTokens = hasFileAttachment ? 4096 : 1024
+
         let requestBody: [String: Any] = [
             "model": Self.model,
-            "max_tokens": 1024,
+            "max_tokens": maxTokens,
             "system": [
                 ["type": "text", "text": Self.systemPrompt, "cache_control": ["type": "ephemeral"]]
             ],
@@ -231,23 +461,13 @@ final class ClaudeService {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 30
+        request.timeoutInterval = hasFileAttachment ? 60 : 30
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.setValue("prompt-caching-2024-07-31", forHTTPHeaderField: "anthropic-beta")
+        let beta = hasFileAttachment ? "prompt-caching-2024-07-31,pdfs-2024-09-25" : "prompt-caching-2024-07-31"
+        request.setValue(beta, forHTTPHeaderField: "anthropic-beta")
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        // Log outbound request size
-        if let bodySize = request.httpBody?.count {
-            let reqLog = ">>> Request body: \(bodySize) bytes, messages: \(messages.count)\n"
-            let logURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("chat-audit.log")
-            if let existing = try? String(contentsOf: logURL, encoding: .utf8) {
-                try? (existing + reqLog).write(to: logURL, atomically: true, encoding: .utf8)
-            } else {
-                try? reqLog.write(to: logURL, atomically: true, encoding: .utf8)
-            }
-        }
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -257,37 +477,6 @@ final class ClaudeService {
         guard httpResponse.statusCode == 200 else {
             let errorBody = String(data: data, encoding: .utf8) ?? "Unknown"
             throw ClaudeError.apiError(statusCode: httpResponse.statusCode, message: errorBody)
-        }
-
-        // Diagnostic logging (temporary — remove after audit)
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            var log = "=== API Response ===\n"
-            log += "Model: \(json["model"] ?? "?")\n"
-            log += "Stop Reason: \(json["stop_reason"] ?? "?")\n"
-            if let usage = json["usage"] as? [String: Any] {
-                log += "Input Tokens: \(usage["input_tokens"] ?? "?")\n"
-                log += "Output Tokens: \(usage["output_tokens"] ?? "?")\n"
-                log += "Cache Creation: \(usage["cache_creation_input_tokens"] ?? 0)\n"
-                log += "Cache Read: \(usage["cache_read_input_tokens"] ?? 0)\n"
-            }
-            if let content = json["content"] as? [[String: Any]] {
-                for block in content {
-                    let type = block["type"] as? String ?? "?"
-                    if type == "tool_use" {
-                        log += "Tool Call: \(block["name"] ?? "?") -> \(block["input"] ?? [:])\n"
-                    } else if type == "text" {
-                        let text = (block["text"] as? String) ?? ""
-                        log += "Text (\(text.count) chars): \(String(text.prefix(200)))\n"
-                    }
-                }
-            }
-            log += "==================\n\n"
-            let logURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("chat-audit.log")
-            if let existing = try? String(contentsOf: logURL, encoding: .utf8) {
-                try? (existing + log).write(to: logURL, atomically: true, encoding: .utf8)
-            } else {
-                try? log.write(to: logURL, atomically: true, encoding: .utf8)
-            }
         }
 
         return try JSONDecoder().decode(ToolResponse.self, from: data)
@@ -305,12 +494,36 @@ final class ClaudeService {
             return executeGetMedications(context: context)
         case "get_conditions":
             return executeGetConditions(context: context)
+        case "get_habits":
+            return executeGetHabits(context: context)
+        case "add_habit":
+            return executeAddHabit(input: input, context: context)
+        case "log_habit":
+            return executeLogHabit(input: input, context: context)
+        case "add_condition":
+            return executeAddCondition(input: input, context: context)
+        case "add_medication":
+            return executeAddMedication(input: input, context: context)
         case "add_biomarker":
             return executeAddBiomarker(input: input, context: context)
         case "add_measurement":
             return executeAddMeasurement(input: input, context: context)
         case "log_medication":
             return executeLogMedication(input: input, context: context)
+        case "get_diet":
+            return executeGetDiet(context: context)
+        case "get_health_summary":
+            return await executeGetHealthSummary(context: context)
+        case "import_lab_results":
+            return await executeImportLabResults(context: context)
+        case "deactivate_habit":
+            return executeDeactivateHabit(input: input, context: context)
+        case "deactivate_medication":
+            return executeDeactivateMedication(input: input, context: context)
+        case "update_condition":
+            return executeUpdateCondition(input: input, context: context)
+        case "navigate":
+            return executeNavigate(input: input)
         default:
             return "Unknown tool: \(name)"
         }
@@ -420,7 +633,154 @@ final class ClaudeService {
         return conditions.map { "\($0.name) — \($0.status.displayName)" }.joined(separator: "\n")
     }
 
+    private func executeGetHabits(context: ModelContext) -> String {
+        let descriptor = FetchDescriptor<Habit>(
+            predicate: #Predicate { $0.active }
+        )
+        guard let habits = try? context.fetch(descriptor), !habits.isEmpty else {
+            return "No active habits."
+        }
+
+        let today = Calendar.current.startOfDay(for: Date())
+        return habits.map { habit in
+            let todayLog = habit.logs.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
+            let status = todayLog?.done == true ? "done" : "pending"
+            let section = habit.gridSection.displayName.lowercased()
+            if habit.trackingType == .quantity, let qty = todayLog?.quantity, qty > 0 {
+                return "\(habit.name) (\(section), \(habit.category.displayName)) — \(Int(qty)) \(habit.unit) today"
+            }
+            return "\(habit.name) (\(section), \(habit.category.displayName)) — \(status)"
+        }.joined(separator: "\n")
+    }
+
     // MARK: - Write Tools
+
+    private func executeAddHabit(input: [String: Any], context: ModelContext) -> String {
+        guard let name = input["name"] as? String, !name.isEmpty else {
+            return "Error: habit name is required."
+        }
+
+        // Check for duplicate
+        let descriptor = FetchDescriptor<Habit>(
+            predicate: #Predicate { $0.active }
+        )
+        let existing = (try? context.fetch(descriptor)) ?? []
+        if existing.contains(where: { $0.name.localizedCaseInsensitiveContains(name) }) {
+            return "A habit named '\(name)' already exists."
+        }
+
+        let category = (input["category"] as? String).flatMap { HabitCategory(rawValue: $0) } ?? .lifestyle
+        let trackingType = (input["trackingType"] as? String).flatMap { TrackingType(rawValue: $0) } ?? .boolean
+        let unit = input["unit"] as? String ?? ""
+        let gridSection = (input["gridSection"] as? String).flatMap { GridSection(rawValue: $0) } ?? .morning
+
+        let habit = Habit(
+            name: name,
+            category: category,
+            trackingType: trackingType,
+            unit: unit,
+            gridSection: gridSection
+        )
+        context.insert(habit)
+        try? context.save()
+
+        return "Created habit: \(name) (\(category.displayName), \(gridSection.displayName))\(trackingType == .quantity ? " — tracking \(unit)" : "")"
+    }
+
+    private func executeLogHabit(input: [String: Any], context: ModelContext) -> String {
+        guard let name = input["habitName"] as? String else {
+            return "Error: habitName is required."
+        }
+
+        let dateStr = input["date"] as? String
+        let date = parseDate(dateStr) ?? Date()
+        let completed = input["completed"] as? Bool ?? true
+        let quantity = input["quantity"] as? Double
+
+        let descriptor = FetchDescriptor<Habit>(
+            predicate: #Predicate { $0.active }
+        )
+        guard let habits = try? context.fetch(descriptor) else {
+            return "Error: could not fetch habits."
+        }
+
+        let habit = habits.first { $0.name.localizedCaseInsensitiveContains(name) }
+        guard let habit else {
+            let available = habits.map(\.name).joined(separator: ", ")
+            return "No active habit matching '\(name)'.\(habits.isEmpty ? "" : " Active: \(available)")"
+        }
+
+        // Check for existing log on this date
+        let existingLog = habit.logs.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
+        if let existingLog {
+            existingLog.done = completed
+            if let quantity { existingLog.quantity = quantity }
+        } else {
+            let log = HabitLog(date: date, habit: habit, done: completed)
+            if let quantity { log.quantity = quantity }
+            context.insert(log)
+        }
+        try? context.save()
+
+        if let quantity, habit.trackingType == .quantity {
+            return "Logged: \(habit.name) — \(Int(quantity)) \(habit.unit) on \(formatDate(date))"
+        }
+        return "Logged: \(habit.name) — \(completed ? "completed" : "skipped") on \(formatDate(date))"
+    }
+
+    private func executeAddCondition(input: [String: Any], context: ModelContext) -> String {
+        guard let name = input["name"] as? String, !name.isEmpty else {
+            return "Error: condition name is required."
+        }
+
+        // Check for duplicate
+        let descriptor = FetchDescriptor<Condition>()
+        let existing = (try? context.fetch(descriptor)) ?? []
+        if existing.contains(where: { $0.name.localizedCaseInsensitiveContains(name) }) {
+            return "Condition '\(name)' already exists."
+        }
+
+        let status = (input["status"] as? String).flatMap { ConditionStatus(rawValue: $0) } ?? .active
+        let notes = input["notes"] as? String ?? ""
+
+        context.insert(Condition(name: name, status: status, notes: notes))
+        try? context.save()
+
+        return "Added condition: \(name) (\(status.displayName))"
+    }
+
+    private func executeAddMedication(input: [String: Any], context: ModelContext) -> String {
+        guard let name = input["name"] as? String, !name.isEmpty else {
+            return "Error: medication name is required."
+        }
+
+        // Check for duplicate
+        let descriptor = FetchDescriptor<Medication>(
+            predicate: #Predicate { $0.active }
+        )
+        let existing = (try? context.fetch(descriptor)) ?? []
+        if existing.contains(where: { $0.name.localizedCaseInsensitiveContains(name) }) {
+            return "Medication '\(name)' already exists."
+        }
+
+        let dosage = input["dosage"] as? String ?? ""
+        let frequency = (input["frequency"] as? String).flatMap { MedicationFrequency(rawValue: $0) } ?? .daily
+        let type = (input["type"] as? String).flatMap { MedicationType(rawValue: $0) } ?? .rx
+        let timing = (input["timing"] as? String).flatMap { MedicationTiming(rawValue: $0) } ?? .anyTime
+        let condition = input["condition"] as? String ?? ""
+
+        context.insert(Medication(
+            name: name,
+            dosage: dosage,
+            frequency: frequency,
+            condition: condition,
+            type: type,
+            timing: timing
+        ))
+        try? context.save()
+
+        return "Added medication: \(name)\(dosage.isEmpty ? "" : " \(dosage)") — \(frequency.displayName), \(timing.displayName)"
+    }
 
     private func executeAddBiomarker(input: [String: Any], context: ModelContext) -> String {
         guard let marker = input["marker"] as? String,
@@ -529,6 +889,184 @@ final class ClaudeService {
         try? context.save()
 
         return "Logged: \(med.name) taken on \(formatDate(date))"
+    }
+
+    // MARK: - Read Tools (continued)
+
+    private func executeGetDiet(context: ModelContext) -> String {
+        let descriptor = FetchDescriptor<DietPlan>(
+            predicate: #Predicate { $0.active }
+        )
+        guard let plans = try? context.fetch(descriptor), !plans.isEmpty else {
+            return "No active diet plan."
+        }
+        return plans.map { plan in
+            var parts = ["\(plan.name) (\(plan.dietType.isEmpty ? "custom" : plan.dietType))"]
+            if !plan.allowedFoods.isEmpty { parts.append("Allowed: \(plan.allowedFoods.joined(separator: ", "))") }
+            if !plan.avoidFoods.isEmpty { parts.append("Avoid: \(plan.avoidFoods.joined(separator: ", "))") }
+            if !plan.notes.isEmpty { parts.append("Notes: \(plan.notes)") }
+            return parts.joined(separator: "\n  ")
+        }.joined(separator: "\n\n")
+    }
+
+    private func executeGetHealthSummary(context: ModelContext) async -> String {
+        var sections: [String] = []
+
+        // Latest vitals (last 7 days)
+        let vitals = executeGetVitals(input: ["days": 7], context: context)
+        if !vitals.contains("No vitals") { sections.append("VITALS (7d):\n\(vitals)") }
+
+        // Active conditions
+        let conditions = executeGetConditions(context: context)
+        if !conditions.contains("No health") { sections.append("CONDITIONS:\n\(conditions)") }
+
+        // Active medications
+        let meds = executeGetMedications(context: context)
+        if !meds.contains("No active") { sections.append("MEDICATIONS:\n\(meds)") }
+
+        // Active habits
+        let habits = executeGetHabits(context: context)
+        if !habits.contains("No active") { sections.append("HABITS:\n\(habits)") }
+
+        // Active diet
+        let diet = executeGetDiet(context: context)
+        if !diet.contains("No active") { sections.append("DIET:\n\(diet)") }
+
+        // Recent biomarkers (latest per marker)
+        let biomarkers = executeGetBiomarkers(input: [:], context: context)
+        if !biomarkers.contains("No biomarker") { sections.append("BIOMARKERS:\n\(biomarkers)") }
+
+        if sections.isEmpty { return "No health data recorded yet." }
+        return sections.joined(separator: "\n\n")
+    }
+
+    private func executeImportLabResults(context: ModelContext) async -> String {
+        guard let fileURL = pendingFileURL else {
+            return "No file attached. Please attach a lab report PDF or image and try again."
+        }
+
+        do {
+            let extracted = try await extractBiomarkers(from: fileURL)
+            if extracted.isEmpty {
+                return "Could not extract any biomarker values from the file."
+            }
+
+            var added = 0
+            var skipped = 0
+            for marker in extracted {
+                // Check for duplicate on same day
+                let testDate = marker.parsedDate
+                let cal = Calendar.current
+                let start = cal.startOfDay(for: testDate)
+                let end = cal.date(byAdding: .day, value: 1, to: start)!
+                let descriptor = FetchDescriptor<Biomarker>(
+                    predicate: #Predicate { $0.testDate >= start && $0.testDate < end }
+                )
+                let existing = (try? context.fetch(descriptor)) ?? []
+                if existing.contains(where: { $0.marker == marker.marker }) {
+                    skipped += 1
+                    continue
+                }
+
+                let info = BiomarkerReference.info(for: marker.marker)
+                context.insert(Biomarker(
+                    testDate: testDate,
+                    marker: marker.marker,
+                    value: marker.value,
+                    unit: marker.unit,
+                    refMin: marker.refMin ?? info?.refMin,
+                    refMax: marker.refMax ?? info?.refMax,
+                    lab: marker.lab
+                ))
+                added += 1
+            }
+            try? context.save()
+
+            var result = "Imported \(added) biomarker\(added == 1 ? "" : "s") from lab report."
+            if skipped > 0 { result += " Skipped \(skipped) duplicate\(skipped == 1 ? "" : "s")." }
+            return result
+        } catch {
+            return "Error processing lab file: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Write Tools (continued)
+
+    private func executeDeactivateHabit(input: [String: Any], context: ModelContext) -> String {
+        guard let name = input["habitName"] as? String else {
+            return "Error: habitName is required."
+        }
+
+        let descriptor = FetchDescriptor<Habit>(
+            predicate: #Predicate { $0.active }
+        )
+        guard let habits = try? context.fetch(descriptor) else {
+            return "Error: could not fetch habits."
+        }
+
+        guard let habit = habits.first(where: { $0.name.localizedCaseInsensitiveContains(name) }) else {
+            let available = habits.map(\.name).joined(separator: ", ")
+            return "No active habit matching '\(name)'.\(habits.isEmpty ? "" : " Active: \(available)")"
+        }
+
+        habit.active = false
+        try? context.save()
+        return "Deactivated habit: \(habit.name)"
+    }
+
+    private func executeDeactivateMedication(input: [String: Any], context: ModelContext) -> String {
+        guard let name = input["medicationName"] as? String else {
+            return "Error: medicationName is required."
+        }
+
+        let descriptor = FetchDescriptor<Medication>(
+            predicate: #Predicate { $0.active }
+        )
+        guard let meds = try? context.fetch(descriptor) else {
+            return "Error: could not fetch medications."
+        }
+
+        guard let med = meds.first(where: { $0.name.localizedCaseInsensitiveContains(name) }) else {
+            let available = meds.map(\.name).joined(separator: ", ")
+            return "No active medication matching '\(name)'.\(meds.isEmpty ? "" : " Active: \(available)")"
+        }
+
+        med.active = false
+        try? context.save()
+        return "Deactivated medication: \(med.name)"
+    }
+
+    private func executeUpdateCondition(input: [String: Any], context: ModelContext) -> String {
+        guard let name = input["name"] as? String,
+              let statusStr = input["status"] as? String,
+              let status = ConditionStatus(rawValue: statusStr) else {
+            return "Error: name and valid status (active, managed, resolved) are required."
+        }
+
+        let descriptor = FetchDescriptor<Condition>()
+        guard let conditions = try? context.fetch(descriptor) else {
+            return "Error: could not fetch conditions."
+        }
+
+        guard let condition = conditions.first(where: { $0.name.localizedCaseInsensitiveContains(name) }) else {
+            let available = conditions.map(\.name).joined(separator: ", ")
+            return "No condition matching '\(name)'.\(conditions.isEmpty ? "" : " Existing: \(available)")"
+        }
+
+        let oldStatus = condition.status.displayName
+        condition.status = status
+        try? context.save()
+        return "Updated \(condition.name): \(oldStatus) → \(status.displayName)"
+    }
+
+    private func executeNavigate(input: [String: Any]) -> String {
+        guard let sectionStr = input["section"] as? String,
+              let section = AppSection(rawValue: sectionStr) else {
+            return "Error: valid section name is required."
+        }
+
+        NotificationCenter.default.post(name: .navigateTo, object: section)
+        return "Navigated to \(section.label)."
     }
 
     // MARK: - Extract Biomarkers from Lab File

@@ -1,6 +1,9 @@
 import Foundation
 import SwiftData
 import HealthKit
+import os
+
+private let logger = Logger(subsystem: "com.santiagoalonso.aurahealth", category: "HealthKit")
 
 /// Apple Health (HealthKit) integration
 @Observable
@@ -92,6 +95,8 @@ final class HealthKitService {
 
         let startDate = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
 
+        logger.notice("[HealthKit] Starting sync, \(days) days back from \(startDate.formatted())")
+
         do {
             syncProgress?.phase = "Steps"
             try await syncDailySum(.stepCount, metricType: .steps, unit: .count(), context: context, since: startDate)
@@ -125,7 +130,9 @@ final class HealthKitService {
 
             lastSyncDate = Date()
             UserDefaults.standard.set(lastSyncDate, forKey: "healthkit-last-sync")
+            logger.notice("[HealthKit] Sync complete. Total imported: \(self.syncProgress?.imported ?? 0)")
         } catch {
+            logger.error("[HealthKit] Sync failed: \(error.localizedDescription)")
             self.error = "Sync failed: \(error.localizedDescription)"
         }
 
@@ -144,7 +151,10 @@ final class HealthKitService {
         since startDate: Date,
         multiplier: Double = 1
     ) async throws {
-        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else { return }
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else {
+            logger.warning("[HealthKit] \(metricType.displayName): type not available")
+            return
+        }
 
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date())
         let descriptor = HKSampleQueryDescriptor(
@@ -159,13 +169,16 @@ final class HealthKitService {
         let cal = Calendar.current
         let grouped = Dictionary(grouping: samples) { cal.startOfDay(for: $0.startDate) }
 
+        var inserted = 0
         for (day, daySamples) in grouped {
             guard let latest = daySamples.first else { continue }
             let value = latest.quantity.doubleValue(for: unit) * multiplier
             if insertIfNew(context: context, timestamp: day, type: metricType, value: value) {
                 syncProgress?.imported += 1
+                inserted += 1
             }
         }
+        logger.notice("[HealthKit] \(metricType.displayName): \(samples.count) samples → \(grouped.count) days → \(inserted) new")
     }
 
     /// Sync cumulative metrics (steps, calories, exercise minutes) — sums per day
@@ -176,7 +189,10 @@ final class HealthKitService {
         context: ModelContext,
         since startDate: Date
     ) async throws {
-        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else { return }
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else {
+            logger.warning("[HealthKit] \(metricType.displayName): type not available")
+            return
+        }
 
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date())
         let descriptor = HKSampleQueryDescriptor(
@@ -191,14 +207,17 @@ final class HealthKitService {
         let cal = Calendar.current
         let grouped = Dictionary(grouping: samples) { cal.startOfDay(for: $0.startDate) }
 
+        var inserted = 0
         for (day, daySamples) in grouped {
             let total = daySamples.reduce(0.0) { $0 + $1.quantity.doubleValue(for: unit) }
             if total > 0 {
                 if insertIfNew(context: context, timestamp: day, type: metricType, value: total) {
                     syncProgress?.imported += 1
+                    inserted += 1
                 }
             }
         }
+        logger.notice("[HealthKit] \(metricType.displayName): \(samples.count) samples → \(grouped.count) days → \(inserted) new")
     }
 
     private func syncBloodPressure(context: ModelContext, since startDate: Date) async throws {

@@ -23,7 +23,7 @@ struct VaultView: View {
                 )
                 .padding(.top, 60)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 280))], spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 280))], spacing: 12) {
                     ForEach(Array(documents.enumerated()), id: \.element.id) { index, doc in
                         DocumentCard(document: doc)
                             .onTapGesture { selectedDocument = doc }
@@ -43,6 +43,9 @@ struct VaultView: View {
             }
         }
         .navigationTitle("Vault")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.large)
+        #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingUpload = true } label: {
@@ -317,6 +320,17 @@ struct VaultDocumentDetail: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
+                #if os(iOS)
+                // Share button — only shown when file data is available
+                if let data = document.fileData {
+                    ToolbarItem(placement: .topBarLeading) {
+                        ShareLink(
+                            item: data,
+                            preview: SharePreview(document.title, image: Image(systemName: document.fileType.iconName))
+                        )
+                    }
+                }
+                #endif
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }

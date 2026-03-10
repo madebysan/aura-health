@@ -5,19 +5,30 @@ import SwiftData
 struct AuraHealthApp: App {
     @State private var whoopService = WhoopService()
     @State private var healthKitService = HealthKitService()
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    #if os(macOS)
     @State private var healthAutoExportService = HealthAutoExportService()
+    #endif
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(whoopService)
-                .environment(healthKitService)
-                .environment(healthAutoExportService)
-                .onOpenURL { url in
-                    if url.host == "whoop" {
-                        Task { await whoopService.handleCallback(url: url) }
-                    }
+            Group {
+                if hasCompletedOnboarding {
+                    ContentView()
+                } else {
+                    OnboardingView()
                 }
+            }
+            .environment(whoopService)
+            .environment(healthKitService)
+            #if os(macOS)
+            .environment(healthAutoExportService)
+            #endif
+            .onOpenURL { url in
+                if url.host == "whoop" {
+                    Task { await whoopService.handleCallback(url: url) }
+                }
+            }
         }
         .modelContainer(for: [
             Measurement.self,

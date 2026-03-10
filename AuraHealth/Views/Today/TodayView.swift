@@ -48,20 +48,31 @@ struct VitalsView: View {
     @State private var selectedRange: VitalsRange = .today
     @State private var selectedMetricType: MetricType?
     @State private var detailMetricType: MetricType?
+    @State private var showCardSettings = false
+    @AppStorage("hiddenMetrics") private var hiddenMetricsRaw: String = ""
+
+    private var hiddenMetrics: Set<String> {
+        Set(hiddenMetricsRaw.split(separator: ",").map(String.init))
+    }
+
+    private var visibleMetrics: [MetricType] {
+        MetricType.allCases.filter { !hiddenMetrics.contains($0.rawValue) }
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 // Range picker
-                HStack(spacing: 6) {
-                    ForEach(VitalsRange.allCases) { range in
-                        FilterPill(label: range.rawValue, isActive: selectedRange == range) {
-                            withAnimation(AppAnimation.viewSwitch) {
-                                selectedRange = range
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(VitalsRange.allCases) { range in
+                            FilterPill(label: range.rawValue, isActive: selectedRange == range) {
+                                withAnimation(AppAnimation.viewSwitch) {
+                                    selectedRange = range
+                                }
                             }
                         }
                     }
-                    Spacer()
                 }
 
                 if selectedRange == .today {
@@ -74,9 +85,22 @@ struct VitalsView: View {
             .padding(.vertical, 8)
         }
         .navigationTitle("Vitals")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    showCardSettings = true
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                }
+                .help("Choose which cards to show")
+            }
+        }
         #if os(macOS)
         .frame(minWidth: 600)
         #endif
+        .sheet(isPresented: $showCardSettings) {
+            VitalsCardSettingsSheet(hiddenMetricsRaw: $hiddenMetricsRaw)
+        }
         .sheet(item: $selectedMetricType) { metricType in
             AddMeasurementSheet(metricType: metricType)
         }
@@ -90,8 +114,24 @@ struct VitalsView: View {
 
     // MARK: - Today Content (card grid)
 
+    @AppStorage("dismissedInsights") private var dismissedInsightsRaw: String = ""
+
+    private var dismissedInsights: Set<String> {
+        Set(dismissedInsightsRaw.split(separator: "|").map(String.init))
+    }
+
+    private func dismissInsight(_ message: String) {
+        var dismissed = dismissedInsights
+        dismissed.insert(message)
+        dismissedInsightsRaw = dismissed.joined(separator: "|")
+    }
+
+    private var activeInsights: [SuggestedStep] {
+        generateSuggestedSteps().filter { !dismissedInsights.contains($0.message) }
+    }
+
     private var todayContent: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 16) {
             // Date header
             HStack {
                 Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day())
@@ -100,15 +140,28 @@ struct VitalsView: View {
                 Spacer()
             }
 
-            // Metrics grid
-            LazyVGrid(columns: gridColumns, spacing: 10) {
-                HealthScoreCard(
-                    score: dailyHealthScore,
-                    recentScores: recentHealthScores
-                )
-                .staggeredAppearance(index: 0)
+            // 1. Daily Health Score — full width hero
+            HealthScoreHeroCard(
+                score: dailyHealthScore,
+                recentScores: recentHealthScores,
+                contributors: scoreContributors
+            )
+            .staggeredAppearance(index: 0)
 
-                ForEach(Array(MetricType.allCases.enumerated()), id: \.element) { index, metricType in
+            // 2. Insights — stacked card deck (swipe to dismiss)
+            let insights = activeInsights
+            if !insights.isEmpty {
+                InsightCardStack(insights: insights) { message in
+                    withAnimation(AppAnimation.appear) {
+                        dismissInsight(message)
+                    }
+                }
+                .staggeredAppearance(index: 1)
+            }
+
+            // 3. Vitals grid
+            LazyVGrid(columns: gridColumns, spacing: 14) {
+                ForEach(Array(todayVisibleMetrics.enumerated()), id: \.element) { index, metricType in
                     MetricCardView(
                         metricType: metricType,
                         latest: latestMeasurement(for: metricType),
@@ -129,12 +182,9 @@ struct VitalsView: View {
                             Label("Add Measurement", systemImage: "plus")
                         }
                     }
-                    .staggeredAppearance(index: index + 1)
+                    .staggeredAppearance(index: index + insights.count + 2)
                 }
             }
-
-            // Insights
-            suggestedStepsSection
         }
     }
 
@@ -151,8 +201,8 @@ struct VitalsView: View {
                 )
                 .padding(.top, 40)
             } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 340, maximum: 520))], spacing: 14) {
-                    ForEach(Array(MetricType.allCases.enumerated()), id: \.element) { index, metricType in
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300, maximum: 520))], spacing: 14) {
+                    ForEach(Array(visibleMetrics.enumerated()), id: \.element) { index, metricType in
                         let data = filteredMeasurements(for: metricType)
                         if !data.isEmpty {
                             TrendChartCard(metricType: metricType, measurements: data)
@@ -179,27 +229,24 @@ struct VitalsView: View {
 
     private var gridColumns: [GridItem] {
         #if os(macOS)
-        [GridItem(.adaptive(minimum: 190, maximum: 260), spacing: 10)]
+        [GridItem(.adaptive(minimum: 300, maximum: 520), spacing: 14)]
         #else
-        [GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 10)]
+        [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
         #endif
     }
 
-    // MARK: - Suggested Steps
+    // MARK: - Auto-only Metrics (hide when no data)
 
-    @ViewBuilder
-    private var suggestedStepsSection: some View {
-        let steps = generateSuggestedSteps()
-        if !steps.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionHeader(title: "Insights")
+    /// Metrics that only arrive from integrations (WHOOP / Apple Health) and aren't manually addable.
+    /// Hidden from the Today grid when there's no data for them.
+    private static let autoOnlyMetrics: Set<MetricType> = [.activeMinutes, .recovery, .strain, .sleepScore]
 
-                ForEach(Array(steps.enumerated()), id: \.element.message) { index, step in
-                    SuggestedStepRow(step: step)
-                        .staggeredAppearance(index: index + 15)
-                }
+    private var todayVisibleMetrics: [MetricType] {
+        visibleMetrics.filter { metric in
+            if Self.autoOnlyMetrics.contains(metric) {
+                return latestMeasurement(for: metric) != nil
             }
-            .cardStyle()
+            return true
         }
     }
 
@@ -237,22 +284,44 @@ struct VitalsView: View {
         }.filter { $0 > 0 }
     }
 
+    /// Each contributing metric has a weight and a normalizer that maps its value to 0–100.
+    private static let scoreComponents: [(type: MetricType, weight: Double, normalize: (Double) -> Double)] = [
+        // WHOOP-specific (highest signal when available)
+        (.recovery, 0.30, { min($0, 100) }),
+        (.sleepScore, 0.25, { min($0, 100) }),
+        // Available from Apple Health + WHOOP
+        (.hrv, 0.15, { min(max(($0 - 20) / 80 * 100, 0), 100) }),
+        (.heartRate, 0.10, { v in
+            // Resting HR: lower is better. 40-100 range → 100-0 score
+            min(max((100 - v) / 60 * 100, 0), 100)
+        }),
+        (.sleepDuration, 0.10, { v in
+            // 7-9h is optimal (100), <5h or >11h scores low
+            if v >= 7 && v <= 9 { return 100 }
+            if v >= 6 && v < 7 { return 70 }
+            if v >= 9 && v <= 10 { return 80 }
+            if v >= 5 && v < 6 { return 40 }
+            return 20
+        }),
+        (.steps, 0.05, { min($0 / 10000 * 100, 100) }),
+        (.activeMinutes, 0.03, { min($0 / 60 * 100, 100) }),
+        (.spo2, 0.02, { v in
+            // 95-100% is healthy
+            if v >= 95 { return 100 }
+            if v >= 90 { return 60 }
+            return 20
+        }),
+    ]
+
     private func computeHealthScore(from measurements: [Measurement]) -> Double {
         var total: Double = 0
         var totalWeight: Double = 0
 
-        if let recovery = measurements.first(where: { $0.metricType == .recovery })?.value {
-            total += min(recovery, 100) * 0.4
-            totalWeight += 0.4
-        }
-        if let sleepScore = measurements.first(where: { $0.metricType == .sleepScore })?.value {
-            total += min(sleepScore, 100) * 0.35
-            totalWeight += 0.35
-        }
-        if let hrv = measurements.first(where: { $0.metricType == .hrv })?.value {
-            let normalized = min(max((hrv - 20) / 80 * 100, 0), 100)
-            total += normalized * 0.25
-            totalWeight += 0.25
+        for component in Self.scoreComponents {
+            if let value = measurements.first(where: { $0.metricType == component.type })?.value {
+                total += component.normalize(value) * component.weight
+                totalWeight += component.weight
+            }
         }
 
         guard totalWeight > 0 else { return 0 }
@@ -263,22 +332,25 @@ struct VitalsView: View {
         var total: Double = 0
         var totalWeight: Double = 0
 
-        if let recovery = latestValue(for: .recovery) {
-            total += min(recovery, 100) * 0.4
-            totalWeight += 0.4
-        }
-        if let sleepScore = latestValue(for: .sleepScore) {
-            total += min(sleepScore, 100) * 0.35
-            totalWeight += 0.35
-        }
-        if let hrv = latestValue(for: .hrv) {
-            let normalized = min(max((hrv - 20) / 80 * 100, 0), 100)
-            total += normalized * 0.25
-            totalWeight += 0.25
+        for component in Self.scoreComponents {
+            if let value = latestValue(for: component.type) {
+                total += component.normalize(value) * component.weight
+                totalWeight += component.weight
+            }
         }
 
         guard totalWeight > 0 else { return 0 }
         return total / totalWeight
+    }
+
+    /// Human-readable summary of which metrics contribute to the score
+    private var scoreContributors: String {
+        let available = Self.scoreComponents.compactMap { component -> String? in
+            guard latestValue(for: component.type) != nil else { return nil }
+            return component.type.displayName.lowercased()
+        }
+        guard !available.isEmpty else { return "No data yet" }
+        return "Based on \(available.joined(separator: ", "))"
     }
 
     private func generateSuggestedSteps() -> [SuggestedStep] {
@@ -316,86 +388,55 @@ struct VitalsView: View {
     }
 }
 
-// MARK: - Health Score Card
+// MARK: - Health Score Hero Card (full width)
 
-struct HealthScoreCard: View {
+struct HealthScoreHeroCard: View {
     let score: Double
     let recentScores: [Double]
+    var contributors: String = "No data yet"
 
     private var scoreColor: Color {
         AppColors.scoreColor(for: score)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Header
-            HStack(spacing: 6) {
-                Image(systemName: "heart.text.square.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.pink)
-                    .frame(width: 20, height: 20)
-                    .background(Color.pink.opacity(0.1), in: RoundedRectangle(cornerRadius: 5))
+        HStack(spacing: 16) {
+            // Ring
+            HealthScoreRingView(score: score, label: "Health", size: 96)
 
+            // Details
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Daily Health")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Spacer()
+                    .font(.headline)
 
                 if score > 0 {
-                    Circle()
-                        .fill(scoreColor)
-                        .frame(width: 8, height: 8)
-                        .shadow(color: scoreColor.opacity(0.4), radius: 3)
-                }
-            }
+                    Text(scoreLabel)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(scoreColor)
 
-            // Score value
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                if score > 0 {
-                    Text("\(Int(score))")
-                        .font(.title2.weight(.bold).monospacedDigit())
-                        .contentTransition(.numericText())
+                    // 7-day sparkline
+                    if recentScores.count >= 2 {
+                        SparklineView(values: recentScores, color: scoreColor)
+                            .frame(height: 28)
+                            .clipped()
+                    }
 
-                    Text("/ 100")
-                        .font(.caption.weight(.medium))
+                    Text(contributors)
+                        .font(.caption2)
                         .foregroundStyle(.tertiary)
                 } else {
-                    Text("--")
-                        .font(.title2.weight(.bold))
+                    Text("No data yet")
+                        .font(.subheadline)
                         .foregroundStyle(.quaternary)
+                    Text("Connect a data source to see your score")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
             }
 
-            // Score label
-            if score > 0 {
-                Text(scoreLabel)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(scoreColor)
-            } else {
-                Text(" ")
-                    .font(.caption2)
-            }
-
-            // Sparkline
-            if recentScores.count >= 2 {
-                SparklineView(values: recentScores, color: scoreColor)
-                    .frame(height: 30)
-                    .clipped()
-            } else {
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(height: 30)
-            }
-
-            // Timestamp
-            Text("Updated now")
-                .font(.caption2)
-                .foregroundStyle(.quaternary)
+            Spacer()
         }
-        .cardStyle(padding: 14, cornerRadius: 12)
-        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .cardStyle(padding: 16, cornerRadius: 14)
         .hoverCard()
     }
 
@@ -407,7 +448,7 @@ struct HealthScoreCard: View {
     }
 }
 
-// MARK: - Suggested Step
+// MARK: - Insight Card (individual, dismissible)
 
 struct SuggestedStep {
     enum StepType { case warning, suggestion, info }
@@ -415,23 +456,121 @@ struct SuggestedStep {
     let message: String
 }
 
-struct SuggestedStepRow: View {
-    let step: SuggestedStep
+// MARK: - Insight Card Stack (WHOOP-style)
+
+struct InsightCardStack: View {
+    let insights: [SuggestedStep]
+    let onDismiss: (String) -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        ZStack(alignment: .topTrailing) {
+            // Background cards (stacked peek)
+            ForEach(Array(insights.enumerated().reversed()), id: \.element.message) { index, step in
+                if index > 0 && index <= 2 {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.regularMaterial)
+                        .frame(height: 90)
+                        .offset(y: CGFloat(index) * 6)
+                        .scaleEffect(1.0 - CGFloat(index) * 0.03, anchor: .top)
+                        .opacity(1.0 - Double(index) * 0.2)
+                }
+            }
+
+            // Top card (interactive)
+            if let topInsight = insights.first {
+                InsightCard(step: topInsight) {
+                    onDismiss(topInsight.message)
+                }
+                .transition(.asymmetric(
+                    insertion: .identity,
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
+                .id(topInsight.message)
+            }
+
+            // Count badge
+            if insights.count > 1 {
+                HStack(spacing: 3) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                    Text("\(insights.count)")
+                        .font(.system(size: 11, weight: .bold).monospacedDigit())
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                .offset(x: -8, y: 8)
+            }
+        }
+        .padding(.bottom, min(CGFloat(insights.count - 1), 2) * 6)
+    }
+}
+
+struct InsightCard: View {
+    let step: SuggestedStep
+    let onDismiss: () -> Void
+
+    @State private var dragOffset: CGFloat = 0
+
+    private func animateDismiss() {
+        withAnimation(.easeIn(duration: 0.2)) {
+            dragOffset = -400
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            onDismiss()
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
             Image(systemName: iconName)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .background(iconColor, in: RoundedRectangle(cornerRadius: 5))
+                .frame(width: 26, height: 26)
+                .background(iconColor, in: RoundedRectangle(cornerRadius: 6))
 
             Text(step.message)
                 .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer()
+            Button {
+                animateDismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 22, height: 22)
+                    .background(Color.primary.opacity(0.06), in: Circle())
+            }
+            .buttonStyle(.plain)
         }
-        .padding(.vertical, 2)
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        )
+        .offset(x: dragOffset)
+        .opacity(1.0 - Double(abs(dragOffset)) / 300.0)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    // Only allow left swipe
+                    if value.translation.width < 0 {
+                        dragOffset = value.translation.width
+                    }
+                }
+                .onEnded { value in
+                    if value.translation.width < -100 {
+                        animateDismiss()
+                    } else {
+                        withAnimation(.spring(response: 0.3)) {
+                            dragOffset = 0
+                        }
+                    }
+                }
+        )
     }
 
     private var iconName: String {
@@ -529,6 +668,62 @@ struct AddMeasurementSheet: View {
 
         modelContext.insert(measurement)
         dismiss()
+    }
+}
+
+// MARK: - Card Settings Sheet
+
+struct VitalsCardSettingsSheet: View {
+    @Binding var hiddenMetricsRaw: String
+    @Environment(\.dismiss) private var dismiss
+
+    private var hiddenMetrics: Set<String> {
+        Set(hiddenMetricsRaw.split(separator: ",").map(String.init))
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(MetricType.allCases) { metricType in
+                        let isVisible = !hiddenMetrics.contains(metricType.rawValue)
+                        Toggle(isOn: Binding(
+                            get: { isVisible },
+                            set: { newValue in
+                                var set = hiddenMetrics
+                                if newValue {
+                                    set.remove(metricType.rawValue)
+                                } else {
+                                    set.insert(metricType.rawValue)
+                                }
+                                hiddenMetricsRaw = set.sorted().joined(separator: ",")
+                            }
+                        )) {
+                            Label {
+                                Text(metricType.displayName)
+                            } icon: {
+                                Image(systemName: metricType.iconName)
+                                    .foregroundStyle(metricType.iconColor)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Choose which metric cards appear on the Vitals dashboard.")
+                }
+            }
+            .navigationTitle("Visible Cards")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 360, minHeight: 420)
+        #endif
     }
 }
 

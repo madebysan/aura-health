@@ -1,12 +1,14 @@
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable {
+    case tracking
     case vitals
     case correlations
-    case biomarkers
-    case medications
-    case tracking
     case conditions
+    case medications
+    case biomarkers
+    case diet
+    case exercise
     case vault
     case chat
     case settings
@@ -15,12 +17,14 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
+        case .tracking: "Tracking"
         case .vitals: "Vitals"
         case .correlations: "Correlations"
-        case .biomarkers: "Biomarkers"
-        case .medications: "Medications"
-        case .tracking: "Tracking"
         case .conditions: "Conditions"
+        case .medications: "Medications"
+        case .biomarkers: "Biomarkers"
+        case .diet: "Diet"
+        case .exercise: "Exercise"
         case .vault: "Vault"
         case .chat: "Chat"
         case .settings: "Settings"
@@ -29,12 +33,14 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var iconName: String {
         switch self {
+        case .tracking: "checkmark.rectangle.stack.fill"
         case .vitals: "heart.text.square.fill"
         case .correlations: "chart.xyaxis.line"
-        case .biomarkers: "cross.vial.fill"
-        case .medications: "pills.fill"
-        case .tracking: "checkmark.rectangle.stack.fill"
         case .conditions: "stethoscope"
+        case .medications: "pills.fill"
+        case .biomarkers: "drop.fill"
+        case .diet: "fork.knife"
+        case .exercise: "figure.run"
         case .vault: "lock.doc.fill"
         case .chat: "bubble.left.and.bubble.right.fill"
         case .settings: "gearshape.fill"
@@ -43,26 +49,30 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var iconColor: Color {
         switch self {
+        case .tracking: .orange
         case .vitals: .pink
         case .correlations: .indigo
-        case .biomarkers: .green
-        case .medications: .blue
-        case .tracking: .orange
         case .conditions: .purple
+        case .medications: .blue
+        case .biomarkers: .green
+        case .diet: .orange
+        case .exercise: .red
         case .vault: .gray
         case .chat: .cyan
         case .settings: .gray
         }
     }
 
-    static let tabBarSections: [AppSection] = [.vitals, .correlations, .biomarkers, .medications, .tracking]
+    static let tabBarSections: [AppSection] = [.vitals, .tracking, .biomarkers, .chat]
 }
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(WhoopService.self) private var whoopService
     @Environment(HealthKitService.self) private var healthKitService
+    #if os(macOS)
     @Environment(HealthAutoExportService.self) private var healthAutoExportService
+    #endif
     @State private var selectedSection: AppSection = .vitals
     @State private var showingChat = false
 
@@ -83,6 +93,7 @@ struct ContentView: View {
             }
             #else
             TabView(selection: $selectedSection) {
+                // Primary tabs: Today, Vitals, Correlations, Medications
                 ForEach(AppSection.tabBarSections) { section in
                     NavigationStack {
                         DetailView(section: section)
@@ -92,8 +103,9 @@ struct ContentView: View {
                     }
                     .tag(section)
                 }
+                // More tab — remaining sections presented as a grouped list
                 NavigationStack {
-                    MoreMenuView(selection: $selectedSection)
+                    MoreMenuView(selectedSection: $selectedSection)
                 }
                 .tabItem {
                     Label("More", systemImage: "ellipsis")
@@ -102,24 +114,21 @@ struct ContentView: View {
             }
             #endif
         }
+        #if os(macOS)
         .overlay(alignment: .bottomTrailing) {
-            if selectedSection != .chat {
+            if showingChat {
+                FloatingChatPanel(isShowing: $showingChat)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.8, anchor: .bottomTrailing).combined(with: .opacity),
+                        removal: .scale(scale: 0.8, anchor: .bottomTrailing).combined(with: .opacity)
+                    ))
+            } else {
                 FloatingChatButton(isShowingChat: $showingChat)
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
-        .sheet(isPresented: $showingChat) {
-            NavigationStack {
-                ChatView()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") { showingChat = false }
-                        }
-                    }
-            }
-            #if os(macOS)
-            .frame(minWidth: 480, idealWidth: 540, minHeight: 500, idealHeight: 650)
-            #endif
-        }
+        .animation(AppAnimation.expand, value: showingChat)
+        #endif
         .task { await autoSync() }
         #if os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -150,12 +159,14 @@ struct ContentView: View {
             }
         }
 
+        #if os(macOS)
         if healthAutoExportService.isEnabled && !healthAutoExportService.isSyncing {
             let shouldSync = healthAutoExportService.lastSyncDate.map { Date().timeIntervalSince($0) > fifteenMinutes } ?? true
             if shouldSync {
                 await healthAutoExportService.syncData(into: modelContext)
             }
         }
+        #endif
     }
 }
 
@@ -168,8 +179,13 @@ struct SidebarView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 2) {
-                sidebarSection("Health", items: [.vitals, .correlations, .biomarkers])
-                sidebarSection("Tracking", items: [.medications, .tracking, .conditions])
+                // Top-level items (no section header)
+                ForEach([AppSection.vitals, .tracking]) { section in
+                    sidebarRow(section)
+                        .padding(.horizontal, 8)
+                }
+
+                sidebarSection("Health", items: [.correlations, .conditions, .medications, .biomarkers, .diet, .exercise])
                 sidebarSection("Tools", items: [.vault, .chat])
                 Divider().padding(.horizontal, 12).padding(.vertical, 4)
                 sidebarRow(.settings)
@@ -213,10 +229,12 @@ struct SidebarView: View {
                 Text(section.label)
                     .font(.body)
                     .foregroundStyle(isSelected ? .primary : .secondary)
+
+                Spacer()
             }
+            .contentShape(Rectangle())
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 isSelected ? Color(.controlBackgroundColor) : Color.clear,
                 in: RoundedRectangle(cornerRadius: 8)
@@ -231,23 +249,50 @@ struct SidebarView: View {
 // MARK: - More Menu (iOS)
 
 struct MoreMenuView: View {
-    @Binding var selection: AppSection
+    @Binding var selectedSection: AppSection
 
-    private let moreSections: [AppSection] = [
-        .conditions, .vault, .chat, .settings
-    ]
+    // Grouped sections for the "More" list.
+    // The tab bar covers: Today, Vitals, Biomarkers, Chat.
+    private let healthSections: [AppSection] = [.correlations, .medications, .conditions, .diet, .exercise]
+    private let toolSections: [AppSection]   = [.vault]
+    private let appSections: [AppSection]    = [.settings]
 
     var body: some View {
         List {
-            ForEach(moreSections) { section in
-                NavigationLink {
-                    DetailView(section: section)
-                } label: {
-                    Label(section.label, systemImage: section.iconName)
-                }
+            Section("Health") {
+                ForEach(healthSections, content: moreRow)
+            }
+            Section("Tools") {
+                ForEach(toolSections, content: moreRow)
+            }
+            Section("App") {
+                ForEach(appSections, content: moreRow)
             }
         }
         .navigationTitle("More")
+    }
+
+    /// A single row with the section's colored icon and a navigation chevron.
+    @ViewBuilder
+    private func moreRow(_ section: AppSection) -> some View {
+        NavigationLink {
+            DetailView(section: section)
+                #if os(iOS)
+                .toolbar(.hidden, for: .tabBar)
+                #endif
+        } label: {
+            HStack(spacing: 14) {
+                // Colored icon badge (matches iOS Settings style)
+                Image(systemName: section.iconName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(section.iconColor, in: RoundedRectangle(cornerRadius: 7))
+
+                Text(section.label)
+                    .foregroundStyle(.primary)
+            }
+        }
     }
 }
 
@@ -257,16 +302,27 @@ struct DetailView: View {
     let section: AppSection
 
     var body: some View {
+        view(for: section)
+        #if os(iOS)
+        // Large titles on all top-level tab views for iOS navigation conventions.
+        .navigationBarTitleDisplayMode(.large)
+        #endif
+    }
+
+    @ViewBuilder
+    private func view(for section: AppSection) -> some View {
         switch section {
-        case .vitals: VitalsView()
+        case .tracking:     HabitsView()
+        case .vitals:       VitalsView()
         case .correlations: CorrelationsView()
-        case .biomarkers: BiomarkersView()
-        case .medications: MedicationsView()
-        case .tracking: HabitsView()
-        case .conditions: ConditionsView()
-        case .vault: VaultView()
-        case .chat: ChatView()
-        case .settings: SettingsView()
+        case .conditions:   ConditionsView()
+        case .medications:  MedicationsView()
+        case .biomarkers:   BiomarkersView()
+        case .diet:         DietPlansView()
+        case .exercise:     ExercisePlaceholderView()
+        case .vault:        VaultView()
+        case .chat:         ChatView()
+        case .settings:     SettingsView()
         }
     }
 }

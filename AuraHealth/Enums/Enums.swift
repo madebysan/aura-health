@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Metric Types
 
@@ -191,6 +192,113 @@ enum TrackingType: String, Codable {
 
 // MARK: - Conditions
 
+/// Common health conditions for autocomplete suggestions
+enum CommonCondition: String, CaseIterable {
+    // Metabolic & Endocrine
+    case type1Diabetes = "Type 1 Diabetes"
+    case type2Diabetes = "Type 2 Diabetes"
+    case hypothyroidism = "Hypothyroidism"
+    case hyperthyroidism = "Hyperthyroidism"
+    case metabolicSyndrome = "Metabolic Syndrome"
+    case pcos = "Polycystic Ovary Syndrome (PCOS)"
+    case obesity = "Obesity"
+    case insulinResistance = "Insulin Resistance"
+
+    // Cardiovascular
+    case hypertension = "Hypertension"
+    case highCholesterol = "High Cholesterol"
+    case heartDisease = "Heart Disease"
+    case atrialFibrillation = "Atrial Fibrillation"
+    case heartFailure = "Heart Failure"
+    case peripheralArteryDisease = "Peripheral Artery Disease"
+
+    // Respiratory
+    case asthma = "Asthma"
+    case copd = "COPD"
+    case sleepApnea = "Sleep Apnea"
+    case allergicRhinitis = "Allergic Rhinitis"
+    case chronicSinusitis = "Chronic Sinusitis"
+
+    // Mental Health
+    case anxiety = "Anxiety"
+    case depression = "Depression"
+    case bipolarDisorder = "Bipolar Disorder"
+    case adhd = "ADHD"
+    case ptsd = "PTSD"
+    case ocd = "OCD"
+    case insomnia = "Insomnia"
+
+    // Musculoskeletal
+    case osteoarthritis = "Osteoarthritis"
+    case rheumatoidArthritis = "Rheumatoid Arthritis"
+    case osteoporosis = "Osteoporosis"
+    case fibromyalgia = "Fibromyalgia"
+    case chronicBackPain = "Chronic Back Pain"
+    case gout = "Gout"
+    case sciatica = "Sciatica"
+
+    // Digestive
+    case ibs = "Irritable Bowel Syndrome (IBS)"
+    case crohnsDisease = "Crohn's Disease"
+    case ulcerativeColitis = "Ulcerative Colitis"
+    case celiacDisease = "Celiac Disease"
+    case gerd = "GERD"
+    case gastritis = "Gastritis"
+
+    // Autoimmune
+    case lupus = "Lupus"
+    case multipleSclerosis = "Multiple Sclerosis"
+    case psoriasis = "Psoriasis"
+    case hashimotos = "Hashimoto's Thyroiditis"
+
+    // Neurological
+    case migraines = "Migraines"
+    case epilepsy = "Epilepsy"
+    case neuropathy = "Neuropathy"
+
+    // Kidney & Liver
+    case chronicKidneyDisease = "Chronic Kidney Disease"
+    case kidneyStones = "Kidney Stones"
+    case fattyLiverDisease = "Fatty Liver Disease"
+
+    // Skin
+    case eczema = "Eczema"
+    case acne = "Acne"
+    case rosacea = "Rosacea"
+
+    // Blood
+    case anemia = "Anemia"
+    case ironDeficiency = "Iron Deficiency"
+
+    // Other Common
+    case allergies = "Allergies"
+    case chronicFatigue = "Chronic Fatigue Syndrome"
+    case tinnitus = "Tinnitus"
+    case endometriosis = "Endometriosis"
+    case raynauds = "Raynaud's Syndrome"
+    case vertigo = "Vertigo"
+    case dryEye = "Dry Eye Syndrome"
+    case carpalTunnel = "Carpal Tunnel Syndrome"
+    case lyme = "Lyme Disease"
+    case longCovid = "Long COVID"
+
+    static let allNames: [String] = allCases.map(\.rawValue)
+
+    /// Search conditions by name (case-insensitive prefix/contains match)
+    static func search(_ query: String) -> [String] {
+        guard !query.isEmpty else { return [] }
+        let q = query.lowercased()
+        return allNames
+            .filter { $0.lowercased().contains(q) }
+            .sorted { a, b in
+                let aStarts = a.lowercased().hasPrefix(q)
+                let bStarts = b.lowercased().hasPrefix(q)
+                if aStarts != bStarts { return aStarts }
+                return a < b
+            }
+    }
+}
+
 enum ConditionStatus: String, Codable, CaseIterable {
     case active
     case managed
@@ -232,9 +340,172 @@ enum VaultFileType: String, Codable, CaseIterable {
     }
 }
 
+// MARK: - Diet Type
+
+enum DietTypeOption: String, CaseIterable, Identifiable {
+    case mediterranean = "Mediterranean"
+    case keto = "Keto"
+    case paleo = "Paleo"
+    case vegan = "Vegan"
+    case vegetarian = "Vegetarian"
+    case wholeFoods = "Whole Foods"
+    case lowCarb = "Low Carb"
+    case highProtein = "High Protein"
+    case dash = "DASH"
+    case intermittentFasting = "Intermittent Fasting"
+    case glutenFree = "Gluten-Free"
+    case dairyFree = "Dairy-Free"
+    case antiInflammatory = "Anti-Inflammatory"
+    case carnivore = "Carnivore"
+    case custom = "Custom"
+
+    var id: String { rawValue }
+
+    var iconName: String {
+        switch self {
+        case .mediterranean: "leaf.fill"
+        case .keto: "drop.fill"
+        case .paleo: "flame.fill"
+        case .vegan: "leaf.circle.fill"
+        case .vegetarian: "carrot.fill"
+        case .wholeFoods: "basket.fill"
+        case .lowCarb: "chart.bar.fill"
+        case .highProtein: "bolt.fill"
+        case .dash: "heart.fill"
+        case .intermittentFasting: "clock.fill"
+        case .glutenFree: "xmark.circle.fill"
+        case .dairyFree: "drop.triangle.fill"
+        case .antiInflammatory: "shield.fill"
+        case .carnivore: "hare.fill"
+        case .custom: "pencil"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .mediterranean: .green
+        case .keto: .purple
+        case .paleo: .orange
+        case .vegan: .green
+        case .vegetarian: .mint
+        case .wholeFoods: .brown
+        case .lowCarb: .blue
+        case .highProtein: .red
+        case .dash: .pink
+        case .intermittentFasting: .indigo
+        case .glutenFree: .orange
+        case .dairyFree: .cyan
+        case .antiInflammatory: .teal
+        case .carnivore: .red
+        case .custom: .secondary
+        }
+    }
+
+    /// Match a stored string back to an option
+    static func from(_ string: String) -> DietTypeOption? {
+        allCases.first { $0.rawValue == string }
+    }
+
+    /// Default approved food categories for this diet type
+    var defaultApproved: [FoodCategory] {
+        switch self {
+        case .mediterranean:
+            return [.fish, .poultry, .vegetables, .fruits, .legumes, .nuts, .oliveOil, .wholeGrains, .eggs, .dairy, .herbs]
+        case .keto:
+            return [.redMeat, .poultry, .fish, .eggs, .dairy, .nuts, .oliveOil, .butter, .vegetables, .herbs]
+        case .paleo:
+            return [.redMeat, .poultry, .fish, .eggs, .vegetables, .fruits, .nuts, .oliveOil, .herbs]
+        case .vegan:
+            return [.vegetables, .fruits, .legumes, .nuts, .wholeGrains, .oliveOil, .tofu, .herbs]
+        case .vegetarian:
+            return [.vegetables, .fruits, .legumes, .nuts, .wholeGrains, .oliveOil, .eggs, .dairy, .tofu, .herbs]
+        case .wholeFoods:
+            return [.redMeat, .poultry, .fish, .vegetables, .fruits, .legumes, .nuts, .wholeGrains, .eggs, .dairy, .oliveOil, .herbs]
+        case .lowCarb:
+            return [.redMeat, .poultry, .fish, .eggs, .dairy, .vegetables, .nuts, .oliveOil, .butter, .herbs]
+        case .highProtein:
+            return [.redMeat, .poultry, .fish, .eggs, .dairy, .legumes, .tofu, .nuts, .wholeGrains, .herbs]
+        case .dash:
+            return [.poultry, .fish, .vegetables, .fruits, .legumes, .nuts, .wholeGrains, .dairy, .oliveOil, .herbs]
+        case .intermittentFasting:
+            return FoodCategory.allCases // No food restrictions, just timing
+        case .glutenFree:
+            return FoodCategory.allCases.filter { $0 != .wholeGrains && $0 != .refinedGrains }
+        case .dairyFree:
+            return FoodCategory.allCases.filter { $0 != .dairy && $0 != .butter }
+        case .antiInflammatory:
+            return [.fish, .vegetables, .fruits, .nuts, .oliveOil, .wholeGrains, .legumes, .herbs, .tofu]
+        case .carnivore:
+            return [.redMeat, .poultry, .fish, .eggs, .butter, .dairy]
+        case .custom:
+            return FoodCategory.allCases
+        }
+    }
+
+    /// Default avoided food categories for this diet type
+    var defaultAvoided: [FoodCategory] {
+        let all = Set(FoodCategory.allCases)
+        let approved = Set(defaultApproved)
+        return Array(all.subtracting(approved)).sorted { $0.rawValue < $1.rawValue }
+    }
+}
+
+// MARK: - Food Category
+
+enum FoodCategory: String, Codable, CaseIterable, Identifiable, Comparable {
+    case redMeat = "Red Meat"
+    case poultry = "Poultry"
+    case fish = "Fish & Seafood"
+    case eggs = "Eggs"
+    case dairy = "Dairy"
+    case butter = "Butter & Ghee"
+    case vegetables = "Vegetables"
+    case fruits = "Fruits"
+    case legumes = "Legumes & Beans"
+    case nuts = "Nuts & Seeds"
+    case wholeGrains = "Whole Grains"
+    case refinedGrains = "Refined Grains"
+    case oliveOil = "Olive Oil"
+    case tofu = "Tofu & Soy"
+    case sugar = "Added Sugar"
+    case processedFoods = "Processed Foods"
+    case alcohol = "Alcohol"
+    case herbs = "Herbs & Spices"
+
+    var id: String { rawValue }
+
+    var iconName: String {
+        switch self {
+        case .redMeat: "flame.fill"
+        case .poultry: "bird.fill"
+        case .fish: "fish.fill"
+        case .eggs: "oval.fill"
+        case .dairy: "cup.and.saucer.fill"
+        case .butter: "rectangle.fill"
+        case .vegetables: "leaf.fill"
+        case .fruits: "apple.logo"
+        case .legumes: "circle.grid.3x3.fill"
+        case .nuts: "tree.fill"
+        case .wholeGrains: "wheat.bundle.fill"
+        case .refinedGrains: "square.stack.fill"
+        case .oliveOil: "drop.fill"
+        case .tofu: "square.fill"
+        case .sugar: "cube.fill"
+        case .processedFoods: "shippingbox.fill"
+        case .alcohol: "wineglass.fill"
+        case .herbs: "leaf.arrow.circlepath"
+        }
+    }
+
+    static func < (lhs: FoodCategory, rhs: FoodCategory) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
+}
+
 // MARK: - Grid Section (for ordering habits/meds on daily grid)
 
 enum GridSection: String, Codable, CaseIterable {
+    case any
     case morning
     case afternoon
     case evening
@@ -242,6 +513,7 @@ enum GridSection: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
+        case .any: "Any"
         case .morning: "Morning"
         case .afternoon: "Afternoon"
         case .evening: "Evening"

@@ -201,8 +201,14 @@ struct VitalsView: View {
                 )
                 .padding(.top, 40)
             } else {
+                let sortedMetrics = visibleMetrics.sorted { a, b in
+                    let aHasData = !filteredMeasurements(for: a).isEmpty
+                    let bHasData = !filteredMeasurements(for: b).isEmpty
+                    if aHasData != bHasData { return aHasData }
+                    return false
+                }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 300, maximum: 520))], spacing: 14) {
-                    ForEach(Array(visibleMetrics.enumerated()), id: \.element) { index, metricType in
+                    ForEach(Array(sortedMetrics.enumerated()), id: \.element) { index, metricType in
                         let data = filteredMeasurements(for: metricType)
                         if !data.isEmpty {
                             TrendChartCard(metricType: metricType, measurements: data)

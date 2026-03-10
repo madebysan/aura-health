@@ -49,7 +49,7 @@ struct BiomarkersView: View {
                 if groupedByMarker.isEmpty && biomarkers.isEmpty {
                     VStack(spacing: 16) {
                         EmptyStateView(
-                            icon: "cross.vial",
+                            icon: "drop.fill",
                             title: "No Biomarkers",
                             message: "Upload a lab report in Chat to import biomarkers automatically, or add them manually."
                         )

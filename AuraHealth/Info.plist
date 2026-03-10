@@ -20,12 +20,31 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Aura</string>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.healthcare-fitness</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Aura Health reads your health data to show trends and insights.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Aura Health needs write access for future features.</string>
+	<key>WhoopClientID</key>
+	<string>$(WHOOP_CLIENT_ID)</string>
+	<key>WhoopClientSecret</key>
+	<string>$(WHOOP_CLIENT_SECRET)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

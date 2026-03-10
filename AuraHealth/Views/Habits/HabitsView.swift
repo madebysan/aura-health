@@ -15,6 +15,10 @@ struct HabitsView: View {
     @State private var selectedTab = 0
     @State private var showingAddSheet = false
     @State private var editingHabit: Habit?
+    /// Tracks the last habit toggled so sensory feedback fires on each new tap (iOS only).
+    @State private var lastToggledHabitID: UUID?
+    /// Whether a refresh is in progress for pull-to-refresh (iOS only).
+    @State private var isRefreshing = false
 
     private var activeHabits: [Habit] {
         allHabits.filter(\.active)
@@ -30,14 +34,11 @@ struct HabitsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker(selection: $selectedTab) {
-                Text("Daily Grid").tag(0)
-                Text("Adherence").tag(1)
-            } label: {
-                EmptyView()
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
+            PillSegmentedPicker(
+                options: [0, 1],
+                selection: $selectedTab,
+                label: { $0 == 0 ? "Daily Grid" : "Adherence" }
+            )
             .padding()
 
             ScrollView {
@@ -47,6 +48,14 @@ struct HabitsView: View {
                     adherenceTab
                 }
             }
+            #if os(iOS)
+            // Pull-to-refresh: re-queries SwiftData automatically on next runloop tick.
+            .refreshable {
+                // SwiftData @Query updates automatically; a brief yield lets the UI
+                // show the spinner and then settle.
+                try? await Task.sleep(for: .milliseconds(600))
+            }
+            #endif
         }
         .navigationTitle("Tracking")
         .toolbar {
@@ -56,6 +65,10 @@ struct HabitsView: View {
                 }
             }
         }
+        #if os(iOS)
+        // Sensory feedback fires whenever a habit is toggled (iOS 17+).
+        .sensoryFeedback(.impact(flexibility: .solid), trigger: lastToggledHabitID)
+        #endif
         .sheet(isPresented: $showingAddSheet) {
             HabitFormSheet()
         }
@@ -104,7 +117,11 @@ struct HabitsView: View {
 
     // MARK: - Day Columns
 
+    #if os(macOS)
     private let dayCount = 14
+    #else
+    private let dayCount = 7
+    #endif
 
     private var dayDates: [Date] {
         let cal = Calendar.current
@@ -126,35 +143,66 @@ struct HabitsView: View {
                 let isToday = cal.isDateInToday(date)
                 VStack(spacing: 2) {
                     Text(date, format: .dateTime.weekday(.abbreviated))
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(isToday ? Color.accentColor : Color.secondary.opacity(0.6))
                         .textCase(.uppercase)
                     Text("\(cal.component(.day, from: date))")
                         .font(.system(size: 12, weight: isToday ? .bold : .medium))
                         .foregroundStyle(isToday ? Color.accentColor : .secondary)
                 }
+                #if os(macOS)
                 .frame(width: 32)
+                #else
+                .frame(width: 36)
+                #endif
+                .opacity(isToday ? 1.0 : 0.7)
             }
         }
         .padding(.vertical, 10)
     }
 
+    /// Returns the SF Symbol name for a time-of-day section.
+    private func iconName(for section: GridSection) -> String {
+        switch section {
+        case .any:       "clock.fill"
+        case .morning:   "sunrise.fill"
+        case .afternoon: "sun.max.fill"
+        case .evening:   "sunset.fill"
+        case .night:     "moon.stars.fill"
+        }
+    }
+
+    /// Returns the accent color for a time-of-day section.
+    private func iconColor(for section: GridSection) -> Color {
+        switch section {
+        case .any:       .gray
+        case .morning:   .orange
+        case .afternoon: .yellow
+        case .evening:   .pink
+        case .night:     .indigo
+        }
+    }
+
     private func sectionHeader(_ section: GridSection) -> some View {
-        HStack {
+        HStack(spacing: 6) {
+            // Section icon gives a quick visual cue of the time of day.
+            Image(systemName: iconName(for: section))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(iconColor(for: section))
             Text(section.displayName.uppercased())
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary.opacity(0.6))
-                .tracking(0.5)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .tracking(0.6)
             Spacer()
         }
         .padding(.horizontal, 16)
-        .padding(.top, 14)
+        .padding(.top, 16)
         .padding(.bottom, 4)
     }
 
     private func habitRow(_ habit: Habit) -> some View {
         HStack(spacing: 0) {
-            // Habit name + edit button
+            // Habit name + edit affordance
             Button {
                 editingHabit = habit
             } label: {
@@ -173,12 +221,28 @@ struct HabitsView: View {
 
             // Day cells
             ForEach(dayDates, id: \.self) { date in
-                DayCell(habit: habit, date: date, allLogs: allLogs)
-                    .frame(width: 32, height: 32)
+                let isToday = Calendar.current.isDateInToday(date)
+                DayCell(
+                    habit: habit,
+                    date: date,
+                    allLogs: allLogs,
+                    onToggle: {
+                        #if os(iOS)
+                        lastToggledHabitID = habit.id
+                        #endif
+                    }
+                )
+                #if os(macOS)
+                .frame(width: 32, height: 32)
+                #else
+                .frame(width: 36, height: 36)
+                #endif
+                .opacity(isToday ? 1.0 : 0.7)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 4)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 
     // MARK: - Adherence Tab
@@ -212,6 +276,8 @@ struct DayCell: View {
     let habit: Habit
     let date: Date
     let allLogs: [HabitLog]
+    /// Called after every toggle so the parent can fire haptics / update state.
+    var onToggle: (() -> Void)? = nil
 
     @State private var justToggled = false
 
@@ -241,7 +307,7 @@ struct DayCell: View {
                 } else if isDone {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(AppColors.statusGreen)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 28, height: 28)
                         .overlay(
                             Image(systemName: "checkmark")
                                 .font(.system(size: 10, weight: .bold))
@@ -251,7 +317,7 @@ struct DayCell: View {
                     // Explicitly marked as not done
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.secondary.opacity(0.15))
-                        .frame(width: 24, height: 24)
+                        .frame(width: 28, height: 28)
                         .overlay(
                             Image(systemName: "xmark")
                                 .font(.system(size: 9, weight: .medium))
@@ -261,7 +327,7 @@ struct DayCell: View {
                     // No log — empty cell
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.primary.opacity(0.04))
-                        .frame(width: 24, height: 24)
+                        .frame(width: 28, height: 28)
                 }
             }
             .symbolEffect(.bounce, value: justToggled)
@@ -272,6 +338,7 @@ struct DayCell: View {
 
     private func toggleDay() {
         justToggled.toggle()
+        onToggle?()
         withAnimation(AppAnimation.quickToggle) {
             if let log = logForDay {
                 if log.done {
@@ -346,9 +413,9 @@ struct AdherenceRow: View {
                 }
             }
 
-            // Mini heatmap
-            HeatmapView(data: heatmapData, months: 3)
-                .frame(height: 50)
+            // Mini heatmap (60 days)
+            HeatmapView(data: heatmapData, months: 2)
+                .frame(height: 80)
                 .clipped()
         }
         .cardStyle(padding: 14, cornerRadius: 12)

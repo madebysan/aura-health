@@ -20,12 +20,48 @@ struct HeatmapView: View {
         return result
     }
 
+    /// Organizes days into weeks (columns) with 7 rows each (Mon–Sun).
+    private var weeks: [[Date?]] {
+        guard let first = days.first else { return [] }
+        // Weekday: 1=Sun, 2=Mon ... 7=Sat. We want Mon=0, so shift.
+        let firstWeekday = (calendar.component(.weekday, from: first) + 5) % 7
+        var grid: [[Date?]] = []
+        var week: [Date?] = Array(repeating: nil, count: firstWeekday)
+        for day in days {
+            week.append(day)
+            if week.count == 7 {
+                grid.append(week)
+                week = []
+            }
+        }
+        if !week.isEmpty {
+            while week.count < 7 { week.append(nil) }
+            grid.append(week)
+        }
+        return grid
+    }
+
     var body: some View {
-        LazyHGrid(rows: Array(repeating: GridItem(.fixed(9), spacing: 2), count: 7), spacing: 2) {
-            ForEach(days, id: \.self) { day in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(colorForDay(day))
-                    .frame(width: 9, height: 9)
+        GeometryReader { geo in
+            let weekCount = max(weeks.count, 1)
+            let totalSpacing = CGFloat(weekCount - 1) * 2
+            let cellSize = max(4, (geo.size.width - totalSpacing) / CGFloat(weekCount))
+
+            HStack(alignment: .top, spacing: 2) {
+                ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
+                    VStack(spacing: 2) {
+                        ForEach(0..<7, id: \.self) { row in
+                            if let day = week[row] {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(colorForDay(day))
+                                    .frame(width: cellSize, height: cellSize)
+                            } else {
+                                Color.clear
+                                    .frame(width: cellSize, height: cellSize)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -86,10 +86,11 @@ struct CardStyle: ViewModifier {
             #if os(macOS)
             .background(AppColors.cardBackground, in: RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(AppColors.cardBorder, lineWidth: 1))
-            .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+            .shadow(color: .black.opacity(0.10), radius: 8, y: 3)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             #else
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color.primary.opacity(0.06), lineWidth: 0.5))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             #endif
     }
@@ -214,7 +215,7 @@ struct FilterPill: View {
             Text(label)
                 .font(.subheadline.weight(isActive ? .semibold : .regular))
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.vertical, 10)
                 .background(isActive ? Color.accentColor.opacity(0.16) : Color.secondary.opacity(0.08), in: Capsule())
                 .overlay(isActive ? Capsule().stroke(Color.accentColor.opacity(0.2), lineWidth: 1) : nil)
                 .foregroundStyle(isActive ? Color.accentColor : .secondary)
@@ -224,6 +225,74 @@ struct FilterPill: View {
     }
 }
 
+// MARK: - Pill Segmented Picker
+
+struct PillSegmentedPicker<T: Hashable>: View {
+    let options: [T]
+    @Binding var selection: T
+    let label: (T) -> String
+
+    @Namespace private var pillNS
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(options.enumerated()), id: \.element) { index, option in
+                let isSelected = selection == option
+                Button {
+                    withAnimation(AppAnimation.viewSwitch) {
+                        selection = option
+                    }
+                } label: {
+                    Text(label(option))
+                        .font(.subheadline.weight(isSelected ? .medium : .regular))
+                        .foregroundStyle(isSelected ? .primary : .secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background {
+                            if isSelected {
+                                Capsule()
+                                    .fill(.background)
+                                    .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                                    .matchedGeometryEffect(id: "pill", in: pillNS)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+
+                // Divider between non-selected items
+                let nextIsSelected = index + 1 < options.count && selection == options[index + 1]
+                if index < options.count - 1 && !isSelected && !nextIsSelected {
+                    Divider()
+                        .frame(height: 14)
+                        .opacity(0.3)
+                }
+            }
+        }
+        .padding(3)
+        .background(Color.primary.opacity(0.06), in: Capsule())
+    }
+}
+
+// MARK: - Haptics (iOS only)
+
+#if os(iOS)
+/// Lightweight haptic helpers so any view can trigger feedback without
+/// importing UIKit directly.
+enum AppHaptics {
+    /// A single solid impact — used for habit completion.
+    static func impact(flexibility: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
+        UIImpactFeedbackGenerator(style: flexibility).impactOccurred()
+    }
+
+    /// A notification haptic — success, warning, or error.
+    static func notification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        UINotificationFeedbackGenerator().notificationOccurred(type)
+    }
+}
+#endif
+
 // MARK: - Empty State
 
 struct EmptyStateView: View {
@@ -232,6 +301,8 @@ struct EmptyStateView: View {
     let message: String
     var actionLabel: String?
     var action: (() -> Void)?
+
+    @State private var appeared = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -257,5 +328,12 @@ struct EmptyStateView: View {
         }
         .padding(.vertical, 40)
         .frame(maxWidth: .infinity)
+        .opacity(appeared ? 1 : 0)
+        .scaleEffect(appeared ? 1.0 : 0.92)
+        .onAppear {
+            withAnimation(AppAnimation.appear.delay(0.05)) {
+                appeared = true
+            }
+        }
     }
 }

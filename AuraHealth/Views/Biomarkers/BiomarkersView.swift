@@ -14,7 +14,7 @@ struct BiomarkersView: View {
     @State private var showingLabImport = false
     @State private var selectedBiomarker: Biomarker?
 
-    private var claudeService: ClaudeService { ClaudeService() }
+    @State private var claudeService = ClaudeService()
 
     private var filteredBiomarkers: [Biomarker] {
         biomarkers.filter { bio in
@@ -104,17 +104,21 @@ struct BiomarkersView: View {
                             .padding(.horizontal, 4)
 
                             ForEach(systemGroup.markers, id: \.marker) { group in
-                                BiomarkerCardView(biomarker: group.latest, historyCount: group.history.count)
-                                    .onTapGesture { selectedBiomarker = group.latest }
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            for bio in group.history {
-                                                modelContext.delete(bio)
-                                            }
-                                        } label: {
-                                            Label("Delete All \(group.marker) Records", systemImage: "trash")
+                                Button {
+                                    selectedBiomarker = group.latest
+                                } label: {
+                                    BiomarkerCardView(biomarker: group.latest, historyCount: group.history.count)
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        for bio in group.history {
+                                            modelContext.delete(bio)
                                         }
+                                    } label: {
+                                        Label("Delete All \(group.marker) Records", systemImage: "trash")
                                     }
+                                }
                             }
                         }
                     }
@@ -125,6 +129,9 @@ struct BiomarkersView: View {
             .padding()
         }
         .navigationTitle("Biomarkers")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.large)
+        #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -162,23 +169,54 @@ struct BiomarkersView: View {
         guard total > 0 else { return AnyView(EmptyView()) }
 
         return AnyView(
-            GeometryReader { geo in
-                let width = geo.size.width
-                HStack(spacing: 2) {
-                    if counts.normal > 0 {
-                        statusSegment(count: counts.normal, total: total, width: width, color: AppColors.statusGreen, label: "Normal")
-                    }
-                    if counts.borderline > 0 {
-                        statusSegment(count: counts.borderline, total: total, width: width, color: AppColors.statusOrange, label: "Borderline")
-                    }
-                    if counts.abnormal > 0 {
-                        statusSegment(count: counts.abnormal, total: total, width: width, color: AppColors.statusRed, label: "Abnormal")
+            VStack(spacing: 8) {
+                // Proportional color bar
+                GeometryReader { geo in
+                    let width = geo.size.width
+                    HStack(spacing: 2) {
+                        if counts.normal > 0 {
+                            statusSegment(count: counts.normal, total: total, width: width, color: AppColors.statusGreen, label: "Normal")
+                        }
+                        if counts.borderline > 0 {
+                            statusSegment(count: counts.borderline, total: total, width: width, color: AppColors.statusOrange, label: "Borderline")
+                        }
+                        if counts.abnormal > 0 {
+                            statusSegment(count: counts.abnormal, total: total, width: width, color: AppColors.statusRed, label: "Abnormal")
+                        }
                     }
                 }
+                .frame(height: 14)
+                .clipShape(RoundedRectangle(cornerRadius: 7))
+
+                // Labeled legend — shows count + label so the bar is readable at iPhone width
+                HStack(spacing: 12) {
+                    if counts.normal > 0 {
+                        statusLegendItem(count: counts.normal, label: "Normal", color: AppColors.statusGreen)
+                    }
+                    if counts.borderline > 0 {
+                        statusLegendItem(count: counts.borderline, label: "Borderline", color: AppColors.statusOrange)
+                    }
+                    if counts.abnormal > 0 {
+                        statusLegendItem(count: counts.abnormal, label: "Abnormal", color: AppColors.statusRed)
+                    }
+                    Spacer()
+                    Text("\(total) markers")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
-            .frame(height: 32)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
         )
+    }
+
+    private func statusLegendItem(count: Int, label: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text("\(count) \(label)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private func statusSegment(count: Int, total: Int, width: CGFloat, color: Color, label: String) -> some View {
@@ -186,15 +224,11 @@ struct BiomarkersView: View {
         let spacing = CGFloat(segmentCount - 1) * 2
         let segmentWidth = max(40, (width - spacing) * CGFloat(count) / CGFloat(total))
 
-        return color.opacity(0.7)
-            .frame(width: segmentWidth)
-            .overlay(
-                Text("\(count) \(label)")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-            )
+        return Text("\(count)")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: segmentWidth, height: 14)
+            .background(color.opacity(0.7))
     }
 
     private var statusCounts: (normal: Int, borderline: Int, abnormal: Int) {
@@ -336,6 +370,8 @@ struct BiomarkerDetailSheet: View {
     let marker: String
     let biomarkers: [Biomarker]
 
+    @State private var selectedDate: Date?
+
     private var history: [Biomarker] {
         biomarkers.filter { $0.marker == marker }.sorted { $0.testDate > $1.testDate }
     }
@@ -352,6 +388,8 @@ struct BiomarkerDetailSheet: View {
                             Text(String(format: "%.1f", latest.value))
                                 .font(.system(size: 52, weight: .bold, design: .rounded))
                                 .monospacedDigit()
+                                .minimumScaleFactor(0.7)
+                                .lineLimit(1)
                                 .contentTransition(.numericText())
 
                             Text(latest.unit)
@@ -380,7 +418,7 @@ struct BiomarkerDetailSheet: View {
                                         y: .value("Value", bio.value)
                                     )
                                     .interpolationMethod(.catmullRom)
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(Color.secondary.opacity(0.5))
                                     .lineStyle(StrokeStyle(lineWidth: 2))
 
                                     PointMark(
@@ -389,7 +427,28 @@ struct BiomarkerDetailSheet: View {
                                     )
                                     .foregroundStyle(AppColors.biomarkerColor(bio.status))
                                     .symbolSize(40)
+
+                                    if let selectedDate,
+                                       Calendar.current.isDate(bio.testDate, inSameDayAs: selectedDate) {
+                                        RuleMark(x: .value("Date", bio.testDate))
+                                            .foregroundStyle(Color.secondary.opacity(0.3))
+                                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                                            .annotation(position: .top, spacing: 6) {
+                                                VStack(spacing: 2) {
+                                                    Text(String(format: "%.1f", bio.value) + " " + bio.unit)
+                                                        .font(.caption.weight(.semibold))
+                                                    Text(bio.testDate, format: .dateTime.month(.abbreviated).day().year())
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 6))
+                                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                                            }
+                                    }
                                 }
+                                .chartXSelection(value: $selectedDate)
                                 .frame(height: 160)
                             }
                             .cardStyle()
@@ -488,10 +547,10 @@ struct BiomarkerDetailSheet: View {
 
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(AppColors.statusRed.opacity(0.15))
+                        .fill(AppColors.statusRed.opacity(0.5))
 
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(AppColors.statusGreen.opacity(0.2))
+                        .fill(AppColors.statusGreen.opacity(0.55))
                         .frame(width: normalWidth)
                         .offset(x: normalStart)
 

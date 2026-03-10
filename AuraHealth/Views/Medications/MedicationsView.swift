@@ -23,19 +23,21 @@ struct MedicationsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Filters
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        FilterPill(label: "All", isActive: typeFilter == nil) {
-                            withAnimation(AppAnimation.viewSwitch) { typeFilter = nil }
-                        }
-                        ForEach(MedicationType.allCases, id: \.self) { type in
-                            FilterPill(label: type.displayName, isActive: typeFilter == type) {
-                                withAnimation(AppAnimation.viewSwitch) { typeFilter = type }
+                // Filters — only show when there are medications
+                if !medications.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            FilterPill(label: "All", isActive: typeFilter == nil) {
+                                withAnimation(AppAnimation.viewSwitch) { typeFilter = nil }
                             }
-                        }
-                        FilterPill(label: "Archived", isActive: showArchived) {
-                            withAnimation(AppAnimation.viewSwitch) { showArchived.toggle() }
+                            ForEach(MedicationType.allCases, id: \.self) { type in
+                                FilterPill(label: type.displayName, isActive: typeFilter == type) {
+                                    withAnimation(AppAnimation.viewSwitch) { typeFilter = type }
+                                }
+                            }
+                            FilterPill(label: "Archived", isActive: showArchived) {
+                                withAnimation(AppAnimation.viewSwitch) { showArchived.toggle() }
+                            }
                         }
                     }
                 }
@@ -75,6 +77,9 @@ struct MedicationsView: View {
             .padding()
         }
         .navigationTitle("Medications")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.large)
+        #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAddSheet = true } label: {
@@ -178,6 +183,7 @@ struct MedicationFormSheet: View {
                     Picker("Type", selection: $type) {
                         ForEach(MedicationType.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
+
                     Picker("Frequency", selection: $frequency) {
                         ForEach(MedicationFrequency.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }

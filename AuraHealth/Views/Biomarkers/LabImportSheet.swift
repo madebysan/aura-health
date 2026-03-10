@@ -1,6 +1,9 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+#if os(iOS)
+import PhotosUI
+#endif
 
 struct LabImportSheet: View {
     @Environment(\.modelContext) private var modelContext
@@ -16,6 +19,10 @@ struct LabImportSheet: View {
     @State private var showingFilePicker = false
     @State private var fileName: String?
     @State private var importedCount: Int?
+    #if os(iOS)
+    @State private var showingPhotoPicker = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -41,11 +48,25 @@ struct LabImportSheet: View {
             }
             .fileImporter(
                 isPresented: $showingFilePicker,
-                allowedContentTypes: [.pdf, .plainText],
+                // Include image types so users can import a photo of a lab report on iOS too
+                allowedContentTypes: [.pdf, .plainText, .jpeg, .png, .image],
                 allowsMultipleSelection: false
             ) { result in
                 handleFilePicked(result)
             }
+            #if os(iOS)
+            // Photo picker for selecting a lab report photo from the camera roll
+            .photosPicker(
+                isPresented: $showingPhotoPicker,
+                selection: $selectedPhotoItem,
+                matching: .images,
+                photoLibrary: .shared()
+            )
+            .onChange(of: selectedPhotoItem) {
+                guard let item = selectedPhotoItem else { return }
+                handlePhotoPickerItem(item)
+            }
+            #endif
         }
         #if os(macOS)
         .frame(minWidth: 500, minHeight: 450)
@@ -62,18 +83,30 @@ struct LabImportSheet: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
 
-            Text("Upload a lab report (PDF or text file) to extract biomarkers automatically.")
+            Text("Upload a lab report to extract biomarkers automatically.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 350)
 
+            // Primary action: file picker (PDF or text)
             Button {
                 showingFilePicker = true
             } label: {
-                Label("Choose Lab Report", systemImage: "folder")
-                    .frame(maxWidth: 200)
+                Label("Choose File (PDF or Text)", systemImage: "folder")
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+
+            #if os(iOS)
+            // iOS bonus: pick a photo of a lab report from the camera roll
+            Button {
+                showingPhotoPicker = true
+            } label: {
+                Label("Choose Photo of Lab Report", systemImage: "photo.on.rectangle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            #endif
 
             if !claudeService.hasAPIKey {
                 Text("Local parsing will be used. Add a Claude API key in Settings for better accuracy with complex reports.")
@@ -171,27 +204,31 @@ struct LabImportSheet: View {
                                         }
                                     }
                                 }
+                                #if os(macOS)
                                 .toggleStyle(.checkbox)
+                                #endif
                             }
                         }
                     }
                 }
             }
-
-            HStack {
-                Text("\(selectedMarkers.count) selected")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button {
-                    saveSelected()
-                } label: {
-                    Text("Import \(selectedMarkers.count) Biomarkers")
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    Text("\(selectedMarkers.count) selected")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        saveSelected()
+                    } label: {
+                        Text("Import \(selectedMarkers.count) Biomarkers")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(selectedMarkers.isEmpty)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(selectedMarkers.isEmpty)
+                .padding()
+                .background(.bar)
             }
-            .padding()
         }
     }
 
@@ -224,6 +261,56 @@ struct LabImportSheet: View {
     }
 
     // MARK: - Actions
+
+    #if os(iOS)
+    /// Handles a photo selected from the Photos library.
+    /// Writes it to a temp file then re-uses the same file extraction pipeline.
+    private func handlePhotoPickerItem(_ item: PhotosPickerItem) {
+        fileName = "Photo"
+        isExtracting = true
+        error = nil
+
+        Task {
+            do {
+                guard let data = try await item.loadTransferable(type: Data.self) else {
+                    self.error = "Could not load the selected photo."
+                    isExtracting = false
+                    return
+                }
+
+                // Write to a temp PNG so the shared parser can read it
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("lab-report-\(UUID().uuidString).png")
+                try data.write(to: tempURL)
+
+                // Run through the same local → API extraction pipeline
+                let localMarkers = (try? LocalLabParser.parse(fileURL: tempURL)) ?? []
+                if !localMarkers.isEmpty {
+                    extractedBiomarkers = localMarkers
+                    selectedMarkers = Set(localMarkers.map(\.id))
+                    extractionMethod = "local parsing"
+                    isExtracting = false
+                    return
+                }
+
+                if claudeService.hasAPIKey {
+                    let apiMarkers = try await claudeService.extractBiomarkers(from: tempURL)
+                    extractedBiomarkers = apiMarkers
+                    selectedMarkers = Set(apiMarkers.map(\.id))
+                    extractionMethod = "Claude API"
+                    isExtracting = false
+                    return
+                }
+
+                self.error = "Could not extract biomarkers from this photo. Add a Claude API key in Settings for better extraction."
+                isExtracting = false
+            } catch {
+                self.error = error.localizedDescription
+                isExtracting = false
+            }
+        }
+    }
+    #endif
 
     private func handleFilePicked(_ result: Result<[URL], Error>) {
         switch result {

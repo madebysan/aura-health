@@ -35,6 +35,8 @@ struct MetricDetailSheet: View {
                             Text(latest.displayValue)
                                 .font(.system(size: 52, weight: .bold, design: .rounded))
                                 .monospacedDigit()
+                                .minimumScaleFactor(0.7)
+                                .lineLimit(1)
                                 .contentTransition(.numericText())
 
                             Text(metricType.unit)

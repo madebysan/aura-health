@@ -48,7 +48,7 @@ struct MetricCardView: View {
                     }
                 }
 
-                // Delta
+                // Delta (always reserve space so cards align)
                 if let delta = deltaInfo {
                     HStack(spacing: 3) {
                         Image(systemName: delta.direction == .up ? "arrow.up.right" : delta.direction == .down ? "arrow.down.right" : "arrow.right")
@@ -57,12 +57,12 @@ struct MetricCardView: View {
                             .font(.caption2.weight(.medium))
                     }
                     .foregroundStyle(delta.color)
-                } else if latest != nil {
+                } else {
                     Text(" ")
                         .font(.caption2)
                 }
 
-                // Sparkline
+                // Sparkline (always reserve space)
                 if recentValues.count >= 2 {
                     SparklineView(values: recentValues, color: metricType.iconColor)
                         .frame(height: 30)
@@ -73,7 +73,7 @@ struct MetricCardView: View {
                         .frame(height: 30)
                 }
 
-                // Timestamp
+                // Footer (always at bottom, same position)
                 if let latest {
                     Text(latest.timestamp, format: .relative(presentation: .named))
                         .font(.caption2)

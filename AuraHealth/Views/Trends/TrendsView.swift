@@ -23,15 +23,16 @@ struct CorrelationsView: View {
         ScrollView {
             VStack(spacing: 20) {
                 // Range selector
-                HStack(spacing: 6) {
-                    ForEach(TimeRange.allCases) { range in
-                        FilterPill(label: range.rawValue, isActive: selectedRange == range) {
-                            withAnimation(AppAnimation.viewSwitch) {
-                                selectedRange = range
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(TimeRange.allCases) { range in
+                            FilterPill(label: range.rawValue, isActive: selectedRange == range) {
+                                withAnimation(AppAnimation.viewSwitch) {
+                                    selectedRange = range
+                                }
                             }
                         }
                     }
-                    Spacer()
                 }
 
                 let filtered = filteredMeasurements()
@@ -47,7 +48,7 @@ struct CorrelationsView: View {
                     )
                     .padding(.top, 40)
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 340, maximum: 520))], spacing: 14) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300, maximum: 520))], spacing: 14) {
                         ForEach(Array(availablePairs.enumerated()), id: \.element.2) { index, pair in
                             CorrelationCard(
                                 title: pair.2,
@@ -63,6 +64,9 @@ struct CorrelationsView: View {
             .padding()
         }
         .navigationTitle("Correlations")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.large)
+        #endif
     }
 
     private func filteredMeasurements() -> [Measurement] {
@@ -80,6 +84,15 @@ struct CorrelationsView: View {
 struct TrendChartCard: View {
     let metricType: MetricType
     let measurements: [Measurement]
+
+    @State private var selectedDate: Date?
+
+    private var selectedMeasurement: Measurement? {
+        guard let selectedDate else { return nil }
+        return sortedData.min(by: {
+            abs($0.timestamp.timeIntervalSince(selectedDate)) < abs($1.timestamp.timeIntervalSince(selectedDate))
+        })
+    }
 
     private var sortedData: [Measurement] {
         measurements.sorted { $0.timestamp < $1.timestamp }
@@ -162,7 +175,32 @@ struct TrendChartCard: View {
                     .lineStyle(StrokeStyle(lineWidth: 2))
                     .interpolationMethod(.catmullRom)
                 }
+
+                if let selected = selectedMeasurement {
+                    RuleMark(x: .value("Selected", selected.timestamp))
+                        .foregroundStyle(Color.secondary.opacity(0.3))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        .annotation(position: .top, spacing: 6) {
+                            VStack(spacing: 2) {
+                                if metricType == .bloodPressure, let v2 = selected.value2 {
+                                    Text("\(selected.displayValue)/\(Int(v2)) \(metricType.unit)")
+                                        .font(.caption.weight(.semibold))
+                                } else {
+                                    Text("\(selected.displayValue) \(metricType.unit)")
+                                        .font(.caption.weight(.semibold))
+                                }
+                                Text(selected.timestamp, format: .dateTime.month(.abbreviated).day())
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 6))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                        }
+                }
             }
+            .chartXSelection(value: $selectedDate)
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
@@ -292,11 +330,15 @@ struct CorrelationCard: View {
                 }
                 .frame(height: 160)
             } else {
-                Text("Not enough overlapping data points")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .frame(height: 60)
-                    .frame(maxWidth: .infinity)
+                VStack {
+                    Spacer()
+                    Text("Not enough overlapping data points")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+                .frame(height: 190)
+                .frame(maxWidth: .infinity)
             }
         }
         .cardStyle()

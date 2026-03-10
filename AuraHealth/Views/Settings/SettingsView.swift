@@ -6,7 +6,10 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(WhoopService.self) private var whoopService
     @Environment(HealthKitService.self) private var healthKitService
+    #if os(macOS)
+    // Health Auto Export reads files from iCloud Drive via NSOpenPanel — macOS only
     @Environment(HealthAutoExportService.self) private var healthAutoExportService
+    #endif
     @AppStorage("weightUnit") private var weightUnit: WeightUnit = .kg
     @AppStorage("temperatureUnit") private var temperatureUnit: TemperatureUnit = .celsius
 
@@ -24,14 +27,34 @@ struct SettingsView: View {
     @State private var claudeAPIKey = ""
     @State private var showingAPIKeyField = false
 
+    // WHOOP Credentials
+    @State private var whoopClientID = ""
+    @State private var whoopClientSecret = ""
+    @State private var showingWhoopCredentials = false
+
     var body: some View {
         Form {
             Section("Units") {
-                Picker("Weight", selection: $weightUnit) {
-                    ForEach(WeightUnit.allCases, id: \.self) { Text($0.symbol).tag($0) }
+                HStack {
+                    Text("Weight")
+                    Spacer()
+                    PillSegmentedPicker(
+                        options: WeightUnit.allCases,
+                        selection: $weightUnit,
+                        label: { $0.symbol }
+                    )
+                    .fixedSize()
                 }
-                Picker("Temperature", selection: $temperatureUnit) {
-                    ForEach(TemperatureUnit.allCases, id: \.self) { Text($0.symbol).tag($0) }
+
+                HStack {
+                    Text("Temperature")
+                    Spacer()
+                    PillSegmentedPicker(
+                        options: TemperatureUnit.allCases,
+                        selection: $temperatureUnit,
+                        label: { $0.symbol }
+                    )
+                    .fixedSize()
                 }
             }
 
@@ -50,20 +73,35 @@ struct SettingsView: View {
                     LabDataSeeder.importAllLabs(into: modelContext)
                     labDataImported = true
                 } label: {
-                    Label("Import Lab Results", systemImage: "cross.vial")
+                    Label("Import Biomarkers", systemImage: "cross.vial")
                 }
                 .disabled(labDataImported)
 
                 Button {
                     exportData()
                 } label: {
-                    Label("Export All Data", systemImage: "arrow.up.doc")
+                    Label("Export Aura Data", systemImage: "arrow.up.doc")
                 }
 
                 Button {
                     showingImporter = true
                 } label: {
-                    Label("Import Data", systemImage: "arrow.down.doc")
+                    Label("Import Aura Data", systemImage: "arrow.down.doc")
+                }
+
+                Button(role: .destructive) {
+                    showingClearConfirmation = true
+                } label: {
+                    Label("Clear All Data", systemImage: "trash.fill")
+                        .foregroundStyle(.red)
+                }
+                .confirmationDialog("Clear all data?", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
+                    Button("Clear Everything", role: .destructive) {
+                        SampleDataService.clearAllData(from: modelContext)
+                        sampleDataLoaded = false
+                    }
+                } message: {
+                    Text("This will delete all measurements, medications, habits, biomarkers, conditions, and diet plans.")
                 }
             }
 
@@ -76,20 +114,6 @@ struct SettingsView: View {
                     Label("Load Sample Data", systemImage: "tray.and.arrow.down.fill")
                 }
                 .disabled(sampleDataLoaded)
-
-                Button(role: .destructive) {
-                    showingClearConfirmation = true
-                } label: {
-                    Label("Clear All Data", systemImage: "trash.fill")
-                }
-                .confirmationDialog("Clear all data?", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
-                    Button("Clear Everything", role: .destructive) {
-                        SampleDataService.clearAllData(from: modelContext)
-                        sampleDataLoaded = false
-                    }
-                } message: {
-                    Text("This will delete all measurements, medications, habits, biomarkers, conditions, and diet plans.")
-                }
             } header: {
                 Text("Developer")
             }
@@ -112,6 +136,9 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.large)
+        #endif
         .fileImporter(
             isPresented: $showingImporter,
             allowedContentTypes: [.json],
@@ -129,70 +156,23 @@ struct SettingsView: View {
     // MARK: - WHOOP Section
 
     private var whoopSection: some View {
-        Group {
-            HStack {
-                Label {
-                    Text("WHOOP")
-                        .font(.body)
-                } icon: {
-                    Image(systemName: "heart.circle.fill")
-                        .foregroundStyle(.green)
-                }
-
-                Spacer()
-
-                if whoopService.isConnected {
-                    StatusBadge(label: "Connected", color: .green)
-                } else {
-                    StatusBadge(label: "Not Connected", color: .secondary)
-                }
+        HStack {
+            Label {
+                Text("WHOOP")
+                    .font(.body)
+            } icon: {
+                Image(systemName: "heart.circle.fill")
+                    .foregroundStyle(.blue)
             }
 
-            if whoopService.isConnected {
-                // Sync button with progress
-                HStack {
-                    Button {
-                        Task { await whoopService.syncData(into: modelContext) }
-                    } label: {
-                        if whoopService.isSyncing {
-                            HStack(spacing: 6) {
-                                ProgressView()
-                                    .controlSize(.small)
-                                if let progress = whoopService.syncProgress {
-                                    Text("Syncing \(progress.phase)... (\(progress.imported) imported)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        } else {
-                            Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
-                        }
-                    }
-                    .disabled(whoopService.isSyncing)
+            Spacer()
 
-                    Spacer()
-
-                    Button("Disconnect", role: .destructive) {
-                        whoopService.disconnect()
-                    }
-                    .font(.caption)
-                }
-
-                if let lastSync = whoopService.lastSyncDate {
-                    Text("Last synced \(lastSync, format: .relative(presentation: .named))")
-                        .font(.caption).foregroundStyle(.tertiary)
-                }
-            } else {
-                Button {
-                    whoopService.startOAuth()
-                } label: {
-                    Label("Connect WHOOP", systemImage: "link")
-                }
-            }
-
-            if let error = whoopService.error {
-                Text(error).font(.caption).foregroundStyle(.red)
-            }
+            Text("Coming Soon")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.secondary.opacity(0.12), in: Capsule())
         }
     }
 
@@ -206,7 +186,7 @@ struct SettingsView: View {
                         .font(.body)
                 } icon: {
                     Image(systemName: "heart.text.square")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.blue)
                 }
 
                 Spacer()
@@ -221,32 +201,29 @@ struct SettingsView: View {
             }
 
             if healthKitService.isAuthorized {
-                HStack {
-                    Button {
-                        Task { await healthKitService.syncData(into: modelContext) }
-                    } label: {
-                        if healthKitService.isSyncing {
-                            HStack(spacing: 6) {
-                                ProgressView()
-                                    .controlSize(.small)
-                                if let progress = healthKitService.syncProgress {
-                                    Text("Syncing \(progress.phase)... (\(progress.imported) imported)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
+                Button {
+                    Task { await healthKitService.syncData(into: modelContext) }
+                } label: {
+                    if healthKitService.isSyncing {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                            if let progress = healthKitService.syncProgress {
+                                Text("Syncing \(progress.phase)... (\(progress.imported) imported)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
-                        } else {
-                            Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
                         }
+                    } else {
+                        Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
                     }
-                    .disabled(healthKitService.isSyncing)
+                }
+                .disabled(healthKitService.isSyncing)
 
-                    Spacer()
-
-                    Button("Disconnect", role: .destructive) {
-                        healthKitService.disconnect()
-                    }
-                    .font(.caption)
+                Button(role: .destructive) {
+                    healthKitService.disconnect()
+                } label: {
+                    Label("Disconnect Apple Health", systemImage: "xmark.circle")
                 }
 
                 if let lastSync = healthKitService.lastSyncDate {
@@ -269,6 +246,7 @@ struct SettingsView: View {
 
     // MARK: - Health Auto Export Section
 
+    #if os(macOS)
     private var healthAutoExportSection: some View {
         Group {
             HStack {
@@ -277,7 +255,7 @@ struct SettingsView: View {
                         .font(.body)
                 } icon: {
                     Image(systemName: "heart.text.square")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(.blue)
                 }
 
                 Spacer()
@@ -341,6 +319,7 @@ struct SettingsView: View {
             }
         }
     }
+    #endif
 
     // MARK: - Claude API Section
 
@@ -352,7 +331,7 @@ struct SettingsView: View {
                         .font(.body)
                 } icon: {
                     Image(systemName: "sparkles")
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(.blue)
                 }
 
                 Spacer()
@@ -371,7 +350,9 @@ struct SettingsView: View {
             if showingAPIKeyField {
                 HStack {
                     SecureField("sk-ant-...", text: $claudeAPIKey)
+                        #if os(macOS)
                         .textFieldStyle(.roundedBorder)
+                        #endif
                     Button("Save") {
                         if !claudeAPIKey.isEmpty {
                             KeychainService.setValue(claudeAPIKey, for: "claude-api-key")

@@ -20,10 +20,26 @@ final class WhoopService: NSObject {
         var phase: String = ""
     }
 
-    // Pre-populated credentials
-    private let clientID = "4fcbc49d-71b4-400c-a028-de825fd9ee61"
-    private let clientSecret = "4b00a1d93c306b309863f948d98dde9f0669442851fc7936b018fa1cada561b4"
+    // WHOOP OAuth credentials — bundled via xcconfig → Info.plist, fallback to Keychain (user-entered)
+    private var clientID: String? {
+        bundledValue(for: "WhoopClientID") ?? KeychainService.getValue(for: "whoop-client-id")
+    }
+    private var clientSecret: String? {
+        bundledValue(for: "WhoopClientSecret") ?? KeychainService.getValue(for: "whoop-client-secret")
+    }
     private let redirectURI = "aurahealth://whoop/callback"
+
+    /// Whether WHOOP credentials are available (bundled or user-entered)
+    var hasCredentials: Bool {
+        clientID != nil && clientSecret != nil
+    }
+
+    /// Read a non-empty value from Info.plist
+    private func bundledValue(for key: String) -> String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
+              !value.isEmpty, !value.hasPrefix("$(") else { return nil }
+        return value
+    }
     private let scopes = "offline read:recovery read:sleep read:cycles read:workout read:body_measurement read:profile"
 
     private static let authURL = "https://api.prod.whoop.com/oauth/oauth2/auth"
@@ -41,9 +57,9 @@ final class WhoopService: NSObject {
         Self.dateFormatter.date(from: string) ?? ISO8601DateFormatter().date(from: string)
     }
 
-    #if os(macOS)
+    // Strong reference required on both platforms — without it the session is
+    // deallocated before the OAuth sheet is presented and the callback never fires.
     private var authSession: ASWebAuthenticationSession?
-    #endif
 
     override init() {
         super.init()
@@ -58,6 +74,10 @@ final class WhoopService: NSObject {
     // MARK: - OAuth Flow
 
     func startOAuth() {
+        guard let clientID else {
+            error = "WHOOP credentials not configured. Add them in Settings."
+            return
+        }
         guard var components = URLComponents(string: Self.authURL) else { return }
         components.queryItems = [
             URLQueryItem(name: "client_id", value: clientID),
@@ -96,9 +116,12 @@ final class WhoopService: NSObject {
             }
         }
 
-        #if os(macOS)
-        session.presentationContextProvider = self
+        // Always hold a strong reference so the session isn't deallocated mid-flow
         self.authSession = session
+
+        #if os(macOS)
+        // macOS requires an explicit presentation anchor
+        session.presentationContextProvider = self
         #endif
 
         session.prefersEphemeralWebBrowserSession = false
@@ -106,6 +129,10 @@ final class WhoopService: NSObject {
     }
 
     func exchangeCode(_ code: String) async {
+        guard let clientID, let clientSecret else {
+            error = "WHOOP credentials not configured."
+            return
+        }
         guard let url = URL(string: Self.tokenURL) else { return }
 
         var request = URLRequest(url: url)
@@ -176,34 +203,50 @@ final class WhoopService: NSObject {
         let startDate = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
         let startISO = ISO8601DateFormatter().string(from: startDate)
 
+        logger.notice("[WHOOP] Starting sync, start=\(startISO)")
+        var failures: [String] = []
+
+        syncProgress?.phase = "Recovery"
         do {
-            logger.notice("[WHOOP] Starting sync, start=\(startISO)")
-
-            syncProgress?.phase = "Recovery"
             try await syncRecovery(token: token, startISO: startISO, context: context)
-            let r = self.syncProgress?.imported ?? 0
-            logger.notice("[WHOOP] Recovery done, imported: \(r)")
-
-            syncProgress?.phase = "Sleep"
-            try await syncSleep(token: token, startISO: startISO, context: context)
-            let s = self.syncProgress?.imported ?? 0
-            logger.notice("[WHOOP] Sleep done, imported: \(s)")
-
-            syncProgress?.phase = "Workouts"
-            try await syncWorkouts(token: token, startISO: startISO, context: context)
-            let w = self.syncProgress?.imported ?? 0
-            logger.notice("[WHOOP] Workouts done, imported: \(w)")
-
-            syncProgress?.phase = "Body"
-            try await syncBody(token: token, context: context)
-            let b = self.syncProgress?.imported ?? 0
-            logger.notice("[WHOOP] Body done, imported: \(b)")
-
-            lastSyncDate = Date()
-            UserDefaults.standard.set(lastSyncDate, forKey: "whoop-last-sync")
+            logger.notice("[WHOOP] Recovery done, imported: \(self.syncProgress?.imported ?? 0)")
         } catch {
-            logger.notice("[WHOOP] Sync error: \(error)")
-            self.error = "Sync failed: \(error.localizedDescription)"
+            logger.notice("[WHOOP] Recovery error: \(error)")
+            failures.append("Recovery")
+        }
+
+        syncProgress?.phase = "Sleep"
+        do {
+            try await syncSleep(token: token, startISO: startISO, context: context)
+            logger.notice("[WHOOP] Sleep done, imported: \(self.syncProgress?.imported ?? 0)")
+        } catch {
+            logger.notice("[WHOOP] Sleep error: \(error)")
+            failures.append("Sleep")
+        }
+
+        syncProgress?.phase = "Workouts"
+        do {
+            try await syncWorkouts(token: token, startISO: startISO, context: context)
+            logger.notice("[WHOOP] Workouts done, imported: \(self.syncProgress?.imported ?? 0)")
+        } catch {
+            logger.notice("[WHOOP] Workouts error: \(error)")
+            failures.append("Workouts")
+        }
+
+        syncProgress?.phase = "Body"
+        do {
+            try await syncBody(token: token, context: context)
+            logger.notice("[WHOOP] Body done, imported: \(self.syncProgress?.imported ?? 0)")
+        } catch {
+            logger.notice("[WHOOP] Body error: \(error)")
+            failures.append("Body")
+        }
+
+        lastSyncDate = Date()
+        UserDefaults.standard.set(lastSyncDate, forKey: "whoop-last-sync")
+
+        if !failures.isEmpty {
+            self.error = "Sync partially failed: \(failures.joined(separator: ", "))"
         }
 
         let imported = syncProgress?.imported ?? 0
@@ -224,11 +267,6 @@ final class WhoopService: NSObject {
             URLQueryItem(name: "start", value: startISO),
             URLQueryItem(name: "limit", value: "25"),
         ])
-        // Debug: write raw response to app container
-        if let containerURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            try? data.prefix(3000).write(to: containerURL.appendingPathComponent("whoop-recovery.json"))
-            logger.notice("[WHOOP] Wrote debug to: \(containerURL.path)")
-        }
         guard let records = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let items = records["records"] as? [[String: Any]] else {
             logger.notice("[WHOOP] Recovery: failed to parse records array")
@@ -373,6 +411,10 @@ final class WhoopService: NSObject {
     }
 
     private func refreshToken() async throws {
+        guard let clientID, let clientSecret else {
+            disconnect()
+            throw URLError(.userAuthenticationRequired)
+        }
         guard let refreshToken = KeychainService.getValue(for: "whoop-refresh-token"),
               let url = URL(string: Self.tokenURL) else {
             disconnect()

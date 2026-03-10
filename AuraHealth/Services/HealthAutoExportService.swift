@@ -85,6 +85,7 @@ final class HealthAutoExportService {
         guard let data = UserDefaults.standard.data(forKey: Self.bookmarkKey) else { return nil }
 
         var isStale = false
+        #if os(macOS)
         guard let url = try? URL(
             resolvingBookmarkData: data,
             options: .withSecurityScope,
@@ -93,11 +94,23 @@ final class HealthAutoExportService {
         ) else { return nil }
 
         if isStale {
-            // Re-save the bookmark
             if let newData = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
                 UserDefaults.standard.set(newData, forKey: Self.bookmarkKey)
             }
         }
+        #else
+        guard let url = try? URL(
+            resolvingBookmarkData: data,
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        ) else { return nil }
+
+        if isStale {
+            if let newData = try? url.bookmarkData(includingResourceValuesForKeys: nil, relativeTo: nil) {
+                UserDefaults.standard.set(newData, forKey: Self.bookmarkKey)
+            }
+        }
+        #endif
 
         return url
     }

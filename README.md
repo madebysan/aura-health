@@ -9,21 +9,23 @@
 
 ## Features
 
-- **Vitals Dashboard** — daily health score ring, sparkline cards for each metric, detail sheets
+- **Vitals Dashboard** — daily health score ring (8-metric weighted calculation), sparkline cards for each metric, insight card stack with swipe-to-dismiss
+- **Tracking** — daily habit grid with time-of-day sections, adherence heatmaps (60 days), streak tracking
 - **Correlations** — visualize relationships between metrics over time
-- **Biomarkers** — track lab results with reference ranges, import from lab reports (local parsing + Claude API fallback)
+- **Biomarkers** — track lab results with reference ranges, status summary bar, import from lab reports (local parsing + Claude API fallback)
 - **Medications** — log prescriptions, supplements, and OTC with timing and frequency
-- **Habit Tracking** — boolean and quantity-based habits with daily logging
 - **Conditions** — track health conditions with status (active, managed, resolved)
-- **Vault** — store health documents (PDFs, images, text)
-- **AI Chat** — Claude-powered health assistant with tool use (reads/writes vitals, biomarkers, medications), conversation history, floating chat button (⌘K)
+- **Diet** — diet type selection with food category tracking
+- **Vault** — store health documents (PDFs, images, text); auto-saves chat attachments
+- **AI Chat** — Claude-powered health assistant with tool use (reads/writes vitals, biomarkers, medications), conversation history, floating chat button (⌘K), API key gating
+- **Onboarding** — feature highlights, integration setup, unit preferences, diet selection, API key setup
 - **Import/Export** — JSON backup and restore of all data
 
 ## Integrations
 
 | Source | Status | Data Pulled |
 |--------|--------|-------------|
-| **WHOOP** | OAuth 2.0 connected | Recovery, HRV, resting HR, SpO2, skin temp, sleep score, sleep duration, strain, calories, weight |
+| **WHOOP** | Coming Soon | Recovery, HRV, resting HR, SpO2, skin temp, sleep score, sleep duration, strain, calories, weight |
 | **Apple Health** | HealthKit authorized (iOS only) | Steps, heart rate, weight, blood pressure, SpO2, temperature, calories, HRV, exercise minutes, sleep |
 | **Manual Entry** | Always available | All metric types |
 | **CSV Import** | Always available | All metric types |
@@ -73,40 +75,18 @@ xcodebuild -project AuraHealth.xcodeproj -scheme AuraHealth -destination 'platfo
 xcodebuild -project AuraHealth.xcodeproj -scheme AuraHealth -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```
 
-## Outstanding Issues
+## Known Limitations
 
-### WHOOP Sync (400 Error)
-- OAuth connection works, but data sync returns a 400 error
-- The `limit` parameter was reduced from 30 to 25 (WHOOP's max), but the error persists
-- Needs further investigation — may be a different query parameter or API version issue
-- **Workaround:** None yet. WHOOP data can be manually entered in the meantime.
-
-### Apple Health (macOS)
-- HealthKit is **not available on macOS** — this is an Apple platform limitation, not a bug
-- Apple Health integration works on iOS only (iPhone, iPad)
-- The app correctly shows "Not Available" on Mac
-
-### Apple Health on macOS — Options to Investigate
-
-HealthKit is iOS-only. Two viable paths to get Apple Health data on the Mac:
-
-**Option A: Mac Catalyst (recommended)**
-Convert the macOS target from "My Mac" to "Mac (Designed for iPad)". Existing HealthKit code works as-is. Near real-time data via iCloud Health sync. Free. Tradeoff: app UI becomes more iPad-on-Mac, less native macOS feel.
-
-**Option B: Health Auto Export (relay app)**
-Third-party iPhone app that auto-pushes Health data to Mac via iCloud Drive (JSON) or local REST endpoint. Keeps the app fully native macOS. Tradeoff: requires a separate paid app on iPhone, data lags by minutes.
-
-Not viable: Third-party APIs (Terra, Vital — $399+/mo enterprise pricing), Apple REST API (doesn't exist), iCloud direct access (encrypted, no API), Shortcuts (unreliable), CareKit/ResearchKit (iOS only), manual XML export (tedious).
+- **WHOOP** — OAuth flow implemented but disabled ("Coming Soon"). Needs app registration at developer.whoop.com with redirect URI `aurahealth://whoop/callback`. Code is ready in `WhoopService.swift`.
+- **Apple Health (macOS)** — HealthKit is iOS-only. macOS uses Health Auto Export (iCloud Drive relay) as an alternative via `HealthAutoExportService`.
 
 ### Backlog
-- [ ] Fix WHOOP sync 400 error (investigate exact failing endpoint)
-- [ ] Decide on Apple Health macOS approach (Mac Catalyst vs Health Auto Export relay)
-- [ ] Test Apple Health sync on iOS device or simulator with sample health data
-- [ ] Add WHOOP pagination (currently fetches only 25 most recent per category)
+- [ ] Register WHOOP developer app and enable OAuth integration
+- [ ] Test Apple Health sync on real iOS device
 - [ ] Auto-sync on app launch with background refresh (iOS)
-- [ ] Token expiry handling — proactively refresh before expiry instead of waiting for 401
 - [ ] Add Oura Ring integration
 - [ ] Add Garmin integration
+- [ ] iPad-specific layouts
 
 ---
 

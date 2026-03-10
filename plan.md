@@ -63,17 +63,15 @@
 - No GitHub repo — local only
 - **TestFlight:** App registered as "Aura - Health" on App Store Connect
   - Build 1 (Internal Only) — Ready to Test, assigned to Internal Testing group
-  - Build 2 (App Store Connect) — Processing, will be available for External Testing once complete
+  - Build 2 (App Store Connect) — Waiting for Beta App Review, assigned to both IT + ET groups
   - Encryption compliance: "None of the algorithms" (standard HTTPS only)
-  - Need to answer encryption question again for build 2, then add to External Testing group
-  - External testers require Beta App Review (24-48 hours for first build)
+  - Test Information filled in, external testers added
+  - Waiting for Apple Beta App Review (~24-48 hours, often faster)
 - **Security audit:** Passed — no hardcoded secrets, personal data, or sensitive info in code
 - **App icons:** Flattened alpha channel on all sizes (required for iOS/TestFlight submission)
 
 ### Next steps
-- [ ] Wait for build 2 to finish processing, answer encryption, add to External Testing
-- [ ] Add testers by email to External Testing group
-- [ ] Wait for Beta App Review (~24-48 hours)
+- [ ] Wait for Beta App Review approval (build 2, submitted 2026-03-09)
 - [ ] Register WHOOP developer app at developer.whoop.com, configure redirect URI, re-enable OAuth
 - [ ] Verify weight + other sparse metrics loading after Apple Health sync
 - [ ] Visual QA pass (`/visual-qa-swift`) across all screens

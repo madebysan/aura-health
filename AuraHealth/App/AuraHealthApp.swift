@@ -97,4 +97,5 @@ extension Notification.Name {
     static let addMeasurement = Notification.Name("addMeasurement")
     static let newChat = Notification.Name("newChat")
     static let navigateTo = Notification.Name("navigateTo")
+    static let switchToChat = Notification.Name("switchToChat")
 }

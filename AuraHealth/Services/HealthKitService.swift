@@ -106,6 +106,9 @@ final class HealthKitService {
 
             syncProgress?.phase = "Weight"
             try await syncQuantity(.bodyMass, metricType: .weight, unit: .gramUnit(with: .kilo), context: context, since: startDate)
+            // Weight is recorded infrequently — also fetch the most recent sample
+            // regardless of the sync window so we always have the latest value
+            try await syncLatestSample(.bodyMass, metricType: .weight, unit: .gramUnit(with: .kilo), context: context)
 
             syncProgress?.phase = "Blood Oxygen"
             try await syncQuantity(.oxygenSaturation, metricType: .spo2, unit: .percent(), context: context, since: startDate, multiplier: 100)
@@ -179,6 +182,36 @@ final class HealthKitService {
             }
         }
         logger.notice("[HealthKit] \(metricType.displayName): \(samples.count) samples → \(grouped.count) days → \(inserted) new")
+    }
+
+    /// Fetch only the single most recent sample (no date restriction) — for sparse metrics like weight
+    private func syncLatestSample(
+        _ identifier: HKQuantityTypeIdentifier,
+        metricType: MetricType,
+        unit: HKUnit,
+        context: ModelContext,
+        multiplier: Double = 1
+    ) async throws {
+        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else { return }
+
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: type)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .reverse)],
+            limit: 1
+        )
+
+        let samples = try await descriptor.result(for: healthStore)
+        guard let latest = samples.first else {
+            logger.notice("[HealthKit] \(metricType.displayName): no samples found (latest)")
+            return
+        }
+
+        let value = latest.quantity.doubleValue(for: unit) * multiplier
+        let day = Calendar.current.startOfDay(for: latest.startDate)
+        if insertIfNew(context: context, timestamp: day, type: metricType, value: value) {
+            syncProgress?.imported += 1
+            logger.notice("[HealthKit] \(metricType.displayName): imported latest sample from \(day.formatted()) = \(value)")
+        }
     }
 
     /// Sync cumulative metrics (steps, calories, exercise minutes) — sums per day

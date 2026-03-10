@@ -2,7 +2,7 @@
 
 ## Last session: 2026-03-09
 
-### Done this session (2 sessions combined)
+### Done this session (3 sessions combined)
 
 **Navigation & Structure**
 - Renamed "Today" tab to "Tracking" across the app
@@ -16,14 +16,21 @@
 - Dynamic "Based on..." contributor text below the score
 - Insight cards: WHOOP-style stacked card deck with swipe-to-dismiss + close "x" button
 - Auto-only metrics (activeMinutes, recovery, strain, sleepScore) hidden from grid when no data exists
+- Removed insight count badge — only X close button remains
+- Insight background cards now show actual content (next card's text visible during swipe) instead of empty material shells
+- Stacked card spacing tightened (6px → 4px)
+- Metric grid sorts cards with data to top, empty cards pushed to bottom
 
 **Tracking**
-- Today column visually distinct from previous days (70% opacity on non-today columns)
+- Today column visually distinct from previous days (50% opacity on non-today columns)
 - Adherence heatmap: full-width layout using GeometryReader, 60 days, bigger cells
+- Fixed heatmap clipping — uses `aspectRatio` instead of fixed height
+- Fixed streak calculation to check consecutive calendar days from today (was counting all consecutive done logs regardless of gaps)
 
 **Biomarkers**
 - Fixed centering of count text in status summary bar segments
 - Changed trend chart line from blue to grey (less visual noise with colored status dots)
+- Empty state redesigned: primary CTA "Upload Lab Results in Chat" (switches to Chat tab), secondary "Add Biomarker Manually"
 
 **Chat**
 - Disabled input without API key — shows tappable prompt that opens API key dialog
@@ -34,8 +41,8 @@
 - Changed type picker from segmented control to dropdown (was cramped on iPhone)
 
 **Onboarding**
-- Added diet selection step (top 6 options + "and more" hint)
-- WHOOP disabled with "Coming Soon" badge
+- Added diet selection step — vertical list with checkmark indicator, top 6 options + "and more" hint
+- WHOOP badge shortened to "Soon" (was "Coming Soon")
 
 **Settings**
 - Renamed: "Export Aura Data", "Import Aura Data", "Import Biomarkers"
@@ -43,6 +50,11 @@
 - All integration icons now blue (WHOOP, Apple Health, Claude API)
 - WHOOP section replaced with "Coming Soon" badge (no more credentials UI)
 - Removed "Remove Credentials" from unconnected WHOOP state
+- Disconnect Apple Health icon now red (matches destructive role)
+
+**Apple Health**
+- Fixed weight not syncing — added `syncLatestSample()` that fetches the most recent sample with no date restriction, solving the issue where weight entries older than 30 days were missed
+- Added `.switchToChat` notification for cross-tab navigation from Biomarkers empty state
 
 ### Current state
 - Build: passing (iOS + macOS)
@@ -52,20 +64,21 @@
 
 ### Next steps
 - [ ] Register WHOOP developer app at developer.whoop.com, configure redirect URI, re-enable OAuth
-- [ ] Test Apple Health sync on real device
+- [ ] Verify weight + other sparse metrics loading after Apple Health sync
 - [ ] Visual QA pass (`/visual-qa-swift`) across all screens
 - [ ] UI polish pass (`/swift-ui-polish`) for animations and micro-interactions
 - [ ] App icon design
 - [ ] TestFlight build prep
 
 ### Key files modified
-- `ContentView.swift` — navigation restructure, tab bar hiding on drill-down
-- `TodayView.swift` — health score expansion, insight card stack, auto-only metric filtering
-- `HabitsView.swift` — tracking rename, day column opacity
-- `AdherenceView.swift` — full-width heatmap rewrite
-- `BiomarkersView.swift` — status bar centering, chart line color
+- `ContentView.swift` — navigation restructure, tab bar hiding, switchToChat handler
+- `TodayView.swift` — health score, insight cards (content on background, no badge, tighter spacing), metric sorting
+- `HabitsView.swift` — tracking opacity 50%, streak fix, heatmap no-clip
+- `AdherenceView.swift` — full-width heatmap with aspectRatio sizing
+- `BiomarkersView.swift` — status bar centering, chart line color, empty state with Chat CTA
 - `ChatView.swift` — API key gating, keyboard dismiss, vault integration
 - `MedicationsView.swift` — type picker change
-- `OnboardingView.swift` — diet step, WHOOP coming soon
-- `SettingsView.swift` — label renames, icon colors, WHOOP coming soon, data section reorg
-- `MetricCardView.swift` — activeMinutes delta color logic (unchanged but referenced)
+- `OnboardingView.swift` — diet vertical list, "Soon" badge
+- `SettingsView.swift` — label renames, icon colors, red disconnect icon, WHOOP coming soon
+- `HealthKitService.swift` — syncLatestSample() for sparse metrics like weight
+- `AuraHealthApp.swift` — added switchToChat notification name

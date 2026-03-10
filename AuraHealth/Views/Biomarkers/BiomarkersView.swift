@@ -47,13 +47,34 @@ struct BiomarkersView: View {
         ScrollView {
             VStack(spacing: 16) {
                 if groupedByMarker.isEmpty && biomarkers.isEmpty {
-                    EmptyStateView(
-                        icon: "cross.vial",
-                        title: "No Biomarkers",
-                        message: "Add lab results to track your biomarkers over time.",
-                        actionLabel: "Add Biomarker",
-                        action: { showingAddSheet = true }
-                    )
+                    VStack(spacing: 16) {
+                        EmptyStateView(
+                            icon: "cross.vial",
+                            title: "No Biomarkers",
+                            message: "Upload a lab report in Chat to import biomarkers automatically, or add them manually."
+                        )
+
+                        VStack(spacing: 10) {
+                            Button {
+                                NotificationCenter.default.post(name: .switchToChat, object: nil)
+                            } label: {
+                                Label("Upload Lab Results in Chat", systemImage: "bubble.left.and.text.bubble.right")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                            }
+                            .buttonStyle(.borderedProminent)
+
+                            Button {
+                                showingAddSheet = true
+                            } label: {
+                                Text("Add Biomarker Manually")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 40)
+                    }
                     .padding(.top, 40)
                 } else {
                     // Search

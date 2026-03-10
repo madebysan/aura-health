@@ -223,7 +223,12 @@ struct SettingsView: View {
                 Button(role: .destructive) {
                     healthKitService.disconnect()
                 } label: {
-                    Label("Disconnect Apple Health", systemImage: "xmark.circle")
+                    Label {
+                        Text("Disconnect Apple Health")
+                    } icon: {
+                        Image(systemName: "xmark.circle")
+                            .foregroundStyle(.red)
+                    }
                 }
 
                 if let lastSync = healthKitService.lastSyncDate {

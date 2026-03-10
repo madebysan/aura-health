@@ -242,11 +242,18 @@ struct VitalsView: View {
     private static let autoOnlyMetrics: Set<MetricType> = [.activeMinutes, .recovery, .strain, .sleepScore]
 
     private var todayVisibleMetrics: [MetricType] {
-        visibleMetrics.filter { metric in
+        let filtered = visibleMetrics.filter { metric in
             if Self.autoOnlyMetrics.contains(metric) {
                 return latestMeasurement(for: metric) != nil
             }
             return true
+        }
+        // Sort: metrics with data first, then metrics without data
+        return filtered.sorted { a, b in
+            let aHasData = latestMeasurement(for: a) != nil
+            let bHasData = latestMeasurement(for: b) != nil
+            if aHasData != bHasData { return aHasData }
+            return false
         }
     }
 
@@ -464,15 +471,14 @@ struct InsightCardStack: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            // Background cards (stacked peek)
+            // Background cards (show actual content)
             ForEach(Array(insights.enumerated().reversed()), id: \.element.message) { index, step in
                 if index > 0 && index <= 2 {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(.regularMaterial)
-                        .frame(height: 90)
-                        .offset(y: CGFloat(index) * 6)
+                    InsightCard(step: step, interactive: false) {}
+                        .offset(y: CGFloat(index) * 4)
                         .scaleEffect(1.0 - CGFloat(index) * 0.03, anchor: .top)
-                        .opacity(1.0 - Double(index) * 0.2)
+                        .opacity(1.0 - Double(index) * 0.25)
+                        .allowsHitTesting(false)
                 }
             }
 
@@ -487,28 +493,14 @@ struct InsightCardStack: View {
                 ))
                 .id(topInsight.message)
             }
-
-            // Count badge
-            if insights.count > 1 {
-                HStack(spacing: 3) {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 9, weight: .bold))
-                    Text("\(insights.count)")
-                        .font(.system(size: 11, weight: .bold).monospacedDigit())
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
-                .offset(x: -8, y: 8)
-            }
         }
-        .padding(.bottom, min(CGFloat(insights.count - 1), 2) * 6)
+        .padding(.bottom, min(CGFloat(insights.count - 1), 2) * 4)
     }
 }
 
 struct InsightCard: View {
     let step: SuggestedStep
+    var interactive: Bool = true
     let onDismiss: () -> Void
 
     @State private var dragOffset: CGFloat = 0
@@ -534,16 +526,18 @@ struct InsightCard: View {
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Button {
-                animateDismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 22, height: 22)
-                    .background(Color.primary.opacity(0.06), in: Circle())
+            if interactive {
+                Button {
+                    animateDismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 22, height: 22)
+                        .background(Color.primary.opacity(0.06), in: Circle())
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(14)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
@@ -551,12 +545,11 @@ struct InsightCard: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
-        .offset(x: dragOffset)
-        .opacity(1.0 - Double(abs(dragOffset)) / 300.0)
+        .offset(x: interactive ? dragOffset : 0)
+        .opacity(interactive ? 1.0 - Double(abs(dragOffset)) / 300.0 : 1.0)
         .gesture(
-            DragGesture()
+            DragGesture(minimumDistance: interactive ? 10 : .infinity)
                 .onChanged { value in
-                    // Only allow left swipe
                     if value.translation.width < 0 {
                         dragOffset = value.translation.width
                     }

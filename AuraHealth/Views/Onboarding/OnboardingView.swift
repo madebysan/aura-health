@@ -350,27 +350,32 @@ struct OnboardingView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Diet type grid (top 6)
+            // Diet type list (top 6)
             let topDiets: [DietTypeOption] = [.mediterranean, .keto, .vegan, .vegetarian, .paleo, .intermittentFasting]
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            VStack(spacing: 8) {
                 ForEach(topDiets, id: \.self) { diet in
                     Button {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             selectedDietType = (selectedDietType == diet) ? nil : diet
                         }
                     } label: {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 10) {
                             Image(systemName: diet.iconName)
-                                .font(.system(size: 14))
+                                .font(.system(size: 15))
                                 .foregroundStyle(selectedDietType == diet ? .white : diet.color)
-                                .frame(width: 20)
+                                .frame(width: 22)
                             Text(diet.rawValue)
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(selectedDietType == diet ? .white : .primary)
                             Spacer()
+                            if selectedDietType == diet {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
                         .background(
                             selectedDietType == diet ? diet.color : Color.primary.opacity(0.04),
                             in: RoundedRectangle(cornerRadius: 10)
@@ -553,7 +558,7 @@ struct OnboardingView: View {
 
             Spacer()
 
-            Text("Coming Soon")
+            Text("Soon")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)

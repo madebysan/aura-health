@@ -155,7 +155,7 @@ struct HabitsView: View {
                 #else
                 .frame(width: 36)
                 #endif
-                .opacity(isToday ? 1.0 : 0.7)
+                .opacity(isToday ? 1.0 : 0.5)
             }
         }
         .padding(.vertical, 10)
@@ -237,7 +237,7 @@ struct HabitsView: View {
                 #else
                 .frame(width: 36, height: 36)
                 #endif
-                .opacity(isToday ? 1.0 : 0.7)
+                .opacity(isToday ? 1.0 : 0.5)
             }
         }
         .padding(.horizontal, 16)
@@ -369,9 +369,22 @@ struct AdherenceRow: View {
     }
 
     private var streak: Int {
+        let cal = Calendar.current
+        let sortedLogs = habit.logs.sorted(by: { $0.date > $1.date })
         var count = 0
-        for log in habit.logs.sorted(by: { $0.date > $1.date }) {
-            if log.done { count += 1 } else { break }
+        var expectedDay = cal.startOfDay(for: Date())
+        for log in sortedLogs {
+            let logDay = cal.startOfDay(for: log.date)
+            // Skip future logs
+            if logDay > expectedDay { continue }
+            // Skip days without logs (gap breaks streak)
+            if logDay < expectedDay { break }
+            if log.done {
+                count += 1
+                expectedDay = cal.date(byAdding: .day, value: -1, to: expectedDay)!
+            } else {
+                break
+            }
         }
         return count
     }
@@ -415,8 +428,6 @@ struct AdherenceRow: View {
 
             // Mini heatmap (60 days)
             HeatmapView(data: heatmapData, months: 2)
-                .frame(height: 80)
-                .clipped()
         }
         .cardStyle(padding: 14, cornerRadius: 12)
         .hoverCard()

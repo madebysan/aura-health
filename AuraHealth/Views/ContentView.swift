@@ -129,6 +129,11 @@ struct ContentView: View {
         }
         .animation(AppAnimation.expand, value: showingChat)
         #endif
+        .onReceive(NotificationCenter.default.publisher(for: .switchToChat)) { _ in
+            withAnimation(AppAnimation.viewSwitch) {
+                selectedSection = .chat
+            }
+        }
         .task { await autoSync() }
         #if os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in

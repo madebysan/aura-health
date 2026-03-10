@@ -64,6 +64,7 @@ struct HeatmapView: View {
                 }
             }
         }
+        .aspectRatio(CGFloat(max(weeks.count, 1)) / 7.0, contentMode: .fit)
     }
 
     private func colorForDay(_ day: Date) -> Color {

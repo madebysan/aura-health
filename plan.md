@@ -57,18 +57,27 @@
 - Added `.switchToChat` notification for cross-tab navigation from Biomarkers empty state
 
 ### Current state
-- Build: passing (iOS + macOS)
+- Build: passing (iOS + macOS), Release config
 - App installed on Santiago's iPhone (iPhone 17 Pro, device ID: CFC63A02-476D-534D-A1FC-815D2D8EF980)
 - Bundle ID: `com.santiagoalonso.aurahealth`
 - No GitHub repo — local only
+- **TestFlight:** App registered as "Aura - Health" on App Store Connect
+  - Build 1 (Internal Only) — Ready to Test, assigned to Internal Testing group
+  - Build 2 (App Store Connect) — Processing, will be available for External Testing once complete
+  - Encryption compliance: "None of the algorithms" (standard HTTPS only)
+  - Need to answer encryption question again for build 2, then add to External Testing group
+  - External testers require Beta App Review (24-48 hours for first build)
+- **Security audit:** Passed — no hardcoded secrets, personal data, or sensitive info in code
+- **App icons:** Flattened alpha channel on all sizes (required for iOS/TestFlight submission)
 
 ### Next steps
+- [ ] Wait for build 2 to finish processing, answer encryption, add to External Testing
+- [ ] Add testers by email to External Testing group
+- [ ] Wait for Beta App Review (~24-48 hours)
 - [ ] Register WHOOP developer app at developer.whoop.com, configure redirect URI, re-enable OAuth
 - [ ] Verify weight + other sparse metrics loading after Apple Health sync
 - [ ] Visual QA pass (`/visual-qa-swift`) across all screens
 - [ ] UI polish pass (`/swift-ui-polish`) for animations and micro-interactions
-- [ ] App icon design
-- [ ] TestFlight build prep
 
 ### Key files modified
 - `ContentView.swift` — navigation restructure, tab bar hiding, switchToChat handler

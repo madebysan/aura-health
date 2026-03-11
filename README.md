@@ -27,6 +27,8 @@
 |--------|--------|-------------|
 | **WHOOP** | Coming Soon | Recovery, HRV, resting HR, SpO2, skin temp, sleep score, sleep duration, strain, calories, weight |
 | **Apple Health** | HealthKit authorized (iOS only) | Steps, heart rate, weight, blood pressure, SpO2, temperature, calories, HRV, exercise minutes, sleep |
+| **Apple Health Records** | Implemented (iOS only) | Clinical records via FHIR R4: lab results, medications, conditions, vital signs from connected providers |
+| **FHIR Provider Directory** | Implemented (Epic, 3000+ health systems) | Lab results, medications, conditions, vitals via SMART on FHIR OAuth. Requires Epic app registration for production use |
 | **Manual Entry** | Always available | All metric types |
 | **CSV Import** | Always available | All metric types |
 
@@ -49,7 +51,7 @@ AuraHealth/
   Data/           — Biomarker reference data
   Enums/          — All enums (metric types, sources, units, etc.)
   Models/         — SwiftData models (Measurement, Medication, Habit, etc.)
-  Services/       — WhoopService, HealthKitService, ClaudeService, KeychainService, ImportExportService
+  Services/       — WhoopService, HealthKitService, ClinicalRecordService, FHIRProviderService, ClaudeService, KeychainService, ImportExportService
   Views/          — Organized by feature (Today, Trends, Biomarkers, Chat, Settings, etc.)
   Resources/      — App icon and asset catalog
 ```
@@ -81,7 +83,9 @@ xcodebuild -project AuraHealth.xcodeproj -scheme AuraHealth -destination 'platfo
 - **Apple Health (macOS)** — HealthKit is iOS-only. macOS uses Health Auto Export (iCloud Drive relay) as an alternative via `HealthAutoExportService`.
 
 ### Backlog
+- [ ] Register at open.epic.com for Epic client ID (activates FHIR OAuth for 3000+ health systems)
 - [ ] Register WHOOP developer app and enable OAuth integration
+- [ ] Evaluate Particle Health for non-FHIR provider coverage
 - [ ] Test Apple Health sync on real iOS device
 - [ ] Auto-sync on app launch with background refresh (iOS)
 - [ ] Add Oura Ring integration

@@ -106,6 +106,7 @@ enum MeasurementSource: String, Codable, CaseIterable {
     case csv
     case whoop
     case appleHealth
+    case clinicalRecord
 
     var displayName: String {
         switch self {
@@ -113,6 +114,7 @@ enum MeasurementSource: String, Codable, CaseIterable {
         case .csv: "CSV Import"
         case .whoop: "WHOOP"
         case .appleHealth: "Apple Health"
+        case .clinicalRecord: "Clinical Record"
         }
     }
 }

@@ -39,6 +39,8 @@
 	<string>public.app-category.healthcare-fitness</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Aura Health reads your health data to show trends and insights.</string>
+	<key>NSHealthClinicalHealthRecordsShareUsageDescription</key>
+	<string>Aura Health reads your clinical records (lab results, medications, conditions) from connected healthcare providers to give you a complete health picture.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Aura Health needs write access for future features.</string>
 	<key>WhoopClientID</key>

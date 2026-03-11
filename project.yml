@@ -16,6 +16,12 @@ settings:
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_TEAM: "QAMM2A6WRQ"
 
+schemes:
+  AuraHealth:
+    build:
+      targets:
+        AuraHealth: all
+
 targets:
   AuraHealth:
     type: application

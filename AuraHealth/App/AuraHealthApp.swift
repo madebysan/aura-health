@@ -5,6 +5,8 @@ import SwiftData
 struct AuraHealthApp: App {
     @State private var whoopService = WhoopService()
     @State private var healthKitService = HealthKitService()
+    @State private var clinicalRecordService = ClinicalRecordService()
+    @State private var fhirProviderService = FHIRProviderService()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     #if os(macOS)
     @State private var healthAutoExportService = HealthAutoExportService()
@@ -21,6 +23,8 @@ struct AuraHealthApp: App {
             }
             .environment(whoopService)
             .environment(healthKitService)
+            .environment(clinicalRecordService)
+            .environment(fhirProviderService)
             #if os(macOS)
             .environment(healthAutoExportService)
             #endif
@@ -28,6 +32,7 @@ struct AuraHealthApp: App {
                 if url.host == "whoop" {
                     Task { await whoopService.handleCallback(url: url) }
                 }
+                // FHIR callbacks are handled by ASWebAuthenticationSession directly
             }
         }
         .modelContainer(for: [

@@ -1,91 +1,58 @@
 # Aura Health — Session Handoff
 
-## Last session: 2026-03-09
+## Last session: 2026-03-10
 
-### Done this session (3 sessions combined)
+### Done this session
 
-**Navigation & Structure**
-- Renamed "Today" tab to "Tracking" across the app
-- Made Vitals the default tab (was Today)
-- Reordered tab bar: Vitals, Tracking, Biomarkers, Chat
-- Changed biomarkers icon from flask to blood drop (`drop.fill`)
-- Hide tab bar when drilling down from "More" menu into secondary pages
+**Clinical Records & FHIR Integration (new feature)**
+- Added Apple Health Records (ClinicalHealthRecords) support — reads FHIR R4 clinical data (lab results, medications, conditions, vital signs) from providers connected in the Health app
+- Added `health-records` entitlement and `NSHealthClinicalHealthRecordsShareUsageDescription` to Info.plist
+- Created `ClinicalRecordService.swift` — full FHIR R4 parser for HKClinicalRecord (Observation → Biomarker, MedicationRequest → Medication, Condition → Condition, vital signs → Measurement)
+- Created `FHIRProviderService.swift` — dynamic provider directory that fetches Epic's published endpoint list (~3,000+ US health systems), caches locally, supports search. Full SMART on FHIR OAuth flow via ASWebAuthenticationSession. Parses FHIR bundles for labs, vitals, meds, conditions
+- Created `ClinicConnectionView.swift` — Settings > Connect Clinic UI with Apple Health Records section + searchable provider directory (search by hospital/clinic name)
+- Added `clinicalRecord` to `MeasurementSource` enum
+- Added `setData`/`getData` methods to `KeychainService` for storing Codable FHIR connection tokens
+- Added curated non-Epic providers: Carbon Health, Tia, Superpower, BioReference, Quest, Labcorp, One Medical (show "Coming Soon" — no public FHIR endpoints)
+- Registered both `ClinicalRecordService` and `FHIRProviderService` as environment objects in `AuraHealthApp.swift`
+- Added scheme definition to `project.yml` (was missing after xcodegen regeneration)
 
-**Vitals Dashboard**
-- Expanded Daily Health Score from 3 metrics to 8 weighted metrics (recovery, sleepScore, hrv, heartRate, sleepDuration, steps, activeMinutes, spo2) — works with Apple Health alone, not just WHOOP
-- Dynamic "Based on..." contributor text below the score
-- Insight cards: WHOOP-style stacked card deck with swipe-to-dismiss + close "x" button
-- Auto-only metrics (activeMinutes, recovery, strain, sleepScore) hidden from grid when no data exists
-- Removed insight count badge — only X close button remains
-- Insight background cards now show actual content (next card's text visible during swipe) instead of empty material shells
-- Stacked card spacing tightened (6px → 4px)
-- Metric grid sorts cards with data to top, empty cards pushed to bottom
-
-**Tracking**
-- Today column visually distinct from previous days (50% opacity on non-today columns)
-- Adherence heatmap: full-width layout using GeometryReader, 60 days, bigger cells
-- Fixed heatmap clipping — uses `aspectRatio` instead of fixed height
-- Fixed streak calculation to check consecutive calendar days from today (was counting all consecutive done logs regardless of gaps)
-
-**Biomarkers**
-- Fixed centering of count text in status summary bar segments
-- Changed trend chart line from blue to grey (less visual noise with colored status dots)
-- Empty state redesigned: primary CTA "Upload Lab Results in Chat" (switches to Chat tab), secondary "Add Biomarker Manually"
-
-**Chat**
-- Disabled input without API key — shows tappable prompt that opens API key dialog
-- Added "Done" toolbar button (iOS) to dismiss keyboard
-- Chat attachments auto-saved to Vault with tags (`chat-attachment`, `lab-report` for PDFs)
-
-**Medications**
-- Changed type picker from segmented control to dropdown (was cramped on iPhone)
-
-**Onboarding**
-- Added diet selection step — vertical list with checkmark indicator, top 6 options + "and more" hint
-- WHOOP badge shortened to "Soon" (was "Coming Soon")
-
-**Settings**
-- Renamed: "Export Aura Data", "Import Aura Data", "Import Biomarkers"
-- Moved "Clear All Data" from Developer to Data section
-- All integration icons now blue (WHOOP, Apple Health, Claude API)
-- WHOOP section replaced with "Coming Soon" badge (no more credentials UI)
-- Removed "Remove Credentials" from unconnected WHOOP state
-- Disconnect Apple Health icon now red (matches destructive role)
-
-**Apple Health**
-- Fixed weight not syncing — added `syncLatestSample()` that fetches the most recent sample with no date restriction, solving the issue where weight entries older than 30 days were missed
-- Added `.switchToChat` notification for cross-tab navigation from Biomarkers empty state
+**Particle Health Research**
+- Researched Particle Health as a potential health data aggregator vendor
+- Key finding: Particle connects to Carequality, CommonWell, eHealth Exchange (national HIE networks not accessible to individual developers) — covers ~90% of US EHRs via single API
+- Conclusion: Our FHIR approach covers Epic (3,000+ systems). Particle would fill gaps for non-FHIR providers but is a paid B2B service. Evaluate later when users need broader coverage
 
 ### Current state
-- Build: passing (iOS + macOS), Release config
-- App installed on Santiago's iPhone (iPhone 17 Pro, device ID: CFC63A02-476D-534D-A1FC-815D2D8EF980)
+- Build: passing (iOS Debug config)
+- App installed on Santiago's iPhone (Debug build with "Load Sample Data" visible in Developer section)
 - Bundle ID: `com.santiagoalonso.aurahealth`
 - No GitHub repo — local only
-- **TestFlight:** App registered as "Aura - Health" on App Store Connect
-  - Build 1 (Internal Only) — Ready to Test, assigned to Internal Testing group
-  - Build 2 (App Store Connect) — Waiting for Beta App Review, assigned to both IT + ET groups
-  - Encryption compliance: "None of the algorithms" (standard HTTPS only)
-  - Test Information filled in, external testers added
-  - Waiting for Apple Beta App Review (~24-48 hours, often faster)
-- **Security audit:** Passed — no hardcoded secrets, personal data, or sensitive info in code
-- **App icons:** Flattened alpha channel on all sizes (required for iOS/TestFlight submission)
+- **TestFlight:** Build 2 waiting for Beta App Review (submitted 2026-03-09)
+- **FHIR OAuth:** Infrastructure built but not testable yet — needs Epic client ID from open.epic.com registration
+- **Apple Health Records:** Ready to use but san has no clinical records connected in Health app
 
 ### Next steps
-- [ ] Wait for Beta App Review approval (build 2, submitted 2026-03-09)
+- [ ] Register at open.epic.com for Epic client ID → set in `FHIRProviderService.epicClientID` → test full OAuth flow
+- [ ] Wait for Beta App Review approval (build 2)
 - [ ] Register WHOOP developer app at developer.whoop.com, configure redirect URI, re-enable OAuth
-- [ ] Verify weight + other sparse metrics loading after Apple Health sync
 - [ ] Visual QA pass (`/visual-qa-swift`) across all screens
 - [ ] UI polish pass (`/swift-ui-polish`) for animations and micro-interactions
+- [ ] Evaluate Particle Health integration for broader provider coverage
+- [ ] Verify weight + other sparse metrics loading after Apple Health sync
 
-### Key files modified
-- `ContentView.swift` — navigation restructure, tab bar hiding, switchToChat handler
-- `TodayView.swift` — health score, insight cards (content on background, no badge, tighter spacing), metric sorting
-- `HabitsView.swift` — tracking opacity 50%, streak fix, heatmap no-clip
-- `AdherenceView.swift` — full-width heatmap with aspectRatio sizing
-- `BiomarkersView.swift` — status bar centering, chart line color, empty state with Chat CTA
-- `ChatView.swift` — API key gating, keyboard dismiss, vault integration
-- `MedicationsView.swift` — type picker change
-- `OnboardingView.swift` — diet vertical list, "Soon" badge
-- `SettingsView.swift` — label renames, icon colors, red disconnect icon, WHOOP coming soon
-- `HealthKitService.swift` — syncLatestSample() for sparse metrics like weight
-- `AuraHealthApp.swift` — added switchToChat notification name
+### Decisions & context
+- **Apple Health Records vs direct FHIR:** Both approaches implemented. Apple Health Records is the easiest path (Apple handles provider auth), direct FHIR gives in-app provider search experience
+- **Particle Health:** Decided not to integrate now. Unique value is access to national HIE networks (Carequality, CommonWell) which are closed to individual developers. Worth evaluating when user base grows
+- **Provider directory:** Using Epic's published R4 endpoint bundle (fetched at runtime, cached locally). Curated providers (Carbon Health, Tia, etc.) included as static entries with empty FHIR URLs until their endpoints are confirmed
+- **Sample data button:** Was hidden because previous builds used Release config. Debug builds show it in Settings > Developer. User confirmed this is what they wanted
+
+### Key files modified/created
+- `AuraHealth.entitlements` — added `health-records` to HealthKit access
+- `Info.plist` — added `NSHealthClinicalHealthRecordsShareUsageDescription`
+- `Enums.swift` — added `clinicalRecord` to `MeasurementSource`
+- `KeychainService.swift` — added `setData`/`getData` for raw Data storage
+- `AuraHealthApp.swift` — registered ClinicalRecordService + FHIRProviderService environments
+- `SettingsView.swift` — added "Connect Clinic" navigation link in Integrations
+- `project.yml` — added scheme definition
+- **New:** `ClinicalRecordService.swift` — Apple Health Records FHIR parser
+- **New:** `FHIRProviderService.swift` — FHIR provider directory + OAuth + data sync
+- **New:** `ClinicConnectionView.swift` — Connect Clinic UI

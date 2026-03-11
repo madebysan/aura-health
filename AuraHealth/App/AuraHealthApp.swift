@@ -7,6 +7,7 @@ struct AuraHealthApp: App {
     @State private var healthKitService = HealthKitService()
     @State private var clinicalRecordService = ClinicalRecordService()
     @State private var fhirProviderService = FHIRProviderService()
+    @State private var dailyProtocolService = DailyProtocolService()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     #if os(macOS)
     @State private var healthAutoExportService = HealthAutoExportService()
@@ -25,6 +26,7 @@ struct AuraHealthApp: App {
             .environment(healthKitService)
             .environment(clinicalRecordService)
             .environment(fhirProviderService)
+            .environment(dailyProtocolService)
             #if os(macOS)
             .environment(healthAutoExportService)
             #endif
@@ -47,7 +49,9 @@ struct AuraHealthApp: App {
             MetricRange.self,
             VaultDocument.self,
             HealthMemory.self,
-            Conversation.self
+            Conversation.self,
+            SmartHabit.self,
+            ProtocolMeta.self
         ])
         #if os(macOS)
         .defaultSize(width: 1100, height: 750)

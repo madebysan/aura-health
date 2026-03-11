@@ -6,6 +6,8 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(WhoopService.self) private var whoopService
     @Environment(HealthKitService.self) private var healthKitService
+    @Environment(ClinicalRecordService.self) private var clinicalRecordService
+    @Environment(FHIRProviderService.self) private var fhirProviderService
     #if os(macOS)
     // Health Auto Export reads files from iCloud Drive via NSOpenPanel — macOS only
     @Environment(HealthAutoExportService.self) private var healthAutoExportService
@@ -62,7 +64,9 @@ struct SettingsView: View {
                 whoopSection
                 #if os(iOS)
                 appleHealthSection
-                #else
+                #endif
+                clinicConnectionSection
+                #if os(macOS)
                 healthAutoExportSection
                 #endif
                 claudeAPISection
@@ -325,6 +329,34 @@ struct SettingsView: View {
         }
     }
     #endif
+
+    // MARK: - Clinic Connection Section
+
+    private var clinicConnectionSection: some View {
+        NavigationLink {
+            ClinicConnectionView()
+        } label: {
+            HStack {
+                Label {
+                    Text("Connect Clinic")
+                        .font(.body)
+                } icon: {
+                    Image(systemName: "building.2.fill")
+                        .foregroundStyle(.blue)
+                }
+
+                Spacer()
+
+                let connectedCount = fhirProviderService.connections.count
+                    + (clinicalRecordService.isAuthorized ? 1 : 0)
+                if connectedCount > 0 {
+                    Text("\(connectedCount) connected")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
 
     // MARK: - Claude API Section
 

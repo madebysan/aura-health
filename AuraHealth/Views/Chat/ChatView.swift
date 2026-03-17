@@ -1,12 +1,23 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import PhotosUI
 
 struct ChatView: View {
     @Environment(\.modelContext) private var modelContext
+    @Binding var prefillMessage: String?
+
+    init(prefillMessage: Binding<String?> = .constant(nil)) {
+        self._prefillMessage = prefillMessage
+    }
 
     @Query(sort: \Conversation.updatedAt, order: .reverse)
-    private var conversations: [Conversation]
+    private var allConversations: [Conversation]
+
+    /// Limit to most recent 50 conversations for display performance
+    private var conversations: [Conversation] {
+        Array(allConversations.prefix(50))
+    }
 
     @State private var currentConversation: Conversation?
     @State private var inputText = ""
@@ -15,6 +26,11 @@ struct ChatView: View {
     @State private var showingHistory = false
     @State private var showingFilePicker = false
     @State private var attachedFileURL: URL?
+    @State private var attachedFromPhotoPicker = false
+    @State private var showingPhotoPicker = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var pendingPhotoData: Data?
+    @State private var showingVaultPrompt = false
     @FocusState private var isInputFocused: Bool
     @State private var showingAPIKeyPrompt = false
     @State private var apiKeyInput = ""
@@ -36,137 +52,78 @@ struct ChatView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if !claudeService.hasAPIKey {
-                apiKeyBanner
-            }
-
-            // Messages
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        if displayMessages.isEmpty {
-                            chatEmptyState
-                        }
-                        ForEach(Array(displayMessages.enumerated()), id: \.element.id) { index, message in
-                            ChatBubble(message: message)
-                                .id(message.id)
-                                .staggeredAppearance(index: index)
-                        }
-                        if claudeService.isResponding {
-                            typingIndicator
-                        }
-                        if let error = errorMessage {
-                            HStack {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(.orange)
-                                Text(error)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                            }
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    if !claudeService.hasAPIKey {
+                        apiKeyBanner
                             .padding(.horizontal)
+                    }
+                    if displayMessages.isEmpty {
+                        chatEmptyState
+                    }
+                    ForEach(Array(displayMessages.enumerated()), id: \.element.id) { index, message in
+                        ChatBubble(message: message)
+                            .id(message.id)
+                            .staggeredAppearance(index: index)
+                    }
+                    if claudeService.isResponding {
+                        typingIndicator
+                    }
+                    if let error = errorMessage {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
                         }
-                    }
-                    .padding()
-                }
-                #if os(iOS)
-                // Dismiss keyboard by dragging down on the message list
-                .scrollDismissesKeyboard(.interactively)
-                #endif
-                .onChange(of: displayMessages.count) {
-                    if let last = displayMessages.last {
-                        withAnimation(AppAnimation.appear) {
-                            proxy.scrollTo(last.id, anchor: .bottom)
-                        }
+                        .padding(.horizontal)
                     }
                 }
+                .padding()
             }
-
-            Divider()
-
-            // Attachment preview
-            if let fileURL = attachedFileURL {
-                HStack(spacing: 8) {
-                    Image(systemName: fileURL.pathExtension.lowercased() == "pdf" ? "doc.fill" : "photo.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.accentColor)
-                    Text(fileURL.lastPathComponent)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button {
-                        attachedFileURL = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-                .background(Color.primary.opacity(0.03))
-            }
-
-            // Input
-            HStack(spacing: 10) {
-                Button { showingFilePicker = true } label: {
-                    Image(systemName: "paperclip")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Attach file")
-                .disabled(!claudeService.hasAPIKey)
-
-                if claudeService.hasAPIKey {
-                    TextField("Ask about your health data...", text: $inputText, axis: .vertical)
-                        .focused($isInputFocused)
-                        .textFieldStyle(.plain)
-                        .lineLimit(1...4)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
-                        .onSubmit { sendMessage() }
-                } else {
-                    Button {
-                        showingAPIKeyPrompt = true
-                    } label: {
-                        Text("Add API key to start chatting...")
-                            .font(.body)
-                            .foregroundStyle(.tertiary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Button { sendMessage() } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(
-                            canSend ? Color.accentColor : Color.secondary.opacity(0.3)
-                        )
-                }
-                .buttonStyle(.plain)
-                .disabled(!canSend)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
             #if os(iOS)
-            // Keep the input bar above the home indicator and above the keyboard
-            .padding(.bottom, 4)
-            .background(.bar)
+            .scrollDismissesKeyboard(.interactively)
             #endif
+            .onChange(of: displayMessages.count) {
+                if let last = displayMessages.last {
+                    withAnimation(AppAnimation.appear) {
+                        proxy.scrollTo(last.id, anchor: .bottom)
+                    }
+                }
+            }
         }
+        #if os(iOS)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            inputBar
+        }
+        #else
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                Divider()
+                inputBar
+            }
+        }
+        #endif
         .navigationTitle("Chat")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .environment(\.openURL, OpenURLAction { url in
+            guard url.scheme == "aura", let host = url.host,
+                  let section = AppSection(rawValue: host) else { return .systemAction }
+            NotificationCenter.default.post(name: .navigateTo, object: section)
+            // Deep-link to a specific metric: aura://vitals/hrv
+            if let metricRaw = url.pathComponents.first(where: { $0 != "/" }),
+               let metric = MetricType(rawValue: metricRaw) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    NotificationCenter.default.post(name: .openMetricDetail, object: metric)
+                }
+            }
+            return .handled
+        })
         .toolbar {
             #if os(iOS)
             if isInputFocused {
@@ -232,11 +189,40 @@ struct ChatView: View {
             allowsMultipleSelection: false
         ) { result in
             if case .success(let urls) = result, let url = urls.first {
+                attachedFromPhotoPicker = false
                 attachedFileURL = url
             }
         }
+        .photosPicker(isPresented: $showingPhotoPicker, selection: $selectedPhotoItem, matching: .images)
+        .onChange(of: selectedPhotoItem) {
+            guard let item = selectedPhotoItem else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let uiImage = UIImage(data: data),
+                   let jpegData = uiImage.jpegData(compressionQuality: 0.85) {
+                    pendingPhotoData = jpegData
+                    showingVaultPrompt = true
+                }
+                selectedPhotoItem = nil
+            }
+        }
+        .confirmationDialog("Save to Vault?", isPresented: $showingVaultPrompt, titleVisibility: .visible) {
+            Button("Save to Vault") { attachPhoto(saveToVault: true) }
+            Button("Just attach") { attachPhoto(saveToVault: false) }
+            Button("Cancel", role: .cancel) { pendingPhotoData = nil }
+        } message: {
+            Text("Would you like to save this photo to your Vault?")
+        }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             startNewChat()
+        }
+        .onChange(of: prefillMessage) {
+            if let message = prefillMessage, !message.isEmpty {
+                inputText = message
+                prefillMessage = nil
+                // Auto-submit: send immediately so the user gets a summary right away
+                sendMessage()
+            }
         }
     }
 
@@ -244,6 +230,39 @@ struct ChatView: View {
         currentConversation = nil
         inputText = ""
         errorMessage = nil
+    }
+
+    private func attachPhoto(saveToVault: Bool) {
+        guard let data = pendingPhotoData else { return }
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("jpg")
+        guard (try? data.write(to: tempURL)) != nil else { return }
+
+        attachedFromPhotoPicker = true
+        attachedFileURL = tempURL
+
+        if saveToVault {
+            let conversationTitle = currentConversation?.title
+            let photoTitle: String
+            if let title = conversationTitle, title != "New Chat" {
+                photoTitle = "Photo – \(title)"
+            } else {
+                photoTitle = "Photo \(Date().formatted(.dateTime.month().day().year().hour().minute()))"
+            }
+            let doc = VaultDocument(
+                title: photoTitle,
+                fileName: tempURL.lastPathComponent,
+                fileType: .image,
+                mimeType: "image/jpeg",
+                fileData: data,
+                fileSize: data.count,
+                tags: ["chat-attachment", "photo"],
+                notes: "Attached via Chat"
+            )
+            modelContext.insert(doc)
+        }
+        pendingPhotoData = nil
     }
 
     private var canSend: Bool {
@@ -313,6 +332,96 @@ struct ChatView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Input Bar
+
+    private var inputBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+
+            // Attachment preview
+            if let fileURL = attachedFileURL {
+                HStack(spacing: 8) {
+                    Image(systemName: fileURL.pathExtension.lowercased() == "pdf" ? "doc.fill" : "photo.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.accentColor)
+                    Text(fileURL.lastPathComponent)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        attachedFileURL = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(Color.primary.opacity(0.03))
+            }
+
+            HStack(spacing: 10) {
+                Menu {
+                    Button {
+                        showingPhotoPicker = true
+                    } label: {
+                        Label("Photo Library", systemImage: "photo")
+                    }
+                    Button {
+                        showingFilePicker = true
+                    } label: {
+                        Label("Files", systemImage: "doc")
+                    }
+                } label: {
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .disabled(!claudeService.hasAPIKey)
+
+                if claudeService.hasAPIKey {
+                    TextField("Ask about your health data...", text: $inputText, axis: .vertical)
+                        .focused($isInputFocused)
+                        .textFieldStyle(.plain)
+                        .lineLimit(1...4)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
+                } else {
+                    Button {
+                        showingAPIKeyPrompt = true
+                    } label: {
+                        Text("Add API key to start chatting...")
+                            .font(.body)
+                            .foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button { sendMessage() } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(
+                            canSend ? Color.accentColor : Color.secondary.opacity(0.3)
+                        )
+                }
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+                .disabled(!canSend)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.bar)
+        }
+    }
+
     // MARK: - Typing Indicator
 
     private var typingIndicator: some View {
@@ -352,29 +461,31 @@ struct ChatView: View {
         // Pass file to service before clearing
         claudeService.pendingFileURL = attachedFileURL
 
-        // Auto-save attachment to Vault
-        if let fileURL = attachedFileURL {
+        // Auto-save to Vault (skip if image came from photo picker — user already decided)
+        if let fileURL = attachedFileURL, !attachedFromPhotoPicker {
             saveToVault(url: fileURL)
         }
 
         inputText = ""
         attachedFileURL = nil
+        attachedFromPhotoPicker = false
         errorMessage = nil
-        isInputFocused = true
 
+        claudeService.isResponding = true
         Task {
-            if claudeService.hasAPIKey {
-                do {
-                    let response = try await claudeService.sendMessage(
-                        conversationHistory: conversation.messages,
-                        context: modelContext
-                    )
-                    conversation.addMessage(role: .assistant, content: response)
-                } catch {
-                    errorMessage = error.localizedDescription
-                }
-            } else {
+            defer { claudeService.isResponding = false }
+            guard claudeService.hasAPIKey else {
                 errorMessage = "Add your Claude API key in Settings to enable AI chat."
+                return
+            }
+            do {
+                let response = try await claudeService.sendMessage(
+                    conversationHistory: conversation.messages,
+                    context: modelContext
+                )
+                conversation.addMessage(role: .assistant, content: response)
+            } catch {
+                errorMessage = error.localizedDescription
             }
         }
     }

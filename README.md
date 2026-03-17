@@ -122,10 +122,14 @@ xcodebuild -scheme AuraHealth -destination 'platform=macOS' build
 - **What gets sent to Claude** — When you use the chat, your message and relevant health context (recent vitals, biomarkers, medications) are sent to the Claude API. This is a direct call from your device to Anthropic — Aura has no backend in between.
 - **No telemetry** — Zero analytics, crash reporting, or usage tracking of any kind.
 
+## Feedback
+
+Found a bug or have a feature idea? [Open an issue](https://github.com/madebysan/aura-health/issues).
+
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+[MIT](LICENSE)
 
 ---
 
-<p align="center">Made by <a href="https://santiagoalonso.com">santiagoalonso.com</a></p>
+Made by [santiagoalonso.com](https://santiagoalonso.com)

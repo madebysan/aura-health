@@ -66,7 +66,6 @@ Unit preferences (kg/lbs, C/F), Apple Health connection with sync, Claude API ke
 - **HealthKit** — Apple Health integration (iOS only)
 - **Claude API** — AI chat with tool use via direct REST calls
 - **Keychain** — API keys stored securely at runtime
-- **XcodeGen** — project generation from `project.yml`
 
 ## Project Structure
 
@@ -83,16 +82,13 @@ AuraHealth/
 
 ## Building
 
-Requires [XcodeGen](https://github.com/yonaskolb/XcodeGen):
-
 ```bash
-brew install xcodegen
-cd aura
-xcodegen generate
+git clone https://github.com/madebysan/aura-health.git
+cd aura-health
 open AuraHealth.xcodeproj
 ```
 
-Build for macOS or iOS from Xcode, or from CLI:
+Build for iOS or macOS from Xcode, or from CLI:
 
 ```bash
 # iOS Simulator
@@ -104,7 +100,7 @@ xcodebuild -scheme AuraHealth -destination 'platform=macOS' build
 
 ## Setup
 
-1. Clone the repo and run `xcodegen generate`
+1. Clone the repo and open `AuraHealth.xcodeproj`
 2. Build and run on an iOS device or simulator
 3. Grant Apple Health permissions when prompted
 4. Add your Claude API key in **Settings → AI** to enable chat features

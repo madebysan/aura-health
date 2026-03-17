@@ -93,9 +93,11 @@ struct LabImportSheet: View {
                 showingFilePicker = true
             } label: {
                 Label("Choose File (PDF or Text)", systemImage: "folder")
+                    .font(.body.weight(.medium))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .controlSize(.large)
 
             #if os(iOS)
             // iOS bonus: pick a photo of a lab report from the camera roll
@@ -103,9 +105,11 @@ struct LabImportSheet: View {
                 showingPhotoPicker = true
             } label: {
                 Label("Choose Photo of Lab Report", systemImage: "photo.on.rectangle")
+                    .font(.body.weight(.medium))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
+            .controlSize(.large)
             #endif
 
             if !claudeService.hasAPIKey {
@@ -117,10 +121,7 @@ struct LabImportSheet: View {
             }
 
             if let error {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
+                InlineErrorBanner(message: error)
                     .frame(maxWidth: 350)
             }
 

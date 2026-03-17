@@ -117,6 +117,20 @@ final class HealthAutoExportService {
 
     // MARK: - Sync
 
+    /// Pre-fetched lookup of existing measurements to avoid N+1 queries during import
+    private var existingMeasurements: Set<String> = []
+
+    private func buildExistingLookup(context: ModelContext, since startDate: Date) {
+        let descriptor = FetchDescriptor<Measurement>(
+            predicate: #Predicate { $0.timestamp >= startDate }
+        )
+        let all = (try? context.fetch(descriptor)) ?? []
+        existingMeasurements = Set(all.map { measurement in
+            let day = Calendar.current.startOfDay(for: measurement.timestamp)
+            return "\(measurement.metricType.rawValue)-\(measurement.source.rawValue)-\(day.timeIntervalSince1970)"
+        })
+    }
+
     func syncData(into context: ModelContext, days: Int = 7) async {
         guard let folderURL = resolveBookmark() else {
             error = "No folder selected. Tap Connect to choose the Health Auto Export folder."
@@ -133,6 +147,10 @@ final class HealthAutoExportService {
         isSyncing = true
         error = nil
         syncProgress = SyncProgress()
+
+        // Build lookup once instead of querying per-item
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
+        buildExistingLookup(context: context, since: cutoffDate)
 
         do {
             let files = try findExportFiles(in: folderURL, days: days)
@@ -151,6 +169,7 @@ final class HealthAutoExportService {
         }
 
         let imported = syncProgress?.imported ?? 0
+        existingMeasurements.removeAll()
         syncProgress = nil
         isSyncing = false
         logger.notice("[HAE] Sync complete. Total imported: \(imported)")
@@ -263,39 +282,39 @@ final class HealthAutoExportService {
 
     // MARK: - Helpers
 
+    private static let dateOnlyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private static let dateTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
+        return f
+    }()
+
     private func extractDate(from filename: String) -> Date? {
         let parts = filename.replacingOccurrences(of: "HealthAutoExport-", with: "")
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: parts)
+        return Self.dateOnlyFormatter.date(from: parts)
     }
 
     private func parseDate(_ string: String?) -> Date? {
         guard let string else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss Z"
-        return formatter.date(from: string)
+        return Self.dateTimeFormatter.date(from: string)
     }
 
     @discardableResult
     private func insertIfNew(context: ModelContext, timestamp: Date, type: MetricType, value: Double) -> Bool {
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: timestamp)
-        let end = cal.date(byAdding: .day, value: 1, to: start)!
+        let day = Calendar.current.startOfDay(for: timestamp)
+        let key = "\(type.rawValue)-\(MeasurementSource.appleHealth.rawValue)-\(day.timeIntervalSince1970)"
 
-        let descriptor = FetchDescriptor<Measurement>(
-            predicate: #Predicate {
-                $0.timestamp >= start && $0.timestamp < end
-            }
-        )
-
-        let matches = (try? context.fetch(descriptor)) ?? []
-        let alreadyExists = matches.contains { $0.metricType == type && $0.source == .appleHealth }
-
-        if !alreadyExists {
-            context.insert(Measurement(timestamp: timestamp, metricType: type, value: value, source: .appleHealth))
-            return true
+        if existingMeasurements.contains(key) {
+            return false
         }
-        return false
+
+        existingMeasurements.insert(key)
+        context.insert(Measurement(timestamp: timestamp, metricType: type, value: value, source: .appleHealth))
+        return true
     }
 }

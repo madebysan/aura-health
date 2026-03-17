@@ -19,7 +19,8 @@ struct ConditionsView: View {
                         title: "No Conditions",
                         message: "Track your health conditions and their status.",
                         actionLabel: "Add Condition",
-                        action: { showingAddCondition = true }
+                        action: { showingAddCondition = true },
+                        chatHint: "Try \"I have seasonal allergies, managed\" in Chat"
                     )
                 } else {
                     ForEach(Array(conditions.enumerated()), id: \.element.id) { index, condition in
@@ -332,19 +333,6 @@ struct DietPlansView: View {
             }
         }
         .hoverCard()
-    }
-}
-
-// MARK: - Exercise Placeholder
-
-struct ExercisePlaceholderView: View {
-    var body: some View {
-        EmptyStateView(
-            icon: "figure.run",
-            title: "Exercise",
-            message: "Exercise tracking is coming soon."
-        )
-        .navigationTitle("Exercise")
     }
 }
 

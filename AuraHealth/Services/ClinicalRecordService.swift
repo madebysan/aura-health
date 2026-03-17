@@ -77,6 +77,39 @@ final class ClinicalRecordService {
         error = nil
     }
 
+    // MARK: - Pre-fetched Lookups
+
+    /// Existing biomarker keys: "markerName-labName-dayTimestamp"
+    private var existingBiomarkerKeys: Set<String> = []
+    /// Existing medication names
+    private var existingMedicationNames: Set<String> = []
+    /// Existing condition names
+    private var existingConditionNames: Set<String> = []
+    /// Existing measurement keys: "metricType-source-dayTimestamp"
+    private var existingMeasurementKeys: Set<String> = []
+
+    private func buildLookups(context: ModelContext) {
+        let cal = Calendar.current
+
+        let allBiomarkers = (try? context.fetch(FetchDescriptor<Biomarker>())) ?? []
+        existingBiomarkerKeys = Set(allBiomarkers.map {
+            let day = cal.startOfDay(for: $0.testDate)
+            return "\($0.marker)-\($0.lab)-\(day.timeIntervalSince1970)"
+        })
+
+        let allMeds = (try? context.fetch(FetchDescriptor<Medication>())) ?? []
+        existingMedicationNames = Set(allMeds.map(\.name))
+
+        let allConditions = (try? context.fetch(FetchDescriptor<Condition>())) ?? []
+        existingConditionNames = Set(allConditions.map(\.name))
+
+        let allMeasurements = (try? context.fetch(FetchDescriptor<Measurement>())) ?? []
+        existingMeasurementKeys = Set(allMeasurements.map {
+            let day = cal.startOfDay(for: $0.timestamp)
+            return "\($0.metricType.rawValue)-\($0.source.rawValue)-\(day.timeIntervalSince1970)"
+        })
+    }
+
     // MARK: - Sync
 
     func syncRecords(into context: ModelContext) async {
@@ -90,6 +123,9 @@ final class ClinicalRecordService {
         isSyncing = true
         error = nil
         syncSummary = SyncSummary()
+
+        // Build lookups once instead of querying per-item
+        buildLookups(context: context)
 
         do {
             try await syncLabResults(into: context)
@@ -109,6 +145,10 @@ final class ClinicalRecordService {
             logger.error("[ClinicalRecords] Sync failed: \(error.localizedDescription)")
         }
 
+        existingBiomarkerKeys.removeAll()
+        existingMedicationNames.removeAll()
+        existingConditionNames.removeAll()
+        existingMeasurementKeys.removeAll()
         isSyncing = false
     }
 
@@ -162,12 +202,9 @@ final class ClinicalRecordService {
 
             // Dedup: skip if we already have this marker on this date from clinical records
             let markerDay = Calendar.current.startOfDay(for: effectiveDate)
-            let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: markerDay)!
-            let descriptor = FetchDescriptor<Biomarker>(
-                predicate: #Predicate { $0.testDate >= markerDay && $0.testDate < nextDay }
-            )
-            let existing = (try? context.fetch(descriptor)) ?? []
-            if existing.contains(where: { $0.marker == markerName && $0.lab == labName }) { continue }
+            let bioKey = "\(markerName)-\(labName)-\(markerDay.timeIntervalSince1970)"
+            if existingBiomarkerKeys.contains(bioKey) { continue }
+            existingBiomarkerKeys.insert(bioKey)
 
             context.insert(Biomarker(
                 testDate: effectiveDate,
@@ -227,11 +264,8 @@ final class ClinicalRecordService {
             }
 
             // Check if this medication already exists
-            let descriptor = FetchDescriptor<Medication>(
-                predicate: #Predicate { $0.name == name }
-            )
-            let existing = (try? context.fetch(descriptor)) ?? []
-            if !existing.isEmpty { continue }
+            if existingMedicationNames.contains(name) { continue }
+            existingMedicationNames.insert(name)
 
             // Extract dates
             let startDate = parseFHIRDate(json["authoredOn"] as? String) ?? record.startDate
@@ -269,11 +303,8 @@ final class ClinicalRecordService {
                   let conditionName = codings.first?["display"] as? String else { continue }
 
             // Check for duplicates
-            let descriptor = FetchDescriptor<Condition>(
-                predicate: #Predicate { $0.name == conditionName }
-            )
-            let existing = (try? context.fetch(descriptor)) ?? []
-            if !existing.isEmpty { continue }
+            if existingConditionNames.contains(conditionName) { continue }
+            existingConditionNames.insert(conditionName)
 
             // Extract clinical status
             var status: ConditionStatus = .active
@@ -328,14 +359,11 @@ final class ClinicalRecordService {
 
             let effectiveDate = parseFHIRDate(json["effectiveDateTime"] as? String) ?? record.startDate
             let day = Calendar.current.startOfDay(for: effectiveDate)
-            let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: day)!
 
             // Dedup
-            let descriptor = FetchDescriptor<Measurement>(
-                predicate: #Predicate { $0.timestamp >= day && $0.timestamp < nextDay }
-            )
-            let existing = (try? context.fetch(descriptor)) ?? []
-            if existing.contains(where: { $0.metricType == metricType && $0.source == .clinicalRecord }) { continue }
+            let measKey = "\(metricType.rawValue)-\(MeasurementSource.clinicalRecord.rawValue)-\(day.timeIntervalSince1970)"
+            if existingMeasurementKeys.contains(measKey) { continue }
+            existingMeasurementKeys.insert(measKey)
 
             // Handle blood pressure (dual value)
             var value2: Double?
@@ -376,19 +404,19 @@ final class ClinicalRecordService {
         return try await descriptor.result(for: healthStore)
     }
 
+    private static let fhirFormatters: [DateFormatter] = {
+        let f1 = DateFormatter()
+        f1.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+        let f2 = DateFormatter()
+        f2.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        let f3 = DateFormatter()
+        f3.dateFormat = "yyyy-MM-dd"
+        return [f1, f2, f3]
+    }()
+
     private func parseFHIRDate(_ string: String?) -> Date? {
         guard let string else { return nil }
-        // FHIR dates: "2026-03-01", "2026-03-01T10:30:00Z", "2026-03-01T10:30:00+05:00"
-        let formatters: [DateFormatter] = {
-            let f1 = DateFormatter()
-            f1.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-            let f2 = DateFormatter()
-            f2.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
-            let f3 = DateFormatter()
-            f3.dateFormat = "yyyy-MM-dd"
-            return [f1, f2, f3]
-        }()
-        for formatter in formatters {
+        for formatter in Self.fhirFormatters {
             if let date = formatter.date(from: string) { return date }
         }
         return nil

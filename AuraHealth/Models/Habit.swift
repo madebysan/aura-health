@@ -14,7 +14,7 @@ final class Habit {
     var gridOrder: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \HabitLog.habit)
-    var logs: [HabitLog] = []
+    var logs: [HabitLog]?
 
     init(
         name: String,

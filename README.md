@@ -1,7 +1,7 @@
 <p align="center">
   <img src="assets/app-icon.png" width="128" height="128" alt="Aura app icon">
 </p>
-<h1 align="center">Aura</h1>
+<h1 align="center">Aura Health</h1>
 <p align="center">Your vitals. Your labs. Your data.<br>
 A health dashboard that connects your vitals, labs, and habits in one place.</p>
 <p align="center"><strong>Version 1.0.0</strong> · iOS 17+ · macOS 14+</p>

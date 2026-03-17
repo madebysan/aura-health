@@ -13,7 +13,7 @@
   <img src="assets/screenshots.png" alt="Aura app screenshots" width="100%">
 </p>
 
-Aura is a personal health tracking app that pulls data from Apple Health, manual entries, and lab reports into a single dashboard — with an AI assistant that actually understands your numbers.
+Aura is an iOS app that brings your health data into one place. It pulls from Apple Health, manual entries, and lab reports — then gives you an AI assistant that actually understands your numbers. Built with SwiftUI and SwiftData, everything stays on your device.
 
 ---
 
@@ -29,7 +29,7 @@ Daily habit grid organized by time of day (morning, afternoon, evening, night). 
 Lab results viewer with 40+ markers grouped by body system (Heart, Metabolic, Liver, Kidney, Thyroid, etc.). Each marker shows status (Normal, Borderline, Abnormal), reference ranges, and plain-English descriptions. Supports multiple lab sessions with date-based snapshots. Import lab reports by attaching a PDF or photo to the AI chat.
 
 ### AI Chat
-Claude-powered health assistant with full tool use — it can read and write your vitals, biomarkers, medications, and habits. Supports 60+ biomarker aliases (e.g., "LDL", "A1C", "TSH"). Attach PDFs or photos for lab report extraction. Deep-links from chat responses navigate directly to specific metric detail sheets (`aura://vitals/hrv`). Conversation history with grouped timeline.
+Claude-powered health assistant with full tool use — it can read and write your vitals, biomarkers, medications, and habits. Supports 60+ biomarker aliases (e.g., "LDL", "A1C", "TSH"). Attach PDFs or photos for lab report extraction.
 
 ### Medications
 Log prescriptions, supplements, and OTC medications with dosage, timing (AM fasted, with food, bedtime), and frequency. Filter by type.
@@ -117,6 +117,15 @@ xcodebuild -scheme AuraHealth -destination 'platform=macOS' build
 - **No server** — Everything runs on-device. The only network calls are to the Claude API (your own key) and Apple Health.
 
 ---
+
+## Privacy & Security
+
+- **On-device storage** — All health data is stored locally using SwiftData. Nothing is uploaded to any server.
+- **No accounts** — There are no user accounts, no sign-ups, no analytics, no tracking.
+- **iCloud sync** — Data syncs between your devices via CloudKit, encrypted by Apple. No third-party cloud involved.
+- **Your API key** — The Claude AI chat uses your own API key, stored in the iOS Keychain. Aura never sees or stores your key on any server.
+- **What gets sent to Claude** — When you use the chat, your message and relevant health context (recent vitals, biomarkers, medications) are sent to the Claude API. This is a direct call from your device to Anthropic — Aura has no backend in between.
+- **No telemetry** — Zero analytics, crash reporting, or usage tracking of any kind.
 
 ## License
 

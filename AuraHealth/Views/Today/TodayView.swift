@@ -110,6 +110,11 @@ struct VitalsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .addMeasurement)) { _ in
             selectedMetricType = .weight
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openMetricDetail)) { notification in
+            if let metric = notification.object as? MetricType {
+                detailMetricType = metric
+            }
+        }
     }
 
     // MARK: - Today Content (card grid)
@@ -197,7 +202,8 @@ struct VitalsView: View {
                 EmptyStateView(
                     icon: "chart.xyaxis.line",
                     title: "No Data Yet",
-                    message: "Start logging measurements from the Today view to see trends here."
+                    message: "Start logging measurements from the Today view to see trends here.",
+                    chatHint: "Try \"Log my weight as 75kg\" in Chat"
                 )
                 .padding(.top, 40)
             } else {
@@ -263,15 +269,20 @@ struct VitalsView: View {
         }
     }
 
-    // MARK: - Data Helpers
+    // MARK: - Data Helpers (cached by type)
+
+    /// Measurements grouped by MetricType — computed once and reused
+    private var measurementsByType: [MetricType: [Measurement]] {
+        Dictionary(grouping: allMeasurements, by: \.metricType)
+    }
 
     private func latestMeasurement(for type: MetricType) -> Measurement? {
-        allMeasurements.first { $0.metricType == type }
+        measurementsByType[type]?.first
     }
 
     private func previousMeasurement(for type: MetricType) -> Measurement? {
-        let matching = allMeasurements.filter { $0.metricType == type }
-        return matching.count > 1 ? matching[1] : nil
+        guard let matching = measurementsByType[type], matching.count > 1 else { return nil }
+        return matching[1]
     }
 
     private func latestValue(for type: MetricType) -> Double? {
@@ -280,8 +291,9 @@ struct VitalsView: View {
 
     private func recentValues(for type: MetricType, days: Int) -> [Double] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-        return allMeasurements
-            .filter { $0.metricType == type && $0.timestamp >= cutoff }
+        guard let matching = measurementsByType[type] else { return [] }
+        return matching
+            .filter { $0.timestamp >= cutoff }
             .sorted { $0.timestamp < $1.timestamp }
             .map(\.value)
     }
@@ -289,10 +301,14 @@ struct VitalsView: View {
     private var recentHealthScores: [Double] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
+        // Pre-group measurements by day for score calculation
+        let recentCutoff = cal.date(byAdding: .day, value: -7, to: today)!
+        let recentMeasurements = allMeasurements.filter { $0.timestamp >= recentCutoff }
+        let byDay = Dictionary(grouping: recentMeasurements) { cal.startOfDay(for: $0.timestamp) }
+
         return (0..<7).reversed().compactMap { daysAgo -> Double? in
             guard let date = cal.date(byAdding: .day, value: -daysAgo, to: today) else { return nil }
-            let nextDay = cal.date(byAdding: .day, value: 1, to: date)!
-            let dayMeasurements = allMeasurements.filter { $0.timestamp >= date && $0.timestamp < nextDay }
+            let dayMeasurements = byDay[date] ?? []
             return computeHealthScore(from: dayMeasurements)
         }.filter { $0 > 0 }
     }

@@ -2,20 +2,19 @@
   <img src="assets/app-icon.png" width="128" height="128" alt="Aura app icon">
 </p>
 <h1 align="center">Aura</h1>
-<p align="center"><em>Your vitals. Your labs. Your data.</em></p>
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/platform-iOS%2017%2B%20%7C%20macOS%2014%2B-lightgrey" alt="Platform">
-  <img src="https://img.shields.io/badge/swift-5.9-orange" alt="Swift 5.9">
-</p>
-
-<p align="center">
-  <img src="assets/screenshots.png" alt="Aura app screenshots" width="100%">
-</p>
-
-Aura is an iOS app that brings your health data into one place. It pulls from Apple Health, manual entries, and lab reports — then gives you an AI assistant that actually understands your numbers. Built with SwiftUI and SwiftData, everything stays on your device.
+<p align="center">Your vitals. Your labs. Your data.<br>
+An iOS health tracking app with an AI assistant that actually understands your numbers.</p>
+<p align="center"><strong>Version 1.0.0</strong> · iOS 17+ · macOS 14+</p>
 
 ---
+
+<p align="center">
+  <img src="assets/screenshots.png" width="100%" alt="Aura app screenshots">
+</p>
+
+## What it does
+
+Aura pulls data from Apple Health, manual entries, and lab reports into a single dashboard. It tracks vitals, biomarkers, medications, habits, and conditions — and gives you a Claude-powered AI assistant that can read your data, answer questions, and extract lab results from photos and PDFs. Everything stays on your device.
 
 ## Features
 

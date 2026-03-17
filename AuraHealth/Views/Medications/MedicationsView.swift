@@ -48,7 +48,8 @@ struct MedicationsView: View {
                         title: "No Medications",
                         message: "Add your prescriptions, supplements, and OTC medications.",
                         actionLabel: "Add Medication",
-                        action: { showingAddSheet = true }
+                        action: { showingAddSheet = true },
+                        chatHint: "Try \"I take 500mg magnesium at night\" in Chat"
                     )
                     .padding(.top, 20)
                 } else {

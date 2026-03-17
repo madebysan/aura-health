@@ -16,11 +16,15 @@ final class ClaudeService {
     }
 
     private static let apiURL = "https://api.anthropic.com/v1/messages"
-    private static let model = "claude-sonnet-4-6"
+
+    private var model: String {
+        let stored = UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.sonnet.rawValue
+        return stored
+    }
 
     // MARK: - System Prompt (lean — no data, just behavior rules)
 
-    private static let systemPrompt = """
+    private static let systemPromptBase = """
     You are a concise health assistant inside the Aura Health app.
 
     RULES:
@@ -34,7 +38,29 @@ final class ClaudeService {
     - When showing biomarkers: include value, unit, ref range, and status.
     - For ambiguous requests, ask for clarification. Do NOT assume values.
     - Do NOT give specific medical advice, diagnoses, or treatment recommendations.
+
+    NAVIGATION LINKS:
+    - When you add or update a measurement or biomarker, end your response with a markdown link so the user can tap to view it.
+    - Format: [View in Vitals →](aura://vitals) or [View in Biomarkers →](aura://biomarkers)
+    - Use aura://vitals for: heart rate, HRV, blood pressure, weight, sleep, steps, SpO2, temperature, recovery, strain, active minutes.
+    - Use aura://biomarkers for: glucose, cholesterol, vitamins, minerals, hormones, and other lab values.
+    - Use aura://medications for medication-related updates.
+    - Use aura://tracking for habit-related updates.
+    - Only include a link when you actually added or updated data. Do NOT add links for read-only queries.
     """
+
+    private var systemPrompt: String {
+        let weightUnit = UserDefaults.standard.string(forKey: "weightUnit") ?? "kg"
+        let tempUnit = UserDefaults.standard.string(forKey: "temperatureUnit") ?? "celsius"
+        let weightLabel = weightUnit == "lbs" ? "lbs (pounds)" : "kg (kilograms)"
+        let tempLabel = tempUnit == "fahrenheit" ? "°F (Fahrenheit)" : "°C (Celsius)"
+        return Self.systemPromptBase + """
+
+        USER PREFERENCES:
+        - Weight unit: \(weightLabel). When the user mentions weight without a unit, assume \(weightUnit). Always pass the correct unit to add_measurement.
+        - Temperature unit: \(tempLabel).
+        """
+    }
 
     // MARK: - Tool Definitions
 
@@ -61,7 +87,7 @@ final class ClaudeService {
         ],
         [
             "name": "get_biomarkers",
-            "description": "Get lab biomarker results. Use when user asks about blood work, lab results, or specific markers like cholesterol, TSH, etc.",
+            "description": "Get lab biomarker results. Use when user asks about blood work, lab results, or specific markers like cholesterol, TSH, ApoB, Apolipoprotein B, glucose, etc. Always call this for any lab/blood test question.",
             "input_schema": [
                 "type": "object",
                 "properties": [
@@ -152,7 +178,7 @@ final class ClaudeService {
         ],
         [
             "name": "add_measurement",
-            "description": "Log a vital measurement. ONLY use when user explicitly asks to log/record a measurement. Note: sleepScore, recovery, strain, skinTemp are read-only sensor metrics and cannot be logged manually.",
+            "description": "Log a vital measurement. ONLY use when user explicitly asks to log/record a measurement. Note: sleepScore, recovery, strain, skinTemp are read-only sensor metrics and cannot be logged manually. For weight: always pass the unit the user specified (lbs or kg). If the user says a number without a unit, use their preferred unit from the system prompt.",
             "input_schema": [
                 "type": "object",
                 "properties": [
@@ -161,8 +187,9 @@ final class ClaudeService {
                         "enum": ["weight", "heartRate", "sleepDuration", "steps", "activeMinutes", "hrv", "spo2", "calories", "bloodPressure"],
                         "description": "Metric type"
                     ],
-                    "value": ["type": "number", "description": "The numeric value"],
+                    "value": ["type": "number", "description": "The numeric value in the unit the user specified"],
                     "value2": ["type": "number", "description": "Second value (only for bloodPressure: diastolic)"],
+                    "unit": ["type": "string", "description": "Unit for the value. For weight: 'lbs' or 'kg'. For temperature: 'F' or 'C'. If user says pounds/lbs, use 'lbs'. If user says kg/kilograms, use 'kg'."],
                     "date": ["type": "string", "description": "Date as YYYY-MM-DD. Use today if not specified."]
                 ],
                 "required": ["metric", "value"]
@@ -306,6 +333,36 @@ final class ClaudeService {
             ]
         ],
         [
+            "name": "delete_measurement",
+            "description": "Delete a vital measurement entry. ONLY use when user explicitly asks to delete/remove a specific measurement. Always confirm what will be deleted before calling. If multiple entries match, list them and ask which one to delete.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "metric": [
+                        "type": "string",
+                        "enum": ["weight", "heartRate", "sleepDuration", "steps", "activeMinutes", "hrv", "spo2", "calories", "bloodPressure"],
+                        "description": "Metric type to delete"
+                    ],
+                    "date": ["type": "string", "description": "Date of the entry as YYYY-MM-DD. Required to avoid deleting the wrong entry."],
+                    "value": ["type": "number", "description": "The value to match (optional, for disambiguation when multiple entries exist on the same date)"]
+                ],
+                "required": ["metric", "date"]
+            ]
+        ],
+        [
+            "name": "delete_biomarker",
+            "description": "Delete a biomarker/lab result entry. ONLY use when user explicitly asks to delete/remove a specific biomarker. Always confirm what will be deleted before calling.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "marker": ["type": "string", "description": "Marker name (e.g. 'Total Cholesterol', 'TSH')"],
+                    "date": ["type": "string", "description": "Test date as YYYY-MM-DD. Required to avoid deleting the wrong entry."],
+                    "value": ["type": "number", "description": "The value to match (optional, for disambiguation)"]
+                ],
+                "required": ["marker", "date"]
+            ]
+        ],
+        [
             "name": "navigate",
             "description": "Navigate to a specific section of the app. Use when user says 'show me', 'go to', 'open' a section.",
             "input_schema": [
@@ -333,9 +390,8 @@ final class ClaudeService {
     ) async throws -> String {
         guard hasAPIKey else { throw ClaudeError.noAPIKey }
 
-        isResponding = true
         hasFileAttachment = false
-        defer { isResponding = false; hasFileAttachment = false }
+        defer { hasFileAttachment = false }
 
         // Build messages: last 10 for token efficiency
         // conversationHistory already includes the current user message
@@ -450,10 +506,10 @@ final class ClaudeService {
         let maxTokens = hasFileAttachment ? 4096 : 1024
 
         let requestBody: [String: Any] = [
-            "model": Self.model,
+            "model": model,
             "max_tokens": maxTokens,
             "system": [
-                ["type": "text", "text": Self.systemPrompt, "cache_control": ["type": "ephemeral"]]
+                ["type": "text", "text": systemPrompt, "cache_control": ["type": "ephemeral"]]
             ],
             "tools": Self.tools,
             "messages": messages
@@ -522,6 +578,10 @@ final class ClaudeService {
             return executeDeactivateMedication(input: input, context: context)
         case "update_condition":
             return executeUpdateCondition(input: input, context: context)
+        case "delete_measurement":
+            return executeDeleteMeasurement(input: input, context: context)
+        case "delete_biomarker":
+            return executeDeleteBiomarker(input: input, context: context)
         case "navigate":
             return executeNavigate(input: input)
         default:
@@ -586,13 +646,20 @@ final class ClaudeService {
 
         var filtered = biomarkers
         if let markerFilter {
-            filtered = filtered.filter { $0.marker.localizedCaseInsensitiveContains(markerFilter) }
+            let canonical = BiomarkerReference.canonicalName(for: markerFilter)
+            filtered = filtered.filter {
+                $0.marker.localizedCaseInsensitiveContains(markerFilter)
+                || $0.marker.localizedCaseInsensitiveContains(canonical)
+            }
         }
         if let systemFilter {
             filtered = filtered.filter { BiomarkerReference.system(for: $0.marker).rawValue == systemFilter }
         }
 
-        if filtered.isEmpty { return "No matching biomarkers found." }
+        if filtered.isEmpty {
+            let allMarkers = Array(Set(biomarkers.map(\.marker))).sorted().joined(separator: ", ")
+            return "No biomarker named '\(markerFilter ?? "")' found. Markers on record: \(allMarkers)"
+        }
 
         // Latest per marker — compact format to minimize tokens
         // Show all markers (no cap) since capping triggers multiple follow-up tool calls which costs more
@@ -643,7 +710,7 @@ final class ClaudeService {
 
         let today = Calendar.current.startOfDay(for: Date())
         return habits.map { habit in
-            let todayLog = habit.logs.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
+            let todayLog = (habit.logs ?? []).first { Calendar.current.isDate($0.date, inSameDayAs: today) }
             let status = todayLog?.done == true ? "done" : "pending"
             let section = habit.gridSection.displayName.lowercased()
             if habit.trackingType == .quantity, let qty = todayLog?.quantity, qty > 0 {
@@ -711,7 +778,7 @@ final class ClaudeService {
         }
 
         // Check for existing log on this date
-        let existingLog = habit.logs.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
+        let existingLog = (habit.logs ?? []).first { Calendar.current.isDate($0.date, inSameDayAs: date) }
         if let existingLog {
             existingLog.done = completed
             if let quantity { existingLog.quantity = quantity }
@@ -783,11 +850,14 @@ final class ClaudeService {
     }
 
     private func executeAddBiomarker(input: [String: Any], context: ModelContext) -> String {
-        guard let marker = input["marker"] as? String,
+        guard let rawMarker = input["marker"] as? String,
               let value = input["value"] as? Double,
               let unit = input["unit"] as? String else {
             return "Error: marker, value, and unit are required."
         }
+
+        // Normalize aliases (e.g. "ApoB" → "Apolipoprotein B")
+        let marker = BiomarkerReference.canonicalName(for: rawMarker)
 
         // Validate value is in a reasonable range
         guard value > 0, value < 100000 else {
@@ -850,18 +920,34 @@ final class ClaudeService {
         let dateStr = input["date"] as? String
         let date = parseDate(dateStr) ?? Date()
         let value2 = input["value2"] as? Double
+        let inputUnit = input["unit"] as? String
+
+        // Convert weight to kg for storage (app stores weight internally in kg)
+        var storageValue = value
+        var displayUnit = metricType.unit
+        if metricType == .weight, let inputUnit {
+            if inputUnit.lowercased() == "lbs" {
+                storageValue = value / 2.20462 // lbs → kg
+                displayUnit = "lbs"
+            } else {
+                displayUnit = "kg"
+            }
+        }
 
         let measurement = Measurement(
             timestamp: date,
             metricType: metricType,
-            value: value,
+            value: storageValue,
             source: .manual
         )
         measurement.value2 = value2
         context.insert(measurement)
         try? context.save()
 
-        return "Added: \(metricType.displayName) = \(measurement.displayValue) \(metricType.unit) on \(formatDate(date))"
+        // Report back in the unit the user used, not the storage unit
+        let reportValue = metricType == .weight && displayUnit == "lbs" ? value : storageValue
+        let reportDisplay = reportValue == reportValue.rounded() ? "\(Int(reportValue))" : String(format: "%.1f", reportValue)
+        return "Added: \(metricType.displayName) = \(reportDisplay) \(displayUnit) on \(formatDate(date))"
     }
 
     private func executeLogMedication(input: [String: Any], context: ModelContext) -> String {
@@ -1059,6 +1145,111 @@ final class ClaudeService {
         return "Updated \(condition.name): \(oldStatus) → \(status.displayName)"
     }
 
+    private func executeDeleteMeasurement(input: [String: Any], context: ModelContext) -> String {
+        guard let metricStr = input["metric"] as? String,
+              let dateStr = input["date"] as? String else {
+            return "Error: metric and date are required."
+        }
+
+        guard let metricType = MetricType(rawValue: metricStr) else {
+            return "Error: unknown metric '\(metricStr)'."
+        }
+
+        guard let targetDate = parseDate(dateStr) else {
+            return "Error: invalid date format. Use YYYY-MM-DD."
+        }
+
+        let cal = Calendar.current
+        let descriptor = FetchDescriptor<Measurement>(
+            predicate: #Predicate { $0.metricType == metricType },
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        )
+
+        guard let measurements = try? context.fetch(descriptor) else {
+            return "Error: could not fetch measurements."
+        }
+
+        let matches = measurements.filter { cal.isDate($0.timestamp, inSameDayAs: targetDate) }
+
+        if matches.isEmpty {
+            return "No \(metricType.displayName) entry found on \(formatDate(targetDate))."
+        }
+
+        // If a value was provided, narrow down further
+        let valueFilter = input["value"] as? Double
+        let toDelete: [Measurement]
+        if let valueFilter {
+            toDelete = matches.filter { abs($0.value - valueFilter) < 0.01 }
+            if toDelete.isEmpty {
+                let existing = matches.map { "\($0.displayValue) \(metricType.unit)" }.joined(separator: ", ")
+                return "No \(metricType.displayName) entry with value \(valueFilter) on \(formatDate(targetDate)). Found: \(existing)"
+            }
+        } else if matches.count > 1 {
+            let list = matches.map { "\($0.displayValue) \(metricType.unit) (\($0.timestamp.formatted(.dateTime.hour().minute())))" }.joined(separator: ", ")
+            return "Multiple entries on \(formatDate(targetDate)): \(list). Specify the value to delete the right one."
+        } else {
+            toDelete = matches
+        }
+
+        for m in toDelete {
+            context.delete(m)
+        }
+        try? context.save()
+
+        let deleted = toDelete.map { "\($0.displayValue) \(metricType.unit)" }.joined(separator: ", ")
+        return "Deleted \(metricType.displayName): \(deleted) from \(formatDate(targetDate))."
+    }
+
+    private func executeDeleteBiomarker(input: [String: Any], context: ModelContext) -> String {
+        guard let markerName = input["marker"] as? String,
+              let dateStr = input["date"] as? String else {
+            return "Error: marker and date are required."
+        }
+
+        guard let targetDate = parseDate(dateStr) else {
+            return "Error: invalid date format. Use YYYY-MM-DD."
+        }
+
+        let cal = Calendar.current
+        let descriptor = FetchDescriptor<Biomarker>(
+            sortBy: [SortDescriptor(\.testDate, order: .reverse)]
+        )
+
+        guard let biomarkers = try? context.fetch(descriptor) else {
+            return "Error: could not fetch biomarkers."
+        }
+
+        let matches = biomarkers.filter {
+            $0.marker.localizedCaseInsensitiveContains(markerName) &&
+            cal.isDate($0.testDate, inSameDayAs: targetDate)
+        }
+
+        if matches.isEmpty {
+            return "No biomarker matching '\(markerName)' found on \(formatDate(targetDate))."
+        }
+
+        // If a value was provided, narrow down
+        let valueFilter = input["value"] as? Double
+        let toDelete: [Biomarker]
+        if let valueFilter {
+            toDelete = matches.filter { abs($0.value - valueFilter) < 0.01 }
+            if toDelete.isEmpty {
+                let existing = matches.map { "\($0.marker): \($0.value) \($0.unit)" }.joined(separator: ", ")
+                return "No match with value \(valueFilter). Found: \(existing)"
+            }
+        } else {
+            toDelete = matches
+        }
+
+        for b in toDelete {
+            context.delete(b)
+        }
+        try? context.save()
+
+        let deleted = toDelete.map { "\($0.marker): \($0.value) \($0.unit)" }.joined(separator: ", ")
+        return "Deleted: \(deleted) from \(formatDate(targetDate))."
+    }
+
     private func executeNavigate(input: [String: Any]) -> String {
         guard let sectionStr = input["section"] as? String,
               let section = AppSection(rawValue: sectionStr) else {
@@ -1101,7 +1292,7 @@ final class ClaudeService {
         }
 
         let requestBody: [String: Any] = [
-            "model": Self.model,
+            "model": model,
             "max_tokens": 4096,
             "messages": [["role": "user", "content": contentBlocks]]
         ]

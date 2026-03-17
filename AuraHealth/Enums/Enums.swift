@@ -66,7 +66,7 @@ enum MetricType: String, Codable, CaseIterable, Identifiable {
         case .steps: "figure.walk"
         case .activeMinutes: "flame.fill"
         case .hrv: "waveform.path.ecg.rectangle"
-        case .recovery: "arrow.counterclockwise.heart"
+        case .recovery: "arrow.2.circlepath"
         case .strain: "bolt.heart.fill"
         case .spo2: "lungs.fill"
         case .skinTemp: "thermometer.medium"
@@ -97,6 +97,96 @@ enum MetricType: String, Codable, CaseIterable, Identifiable {
         case .calories: (1800, 3000)
         }
     }
+    /// Educational context for the metric detail view
+    var context: MetricContext {
+        switch self {
+        case .weight:
+            MetricContext(
+                description: "Body weight is a basic but important health indicator. It reflects overall energy balance and can signal changes in muscle mass, hydration, or fat stores.",
+                whyItMatters: "Tracking weight trends over weeks and months is more useful than any single reading. Sudden changes may indicate fluid shifts, dietary changes, or underlying health issues.",
+                rangeExplanation: "The reference range of 50–100 kg is a general guideline for adults. Your ideal weight depends on height, body composition, age, and sex. BMI is a rough proxy — talk to your doctor about what's right for you."
+            )
+        case .bloodPressure:
+            MetricContext(
+                description: "Blood pressure measures the force of blood against artery walls. The top number (systolic) is pressure during heartbeats; the bottom (diastolic) is pressure between beats.",
+                whyItMatters: "High blood pressure is a leading risk factor for heart disease, stroke, and kidney damage. It's often called the 'silent killer' because it rarely has symptoms until damage is done.",
+                rangeExplanation: "Normal is below 120/80 mmHg. Elevated is 120–129 systolic. Stage 1 hypertension is 130–139/80–89. Stage 2 is 140+/90+. Consistently elevated readings warrant a conversation with your doctor."
+            )
+        case .heartRate:
+            MetricContext(
+                description: "Resting heart rate is how many times your heart beats per minute while at rest. It's a simple measure of cardiovascular fitness and autonomic nervous system health.",
+                whyItMatters: "A lower resting heart rate generally indicates better cardiovascular fitness. Athletes often have resting rates in the 40–60 range. Sustained elevated rates may signal stress, dehydration, or heart conditions.",
+                rangeExplanation: "50–100 bpm is the normal adult range. Below 60 is bradycardia (often fine if you're fit), above 100 is tachycardia. Your personal baseline matters more than population averages."
+            )
+        case .sleepScore:
+            MetricContext(
+                description: "Sleep score is a composite rating of your sleep quality, combining duration, efficiency, restfulness, and sleep stage balance into a single number.",
+                whyItMatters: "Sleep quality affects everything — immune function, cognitive performance, mood, hormone regulation, and recovery. A consistently low score suggests your sleep needs attention.",
+                rangeExplanation: "70–100 is considered good to excellent. Below 70 suggests poor sleep quality. Focus on consistency — going to bed and waking at the same time matters as much as total hours."
+            )
+        case .sleepDuration:
+            MetricContext(
+                description: "Total time spent asleep, including light, deep, and REM stages. This excludes time awake in bed.",
+                whyItMatters: "Chronic sleep deprivation increases risk for obesity, diabetes, cardiovascular disease, and cognitive decline. Most adults need 7–9 hours, though individual needs vary.",
+                rangeExplanation: "7–9 hours is recommended for most adults. Some people function well on 7, others need closer to 9. Less than 6 hours consistently is associated with significant health risks."
+            )
+        case .steps:
+            MetricContext(
+                description: "Daily step count is a simple proxy for overall physical activity and movement throughout the day.",
+                whyItMatters: "Research shows mortality risk drops significantly going from sedentary to ~7,000–8,000 steps/day. Benefits continue up to ~12,000 steps but with diminishing returns. Any movement helps.",
+                rangeExplanation: "7,000–15,000 steps is a healthy range. The 10,000 step goal is a useful target, not a medical threshold. What matters most is being consistently active relative to your baseline."
+            )
+        case .activeMinutes:
+            MetricContext(
+                description: "Minutes spent in moderate to vigorous physical activity, like brisk walking, running, or strength training.",
+                whyItMatters: "The WHO recommends 150–300 minutes of moderate activity per week (about 22–43 min/day). Regular activity reduces risk of heart disease, diabetes, cancer, and depression.",
+                rangeExplanation: "30–120 minutes daily is a healthy range. Even 15 minutes of brisk walking provides benefits. The key is consistency — daily movement beats occasional intense workouts."
+            )
+        case .hrv:
+            MetricContext(
+                description: "Heart rate variability measures the variation in time between consecutive heartbeats. It's controlled by the autonomic nervous system and reflects your body's ability to adapt to stress.",
+                whyItMatters: "Higher HRV generally indicates better recovery, fitness, and stress resilience. Low HRV can signal overtraining, illness, poor sleep, or chronic stress. It's one of the best objective markers of overall readiness.",
+                rangeExplanation: "20–100 ms is a typical range, but HRV is highly individual — it varies by age, fitness, and genetics. Your personal trend matters far more than comparing to others. Track it at the same time daily (morning is best)."
+            )
+        case .recovery:
+            MetricContext(
+                description: "Recovery score estimates how prepared your body is for strain based on sleep performance, HRV, and resting heart rate.",
+                whyItMatters: "Training when recovery is low increases injury risk and can lead to overtraining. High recovery days are ideal for intense workouts. Low recovery days benefit from rest or light activity.",
+                rangeExplanation: "50–100% is the target zone. Green (67–100%) means you're ready for strain. Yellow (34–66%) suggests moderation. Red (0–33%) means prioritize rest and recovery."
+            )
+        case .strain:
+            MetricContext(
+                description: "Strain is a measure of cardiovascular load throughout the day, based on heart rate data. It quantifies how much stress your body experienced from physical activity.",
+                whyItMatters: "Balancing strain with recovery is key to improving fitness without overtraining. Consistently high strain without adequate recovery leads to diminishing returns and increased injury risk.",
+                rangeExplanation: "8–18 is a moderate to high activity range. Light days score 0–8, intense training days 14–21. The goal is matching strain to your recovery level, not maximizing it every day."
+            )
+        case .spo2:
+            MetricContext(
+                description: "Blood oxygen saturation (SpO2) measures the percentage of hemoglobin in your blood that is carrying oxygen. It's typically measured by a pulse oximeter or wearable sensor.",
+                whyItMatters: "Healthy lungs maintain SpO2 above 95%. Drops below 90% are clinically concerning and may indicate respiratory issues. During sleep, mild dips are normal but sustained drops may signal sleep apnea.",
+                rangeExplanation: "95–100% is normal. 90–94% warrants medical attention. Below 90% is hypoxemia and needs immediate evaluation. High-altitude environments can naturally lower readings."
+            )
+        case .skinTemp:
+            MetricContext(
+                description: "Skin temperature reflects your body's thermoregulation. Wearables measure it continuously, usually at the wrist, and track deviations from your personal baseline.",
+                whyItMatters: "Temperature variations can be early indicators of illness, hormonal changes, or circadian rhythm shifts. A sustained increase above your baseline may suggest your immune system is fighting something.",
+                rangeExplanation: "36.1–37.2°C (97.0–99.0°F) is the normal range for skin temperature. Core body temperature is slightly higher. Individual baselines vary — track your personal pattern rather than absolute values."
+            )
+        case .calories:
+            MetricContext(
+                description: "Active calories burned through physical movement and exercise, as estimated by your device using heart rate, motion, and body metrics.",
+                whyItMatters: "Tracking energy expenditure helps with weight management and ensures you're meeting activity goals. It's an imperfect estimate — wearables can be off by 15–30% — but trends over time are reliable.",
+                rangeExplanation: "1,800–3,000 kcal is a typical daily active burn range for adults. Your actual needs depend on age, weight, activity level, and metabolic rate. Use this as a trend indicator, not a precise measurement."
+            )
+        }
+    }
+}
+
+/// Educational context shown in the metric detail view
+struct MetricContext {
+    let description: String
+    let whyItMatters: String
+    let rangeExplanation: String
 }
 
 // MARK: - Measurement Source
@@ -616,6 +706,28 @@ enum TemperatureUnit: String, Codable, CaseIterable {
         switch self {
         case .celsius: "C"
         case .fahrenheit: "F"
+        }
+    }
+}
+
+enum ClaudeModel: String, Codable, CaseIterable {
+    case haiku = "claude-haiku-4-5-20251001"
+    case sonnet = "claude-sonnet-4-6"
+    case opus = "claude-opus-4-6"
+
+    var displayName: String {
+        switch self {
+        case .haiku: "Haiku"
+        case .sonnet: "Sonnet"
+        case .opus: "Opus"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .haiku: "Fastest, lower cost"
+        case .sonnet: "Balanced (recommended)"
+        case .opus: "Most capable, higher cost"
         }
     }
 }

@@ -2,57 +2,83 @@
   <img src="assets/app-icon.png" width="128" height="128" alt="Aura app icon">
 </p>
 <h1 align="center">Aura</h1>
-<p align="center">A personal health tracking app that aggregates data from WHOOP, Apple Health, and manual entries into one place.</p>
-<p align="center"><strong>Version 1.0.0</strong> · iOS 17+ · macOS 14+ · Apple Silicon & Intel</p>
+<p align="center"><em>Your vitals. Your labs. Your data.</em></p>
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/platform-iOS%2017%2B%20%7C%20macOS%2014%2B-lightgrey" alt="Platform">
+  <img src="https://img.shields.io/badge/swift-5.9-orange" alt="Swift 5.9">
+</p>
+
+<p align="center">
+  <img src="assets/screenshots.png" alt="Aura app screenshots" width="100%">
+</p>
+
+Aura is a personal health tracking app that pulls data from Apple Health, manual entries, and lab reports into a single dashboard — with an AI assistant that actually understands your numbers.
 
 ---
 
 ## Features
 
-- **Vitals Dashboard** — daily health score ring (8-metric weighted calculation), sparkline cards for each metric, insight card stack with swipe-to-dismiss
-- **Tracking** — daily habit grid with time-of-day sections, adherence heatmaps (60 days), streak tracking
-- **Correlations** — visualize relationships between metrics over time
-- **Biomarkers** — track lab results with reference ranges, status summary bar, import from lab reports (local parsing + Claude API fallback)
-- **Medications** — log prescriptions, supplements, and OTC with timing and frequency
-- **Conditions** — track health conditions with status (active, managed, resolved)
-- **Diet** — diet type selection with food category tracking
-- **Vault** — store health documents (PDFs, images, text); auto-saves chat attachments
-- **AI Chat** — Claude-powered health assistant with tool use (reads/writes vitals, biomarkers, medications), conversation history, floating chat button (⌘K), API key gating
-- **Onboarding** — feature highlights, integration setup, unit preferences, diet selection, API key setup
-- **Import/Export** — JSON backup and restore of all data
+### Vitals Dashboard
+Track heart rate, HRV, blood pressure, sleep, steps, weight, SpO2, skin temperature, calories, and more. Each metric gets a sparkline card with delta indicators, reference ranges, and educational context explaining what the numbers mean and why they matter. Filter by Today, 7d, 30d, 90d, 1y, or All. A composite Daily Health Score summarizes your overall readiness.
+
+### Habits
+Daily habit grid organized by time of day (morning, afternoon, evening, night). Supports boolean and quantity tracking. Includes streak counts, adherence heatmaps, and drag-and-drop reordering. AI-generated smart habits based on your actual health data.
+
+### Biomarkers
+Lab results viewer with 40+ markers grouped by body system (Heart, Metabolic, Liver, Kidney, Thyroid, etc.). Each marker shows status (Normal, Borderline, Abnormal), reference ranges, and plain-English descriptions. Supports multiple lab sessions with date-based snapshots. Import lab reports by attaching a PDF or photo to the AI chat.
+
+### AI Chat
+Claude-powered health assistant with full tool use — it can read and write your vitals, biomarkers, medications, and habits. Supports 60+ biomarker aliases (e.g., "LDL", "A1C", "TSH"). Attach PDFs or photos for lab report extraction. Deep-links from chat responses navigate directly to specific metric detail sheets (`aura://vitals/hrv`). Conversation history with grouped timeline.
+
+### Medications
+Log prescriptions, supplements, and OTC medications with dosage, timing (AM fasted, with food, bedtime), and frequency. Filter by type.
+
+### Correlations
+Scatter plots with Pearson correlation coefficients between metric pairs — Sleep Score vs Recovery, HRV vs Strain, Sleep Duration vs Resting HR, and more. Filterable by time range.
+
+### Conditions
+Track health conditions (diabetes, hypertension, anxiety, etc.) with status tracking: Active, Managed, or Resolved. Autocomplete from 70+ common conditions.
+
+### Diet
+Choose a diet type (Mediterranean, Keto, Paleo, etc.) with pre-populated approved and avoided food categories. Customizable per plan.
+
+### Vault
+Secure document storage for health files — PDFs, images, text files. Auto-saves chat attachments. Photos saved from chat get smart titles based on conversation context.
+
+### Settings
+Unit preferences (kg/lbs, C/F), Apple Health connection with sync, Claude API key and model selection (Haiku, Sonnet, Opus), data import/export.
+
+---
 
 ## Integrations
 
-| Source | Status | Data Pulled |
-|--------|--------|-------------|
-| **WHOOP** | Coming Soon | Recovery, HRV, resting HR, SpO2, skin temp, sleep score, sleep duration, strain, calories, weight |
-| **Apple Health** | HealthKit authorized (iOS only) | Steps, heart rate, weight, blood pressure, SpO2, temperature, calories, HRV, exercise minutes, sleep |
-| **Apple Health Records** | Implemented (iOS only) | Clinical records via FHIR R4: lab results, medications, conditions, vital signs from connected providers |
-| **FHIR Provider Directory** | Implemented (Epic, 3000+ health systems) | Lab results, medications, conditions, vitals via SMART on FHIR OAuth. Requires Epic app registration for production use |
-| **Manual Entry** | Always available | All metric types |
-| **CSV Import** | Always available | All metric types |
+| Source | Status | Data |
+|--------|--------|------|
+| **Apple Health** | HealthKit (iOS) | Steps, heart rate, weight, blood pressure, SpO2, temperature, calories, HRV, exercise minutes, sleep |
+| **Manual Entry** | Always available | All metric types, biomarkers, medications, habits |
+| **Lab Reports** | Via Chat (PDF/image) | Biomarkers extracted by Claude |
+| **JSON Import** | Always available | Full data backup and restore |
 
 ## Tech Stack
 
-- **Language:** Swift 5.9
-- **UI:** SwiftUI (universal — iOS + macOS via Catalyst-free approach)
-- **Data:** SwiftData (on-device persistence)
-- **Auth:** ASWebAuthenticationSession (WHOOP OAuth)
-- **Health:** HealthKit (iOS only)
-- **AI:** Claude API via direct REST calls
-- **Secrets:** Keychain (API keys, OAuth tokens)
-- **Project generation:** XcodeGen (`project.yml`)
+- **Swift 5.9** — SwiftUI for all views (universal iOS + macOS)
+- **SwiftData** — on-device persistence with CloudKit sync
+- **HealthKit** — Apple Health integration (iOS only)
+- **Claude API** — AI chat with tool use via direct REST calls
+- **Keychain** — API keys stored securely at runtime
+- **XcodeGen** — project generation from `project.yml`
 
 ## Project Structure
 
 ```
 AuraHealth/
   App/            — App entry point, design system tokens
-  Data/           — Biomarker reference data
+  Data/           — Biomarker reference data (40+ markers)
   Enums/          — All enums (metric types, sources, units, etc.)
   Models/         — SwiftData models (Measurement, Medication, Habit, etc.)
-  Services/       — WhoopService, HealthKitService, ClinicalRecordService, FHIRProviderService, ClaudeService, KeychainService, ImportExportService
-  Views/          — Organized by feature (Today, Trends, Biomarkers, Chat, Settings, etc.)
+  Services/       — HealthKit, Claude, Keychain, Import/Export, FHIR, etc.
+  Views/          — Organized by feature (Vitals, Habits, Biomarkers, Chat, etc.)
   Resources/      — App icon and asset catalog
 ```
 
@@ -62,7 +88,7 @@ Requires [XcodeGen](https://github.com/yonaskolb/XcodeGen):
 
 ```bash
 brew install xcodegen
-cd aura-swift
+cd aura
 xcodegen generate
 open AuraHealth.xcodeproj
 ```
@@ -70,27 +96,31 @@ open AuraHealth.xcodeproj
 Build for macOS or iOS from Xcode, or from CLI:
 
 ```bash
-# macOS
-xcodebuild -project AuraHealth.xcodeproj -scheme AuraHealth -destination 'platform=macOS' build
-
 # iOS Simulator
-xcodebuild -project AuraHealth.xcodeproj -scheme AuraHealth -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+xcodebuild -scheme AuraHealth -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+
+# macOS
+xcodebuild -scheme AuraHealth -destination 'platform=macOS' build
 ```
 
-## Known Limitations
+## Setup
 
-- **WHOOP** — OAuth flow implemented but disabled ("Coming Soon"). Needs app registration at developer.whoop.com with redirect URI `aurahealth://whoop/callback`. Code is ready in `WhoopService.swift`.
-- **Apple Health (macOS)** — HealthKit is iOS-only. macOS uses Health Auto Export (iCloud Drive relay) as an alternative via `HealthAutoExportService`.
+1. Clone the repo and run `xcodegen generate`
+2. Build and run on an iOS device or simulator
+3. Grant Apple Health permissions when prompted
+4. Add your Claude API key in **Settings → AI** to enable chat features
 
-### Backlog
-- [ ] Register at open.epic.com for Epic client ID (activates FHIR OAuth for 3000+ health systems)
-- [ ] Register WHOOP developer app and enable OAuth integration
-- [ ] Evaluate Particle Health for non-FHIR provider coverage
-- [ ] Test Apple Health sync on real iOS device
-- [ ] Auto-sync on app launch with background refresh (iOS)
-- [ ] Add Oura Ring integration
-- [ ] Add Garmin integration
-- [ ] iPad-specific layouts
+## Notes
+
+- **Apple Health on macOS** — HealthKit is iOS-only. macOS uses Health Auto Export (iCloud Drive relay) as a workaround.
+- **CloudKit Sync** — Data syncs across devices via iCloud automatically through SwiftData's CloudKit integration.
+- **No server** — Everything runs on-device. The only network calls are to the Claude API (your own key) and Apple Health.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
 
 ---
 

@@ -8,7 +8,6 @@ enum AppSection: String, CaseIterable, Identifiable {
     case medications
     case biomarkers
     case diet
-    case exercise
     case vault
     case chat
     case settings
@@ -17,14 +16,13 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .tracking: "Tracking"
+        case .tracking: "Habits"
         case .vitals: "Vitals"
         case .correlations: "Correlations"
         case .conditions: "Conditions"
         case .medications: "Medications"
         case .biomarkers: "Biomarkers"
         case .diet: "Diet"
-        case .exercise: "Exercise"
         case .vault: "Vault"
         case .chat: "Chat"
         case .settings: "Settings"
@@ -40,7 +38,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .medications: "pills.fill"
         case .biomarkers: "drop.fill"
         case .diet: "fork.knife"
-        case .exercise: "figure.run"
         case .vault: "lock.doc.fill"
         case .chat: "bubble.left.and.bubble.right.fill"
         case .settings: "gearshape.fill"
@@ -56,7 +53,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .medications: .blue
         case .biomarkers: .green
         case .diet: .orange
-        case .exercise: .red
         case .vault: .gray
         case .chat: .cyan
         case .settings: .gray
@@ -68,13 +64,13 @@ enum AppSection: String, CaseIterable, Identifiable {
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(WhoopService.self) private var whoopService
     @Environment(HealthKitService.self) private var healthKitService
     #if os(macOS)
     @Environment(HealthAutoExportService.self) private var healthAutoExportService
     #endif
     @State private var selectedSection: AppSection = .vitals
     @State private var showingChat = false
+    @State private var chatPrefill: String?
 
     var body: some View {
         Group {
@@ -82,7 +78,7 @@ struct ContentView: View {
             NavigationSplitView {
                 SidebarView(selection: $selectedSection)
             } detail: {
-                DetailView(section: selectedSection)
+                DetailView(section: selectedSection, chatPrefill: $chatPrefill)
             }
             .onReceive(NotificationCenter.default.publisher(for: .navigateTo)) { notification in
                 if let section = notification.object as? AppSection {
@@ -93,10 +89,13 @@ struct ContentView: View {
             }
             #else
             TabView(selection: $selectedSection) {
-                // Primary tabs: Today, Vitals, Correlations, Medications
                 ForEach(AppSection.tabBarSections) { section in
                     NavigationStack {
-                        DetailView(section: section)
+                        if section == .chat {
+                            ChatView(prefillMessage: $chatPrefill)
+                        } else {
+                            DetailView(section: section)
+                        }
                     }
                     .tabItem {
                         Label(section.label, systemImage: section.iconName)
@@ -104,13 +103,22 @@ struct ContentView: View {
                     .tag(section)
                 }
                 // More tab — remaining sections presented as a grouped list
-                NavigationStack {
-                    MoreMenuView(selectedSection: $selectedSection)
-                }
+                MoreMenuView(selectedSection: $selectedSection, chatPrefill: $chatPrefill)
                 .tabItem {
                     Label("More", systemImage: "ellipsis")
                 }
                 .tag(AppSection.settings)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .switchToChat)) { notification in
+                if let prefill = notification.object as? String {
+                    chatPrefill = prefill
+                }
+                selectedSection = .chat
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .navigateTo)) { notification in
+                if let section = notification.object as? AppSection {
+                    selectedSection = section
+                }
             }
             #endif
         }
@@ -129,11 +137,7 @@ struct ContentView: View {
         }
         .animation(AppAnimation.expand, value: showingChat)
         #endif
-        .onReceive(NotificationCenter.default.publisher(for: .switchToChat)) { _ in
-            withAnimation(AppAnimation.viewSwitch) {
-                selectedSection = .chat
-            }
-        }
+        // switchToChat is handled by MoreMenuView on iOS, macOS uses floating panel
         .task { await autoSync() }
         #if os(macOS)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -149,13 +153,6 @@ struct ContentView: View {
     /// Auto-sync connected services (debounced — skip if synced within last 15 minutes)
     private func autoSync() async {
         let fifteenMinutes: TimeInterval = 15 * 60
-
-        if whoopService.isConnected && !whoopService.isSyncing {
-            let shouldSync = whoopService.lastSyncDate.map { Date().timeIntervalSince($0) > fifteenMinutes } ?? true
-            if shouldSync {
-                await whoopService.syncData(into: modelContext)
-            }
-        }
 
         if healthKitService.isAuthorized && !healthKitService.isSyncing {
             let shouldSync = healthKitService.lastSyncDate.map { Date().timeIntervalSince($0) > fifteenMinutes } ?? true
@@ -190,7 +187,7 @@ struct SidebarView: View {
                         .padding(.horizontal, 8)
                 }
 
-                sidebarSection("Health", items: [.correlations, .conditions, .medications, .biomarkers, .diet, .exercise])
+                sidebarSection("Health", items: [.correlations, .conditions, .medications, .biomarkers, .diet])
                 sidebarSection("Tools", items: [.vault, .chat])
                 Divider().padding(.horizontal, 12).padding(.vertical, 4)
                 sidebarRow(.settings)
@@ -255,37 +252,42 @@ struct SidebarView: View {
 
 struct MoreMenuView: View {
     @Binding var selectedSection: AppSection
+    @Binding var chatPrefill: String?
+    @State private var navigationPath = NavigationPath()
 
     // Grouped sections for the "More" list.
-    // The tab bar covers: Today, Vitals, Biomarkers, Chat.
-    private let healthSections: [AppSection] = [.correlations, .medications, .conditions, .diet, .exercise]
+    // The tab bar covers: Vitals, Habits, Biomarkers, Chat.
+    private let healthSections: [AppSection] = [.correlations, .medications, .conditions, .diet]
     private let toolSections: [AppSection]   = [.vault]
     private let appSections: [AppSection]    = [.settings]
 
     var body: some View {
-        List {
-            Section("Health") {
-                ForEach(healthSections, content: moreRow)
+        NavigationStack(path: $navigationPath) {
+            List {
+                Section("Health") {
+                    ForEach(healthSections, content: moreRow)
+                }
+                Section("Tools") {
+                    ForEach(toolSections, content: moreRow)
+                }
+                Section("App") {
+                    ForEach(appSections, content: moreRow)
+                }
             }
-            Section("Tools") {
-                ForEach(toolSections, content: moreRow)
-            }
-            Section("App") {
-                ForEach(appSections, content: moreRow)
+            .navigationTitle("More")
+            .navigationDestination(for: AppSection.self) { section in
+                DetailView(section: section)
+                    #if os(iOS)
+                    .toolbar(.hidden, for: .tabBar)
+                    #endif
             }
         }
-        .navigationTitle("More")
     }
 
     /// A single row with the section's colored icon and a navigation chevron.
     @ViewBuilder
     private func moreRow(_ section: AppSection) -> some View {
-        NavigationLink {
-            DetailView(section: section)
-                #if os(iOS)
-                .toolbar(.hidden, for: .tabBar)
-                #endif
-        } label: {
+        NavigationLink(value: section) {
             HStack(spacing: 14) {
                 // Colored icon badge (matches iOS Settings style)
                 Image(systemName: section.iconName)
@@ -305,11 +307,16 @@ struct MoreMenuView: View {
 
 struct DetailView: View {
     let section: AppSection
+    @Binding var chatPrefill: String?
+
+    init(section: AppSection, chatPrefill: Binding<String?> = .constant(nil)) {
+        self.section = section
+        self._chatPrefill = chatPrefill
+    }
 
     var body: some View {
         view(for: section)
         #if os(iOS)
-        // Large titles on all top-level tab views for iOS navigation conventions.
         .navigationBarTitleDisplayMode(.large)
         #endif
     }
@@ -324,9 +331,8 @@ struct DetailView: View {
         case .medications:  MedicationsView()
         case .biomarkers:   BiomarkersView()
         case .diet:         DietPlansView()
-        case .exercise:     ExercisePlaceholderView()
         case .vault:        VaultView()
-        case .chat:         ChatView()
+        case .chat:         ChatView(prefillMessage: $chatPrefill)
         case .settings:     SettingsView()
         }
     }
@@ -338,6 +344,7 @@ struct DetailView: View {
             Measurement.self, Medication.self, MedicationLog.self,
             Biomarker.self, Habit.self, HabitLog.self,
             Condition.self, DietPlan.self, MetricRange.self,
-            VaultDocument.self, HealthMemory.self, Conversation.self
+            VaultDocument.self, HealthMemory.self, Conversation.self,
+            LabSession.self
         ], inMemory: true)
 }

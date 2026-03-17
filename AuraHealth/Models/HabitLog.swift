@@ -14,7 +14,7 @@ final class HabitLog {
 
     init(
         date: Date = Date(),
-        habit: Habit,
+        habit: Habit? = nil,
         done: Bool,
         quantity: Double? = nil,
         unit: String = "",

@@ -13,7 +13,7 @@ final class MedicationLog {
 
     init(
         date: Date = Date(),
-        medication: Medication,
+        medication: Medication? = nil,
         taken: Bool,
         dosage: String = "",
         notes: String = ""

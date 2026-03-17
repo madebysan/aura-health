@@ -3,7 +3,6 @@ import SwiftData
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(WhoopService.self) private var whoopService
     @Environment(HealthKitService.self) private var healthKitService
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("weightUnit") private var weightUnit: WeightUnit = .kg
@@ -197,13 +196,6 @@ struct OnboardingView: View {
             }
 
             VStack(spacing: 16) {
-                // WHOOP (Coming Soon)
-                comingSoonIntegration(
-                    icon: "heart.circle.fill",
-                    title: "Connect WHOOP",
-                    subtitle: "Sync recovery, sleep, strain & more"
-                )
-
                 // Apple Health
                 #if os(iOS)
                 integrationButton(
@@ -539,35 +531,6 @@ struct OnboardingView: View {
     }
 
     // MARK: - Shared Components
-
-    private func comingSoonIntegration(icon: String, title: String, subtitle: String) -> some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 28))
-                .foregroundStyle(.secondary)
-                .frame(width: 40)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-
-            Spacer()
-
-            Text("Soon")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.secondary.opacity(0.12), in: Capsule())
-        }
-        .padding()
-        .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
-    }
 
     private func integrationButton(icon: String, color: Color, title: String, subtitle: String, connected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {

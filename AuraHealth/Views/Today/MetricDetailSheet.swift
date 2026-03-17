@@ -69,6 +69,10 @@ struct MetricDetailSheet: View {
                         rangeBar(value: latest.value)
                             .cardStyle()
 
+                        // About this metric
+                        metricContextSection
+                            .cardStyle()
+
                         // Trend chart (last 30 days)
                         if last30Days.count > 1 {
                             trendChart
@@ -87,10 +91,24 @@ struct MetricDetailSheet: View {
                         Label("Add Measurement", systemImage: "plus.circle.fill")
                             .font(.body.weight(.medium))
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+
+                    // Chat about this metric
+                    if let latest {
+                        Button {
+                            let context = "Tell me about my \(metricType.displayName) of \(latest.displayValue) \(metricType.unit). Is this in a healthy range? Any trends I should know about?"
+                            NotificationCenter.default.post(name: .switchToChat, object: context)
+                            dismiss()
+                        } label: {
+                            Label("Chat about this", systemImage: "bubble.left.fill")
+                                .font(.body.weight(.medium))
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                    }
                 }
                 .padding()
             }
@@ -110,6 +128,61 @@ struct MetricDetailSheet: View {
         #if os(macOS)
         .frame(minWidth: 450, minHeight: 500)
         #endif
+    }
+
+    // MARK: - About This Metric
+
+    @State private var contextExpanded = false
+
+    private var metricContextSection: some View {
+        let ctx = metricType.context
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(AppAnimation.expand) {
+                    contextExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Label("About \(metricType.displayName)", systemImage: "info.circle")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(contextExpanded ? 180 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+
+            if contextExpanded {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(ctx.description)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Why it matters")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(ctx.whyItMatters)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Reference range")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(ctx.rangeExplanation)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.top, 12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
     }
 
     // MARK: - Delta Section
@@ -283,6 +356,8 @@ struct MetricDetailSheet: View {
 
     // MARK: - History
 
+    @State private var measurementToDelete: Measurement?
+
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("History")
@@ -315,10 +390,33 @@ struct MetricDetailSheet: View {
                         .fill(inRange ? AppColors.statusGreen : AppColors.statusOrange)
                         .frame(width: 7, height: 7)
                 }
+                .contextMenu {
+                    Button(role: .destructive) {
+                        measurementToDelete = measurement
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
 
                 if measurement.id != history.last?.id {
                     Divider()
                 }
+            }
+        }
+        .confirmationDialog("Delete this measurement?", isPresented: .init(
+            get: { measurementToDelete != nil },
+            set: { if !$0 { measurementToDelete = nil } }
+        ), titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                if let measurement = measurementToDelete {
+                    modelContext.delete(measurement)
+                    try? modelContext.save()
+                    measurementToDelete = nil
+                }
+            }
+        } message: {
+            if let m = measurementToDelete {
+                Text("Delete \(metricType.displayName) entry: \(m.displayValue) \(metricType.unit) from \(m.timestamp.formatted(.dateTime.month(.abbreviated).day().year()))?")
             }
         }
     }

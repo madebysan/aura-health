@@ -293,6 +293,51 @@ enum AppHaptics {
 }
 #endif
 
+// MARK: - Inline Error Banner
+
+struct InlineErrorBanner: View {
+    let message: String
+    var style: BannerStyle = .error
+
+    enum BannerStyle {
+        case error, warning
+
+        var icon: String {
+            switch self {
+            case .error: "exclamationmark.triangle.fill"
+            case .warning: "info.circle.fill"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .error: AppColors.statusRed
+            case .warning: AppColors.statusOrange
+            }
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: style.icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(style.color)
+
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(3)
+        }
+        .padding(12)
+        .background(style.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(style.color.opacity(0.15), lineWidth: 1)
+        )
+    }
+}
+
 // MARK: - Empty State
 
 struct EmptyStateView: View {
@@ -301,6 +346,7 @@ struct EmptyStateView: View {
     let message: String
     var actionLabel: String?
     var action: (() -> Void)?
+    var chatHint: String?
 
     @State private var appeared = false
 
@@ -324,6 +370,13 @@ struct EmptyStateView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.regular)
                     .padding(.top, 4)
+            }
+
+            if let chatHint {
+                Label(chatHint, systemImage: "bubble.left.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
             }
         }
         .padding(.vertical, 40)

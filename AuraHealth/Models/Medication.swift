@@ -17,7 +17,7 @@ final class Medication {
     var gridOrder: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \MedicationLog.medication)
-    var logs: [MedicationLog] = []
+    var logs: [MedicationLog]?
 
     init(
         name: String,

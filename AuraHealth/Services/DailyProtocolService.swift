@@ -195,9 +195,9 @@ final class DailyProtocolService {
         }
 
         // 4. Active conditions
-        let resolvedRaw = ConditionStatus.resolved.rawValue
+        let resolvedStatus = ConditionStatus.resolved
         let condDescriptor = FetchDescriptor<Condition>(
-            predicate: #Predicate { $0.status.rawValue != resolvedRaw }
+            predicate: #Predicate { $0.status != resolvedStatus }
         )
         if let conditions = try? context.fetch(condDescriptor), !conditions.isEmpty {
             let condLines = conditions.map { "- \($0.name) (\($0.status.displayName))" }
@@ -211,7 +211,7 @@ final class DailyProtocolService {
         if let habits = try? context.fetch(habitDescriptor), !habits.isEmpty {
             let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
             let habitLines = habits.map { habit -> String in
-                let yesterdayLog = habit.logs.first { cal.startOfDay(for: $0.date) == yesterday }
+                let yesterdayLog = (habit.logs ?? []).first { cal.startOfDay(for: $0.date) == yesterday }
                 let status = yesterdayLog?.done == true ? "done" : "missed"
                 return "- \(habit.name) (\(habit.gridSection.displayName)) — yesterday: \(status)"
             }

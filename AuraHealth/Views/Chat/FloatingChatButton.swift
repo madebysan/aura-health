@@ -353,19 +353,21 @@ struct FloatingChatPanel: View {
         attachedFileURL = nil
         errorMessage = nil
 
+        claudeService.isResponding = true
         Task {
-            if claudeService.hasAPIKey {
-                do {
-                    let response = try await claudeService.sendMessage(
-                        conversationHistory: conversation.messages,
-                        context: modelContext
-                    )
-                    conversation.addMessage(role: .assistant, content: response)
-                } catch {
-                    errorMessage = error.localizedDescription
-                }
-            } else {
+            defer { claudeService.isResponding = false }
+            guard claudeService.hasAPIKey else {
                 errorMessage = "Add your Claude API key in Settings to enable AI chat."
+                return
+            }
+            do {
+                let response = try await claudeService.sendMessage(
+                    conversationHistory: conversation.messages,
+                    context: modelContext
+                )
+                conversation.addMessage(role: .assistant, content: response)
+            } catch {
+                errorMessage = error.localizedDescription
             }
         }
     }

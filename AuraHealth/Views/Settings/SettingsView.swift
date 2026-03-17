@@ -4,23 +4,19 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(WhoopService.self) private var whoopService
     @Environment(HealthKitService.self) private var healthKitService
-    @Environment(ClinicalRecordService.self) private var clinicalRecordService
-    @Environment(FHIRProviderService.self) private var fhirProviderService
     #if os(macOS)
     // Health Auto Export reads files from iCloud Drive via NSOpenPanel — macOS only
     @Environment(HealthAutoExportService.self) private var healthAutoExportService
     #endif
     @AppStorage("weightUnit") private var weightUnit: WeightUnit = .kg
     @AppStorage("temperatureUnit") private var temperatureUnit: TemperatureUnit = .celsius
+    @AppStorage("claudeModel") private var claudeModel: ClaudeModel = .sonnet
 
     @State private var showingClearConfirmation = false
     @State private var sampleDataLoaded = false
-    @State private var labDataImported = false
 
     // Import/Export
-    @State private var showingExporter = false
     @State private var showingImporter = false
     @State private var importExportMessage = ""
     @State private var showingImportResult = false
@@ -28,11 +24,6 @@ struct SettingsView: View {
     // API Key
     @State private var claudeAPIKey = ""
     @State private var showingAPIKeyField = false
-
-    // WHOOP Credentials
-    @State private var whoopClientID = ""
-    @State private var whoopClientSecret = ""
-    @State private var showingWhoopCredentials = false
 
     var body: some View {
         Form {
@@ -60,27 +51,21 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Integrations") {
-                whoopSection
+            Section("Apple Health") {
                 #if os(iOS)
                 appleHealthSection
                 #endif
-                clinicConnectionSection
                 #if os(macOS)
                 healthAutoExportSection
                 #endif
+            }
+
+            Section("AI") {
                 claudeAPISection
+                modelPickerSection
             }
 
             Section("Data") {
-                Button {
-                    LabDataSeeder.importAllLabs(into: modelContext)
-                    labDataImported = true
-                } label: {
-                    Label("Import Biomarkers", systemImage: "cross.vial")
-                }
-                .disabled(labDataImported)
-
                 Button {
                     exportData()
                 } label: {
@@ -157,29 +142,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - WHOOP Section
-
-    private var whoopSection: some View {
-        HStack {
-            Label {
-                Text("WHOOP")
-                    .font(.body)
-            } icon: {
-                Image(systemName: "heart.circle.fill")
-                    .foregroundStyle(.blue)
-            }
-
-            Spacer()
-
-            Text("Coming Soon")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.secondary.opacity(0.12), in: Capsule())
-        }
-    }
-
     // MARK: - Apple Health Section
 
     private var appleHealthSection: some View {
@@ -248,7 +210,7 @@ struct SettingsView: View {
             }
 
             if let error = healthKitService.error {
-                Text(error).font(.caption).foregroundStyle(.red)
+                InlineErrorBanner(message: error)
             }
         }
     }
@@ -324,39 +286,11 @@ struct SettingsView: View {
             }
 
             if let error = healthAutoExportService.error {
-                Text(error).font(.caption).foregroundStyle(.red)
+                InlineErrorBanner(message: error)
             }
         }
     }
     #endif
-
-    // MARK: - Clinic Connection Section
-
-    private var clinicConnectionSection: some View {
-        NavigationLink {
-            ClinicConnectionView()
-        } label: {
-            HStack {
-                Label {
-                    Text("Connect Clinic")
-                        .font(.body)
-                } icon: {
-                    Image(systemName: "building.2.fill")
-                        .foregroundStyle(.blue)
-                }
-
-                Spacer()
-
-                let connectedCount = fhirProviderService.connections.count
-                    + (clinicalRecordService.isAuthorized ? 1 : 0)
-                if connectedCount > 0 {
-                    Text("\(connectedCount) connected")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
 
     // MARK: - Claude API Section
 
@@ -400,6 +334,33 @@ struct SettingsView: View {
                     .disabled(claudeAPIKey.isEmpty)
                 }
             }
+        }
+    }
+
+    // MARK: - Model Picker
+
+    private var modelPickerSection: some View {
+        HStack {
+            Label {
+                Text("Model")
+                    .font(.body)
+            } icon: {
+                Image(systemName: "cpu")
+                    .foregroundStyle(.blue)
+            }
+
+            Spacer()
+
+            Picker("", selection: $claudeModel) {
+                ForEach(ClaudeModel.allCases, id: \.self) { model in
+                    VStack(alignment: .leading) {
+                        Text(model.displayName)
+                    }
+                    .tag(model)
+                }
+            }
+            .labelsHidden()
+            .fixedSize()
         }
     }
 

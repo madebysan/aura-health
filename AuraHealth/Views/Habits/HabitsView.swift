@@ -24,6 +24,7 @@ struct HabitsView: View {
     /// Whether a refresh is in progress for pull-to-refresh (iOS only).
     @State private var isRefreshing = false
     @State private var expandedSmartHabitID: UUID?
+    @State private var draggingHabit: Habit?
 
     private var activeHabits: [Habit] {
         allHabits.filter(\.active)
@@ -80,7 +81,7 @@ struct HabitsView: View {
             }
             #endif
         }
-        .navigationTitle("Tracking")
+        .navigationTitle("Habits")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAddSheet = true } label: {
@@ -125,7 +126,8 @@ struct HabitsView: View {
                     title: "No Habits",
                     message: "Create habits to start tracking your daily routines.",
                     actionLabel: "Add Habit",
-                    action: { showingAddSheet = true }
+                    action: { showingAddSheet = true },
+                    chatHint: "Try \"Add a morning meditation habit\" in Chat"
                 )
             } else {
                 // Day columns header
@@ -135,16 +137,39 @@ struct HabitsView: View {
                 Divider()
                     .padding(.horizontal)
 
-                // Habit rows grouped by section (manual + smart)
+                // Habit rows grouped by section (manual + smart) — with drag & drop
                 let manualGrouped = Dictionary(grouping: activeHabits, by: \.gridSection)
                 VStack(spacing: 0) {
                     ForEach(allActiveSections, id: \.self) { section in
                         sectionHeader(section)
+                            .dropDestination(for: String.self) { items, _ in
+                                guard let idString = items.first,
+                                      let habit = activeHabits.first(where: { $0.id.uuidString == idString }) else { return false }
+                                habit.gridSection = section
+                                habit.gridOrder = 0
+                                // Push existing habits down
+                                let existing = (manualGrouped[section] ?? []).filter { $0.id != habit.id }
+                                for (i, h) in existing.enumerated() { h.gridOrder = i + 1 }
+                                return true
+                            }
 
                         // Manual habits for this section
                         if let habits = manualGrouped[section] {
                             ForEach(habits) { habit in
                                 habitRow(habit)
+                                    .draggable(habit.id.uuidString) {
+                                        Text(habit.name)
+                                            .font(.subheadline)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 8)
+                                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                                    }
+                                    .dropDestination(for: String.self) { items, _ in
+                                        guard let idString = items.first,
+                                              let source = activeHabits.first(where: { $0.id.uuidString == idString }) else { return false }
+                                        moveHabit(source, to: habit)
+                                        return true
+                                    }
                                 Divider()
                                     .padding(.leading, 16)
                             }
@@ -163,10 +188,9 @@ struct HabitsView: View {
             }
 
             if let error = dailyProtocolService.lastError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .padding()
+                InlineErrorBanner(message: error)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
             }
         }
         .frame(maxWidth: 700)
@@ -174,12 +198,34 @@ struct HabitsView: View {
         .padding(.bottom, 20)
     }
 
+    // MARK: - Drag & Drop
+
+    /// Move a dragged habit to the position of a target habit (same or different section).
+    private func moveHabit(_ source: Habit, to target: Habit) {
+        let targetSection = target.gridSection
+        source.gridSection = targetSection
+
+        // Rebuild order for the target section
+        let manualGrouped = Dictionary(grouping: activeHabits, by: \.gridSection)
+        var sectionHabits = (manualGrouped[targetSection] ?? []).filter { $0.id != source.id }
+
+        if let targetIndex = sectionHabits.firstIndex(where: { $0.id == target.id }) {
+            sectionHabits.insert(source, at: targetIndex)
+        } else {
+            sectionHabits.append(source)
+        }
+
+        for (index, habit) in sectionHabits.enumerated() {
+            habit.gridOrder = index
+        }
+    }
+
     // MARK: - Day Columns
 
     #if os(macOS)
     private let dayCount = 14
     #else
-    private let dayCount = 7
+    private let dayCount = 5
     #endif
 
     private var dayDates: [Date] {
@@ -403,7 +449,7 @@ struct DayCell: View {
     private var logForDay: HabitLog? {
         let cal = Calendar.current
         let dayStart = cal.startOfDay(for: date)
-        return habit.logs.first { cal.startOfDay(for: $0.date) == dayStart }
+        return (habit.logs ?? []).first { cal.startOfDay(for: $0.date) == dayStart }
     }
 
     private var isDone: Bool {
@@ -524,14 +570,14 @@ struct AdherenceRow: View {
     let habit: Habit
 
     private var adherenceRate: Double {
-        let logs = habit.logs
+        let logs = habit.logs ?? []
         guard !logs.isEmpty else { return 0 }
         return Double(logs.filter(\.done).count) / Double(logs.count) * 100
     }
 
     private var streak: Int {
         let cal = Calendar.current
-        let sortedLogs = habit.logs.sorted(by: { $0.date > $1.date })
+        let sortedLogs = (habit.logs ?? []).sorted(by: { $0.date > $1.date })
         var count = 0
         var expectedDay = cal.startOfDay(for: Date())
         for log in sortedLogs {
@@ -556,7 +602,7 @@ struct AdherenceRow: View {
 
     private var heatmapData: [Date: Bool] {
         var map: [Date: Bool] = [:]
-        for log in habit.logs {
+        for log in habit.logs ?? [] {
             map[Calendar.current.startOfDay(for: log.date)] = log.done
         }
         return map

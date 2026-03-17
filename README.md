@@ -3,7 +3,7 @@
 </p>
 <h1 align="center">Aura</h1>
 <p align="center">Your vitals. Your labs. Your data.<br>
-An iOS health tracking app with an AI assistant that actually understands your numbers.</p>
+A health dashboard that connects your vitals, labs, and habits in one place.</p>
 <p align="center"><strong>Version 1.0.0</strong> · iOS 17+ · macOS 14+</p>
 
 ---
@@ -14,7 +14,7 @@ An iOS health tracking app with an AI assistant that actually understands your n
 
 ## What it does
 
-Aura pulls data from Apple Health, manual entries, and lab reports into a single dashboard. It tracks vitals, biomarkers, medications, habits, and conditions — and gives you a Claude-powered AI assistant that can read your data, answer questions, and extract lab results from photos and PDFs. Everything stays on your device.
+Aura pulls data from Apple Health, manual entries, and lab reports into a single dashboard. The built-in AI chat isn't just for questions — it can retrieve your latest vitals, log new measurements, update medications, and extract biomarkers from attached lab report photos and PDFs. You can manage most of your health data without leaving the conversation. Everything stays on your device.
 
 ## Features
 

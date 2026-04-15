@@ -14,7 +14,7 @@ A health dashboard that connects your vitals, labs, and habits in one place.</p>
 
 ## What it does
 
-Aura pulls data from Apple Health, manual entries, and lab reports into a single dashboard. The built-in AI chat isn't just for questions — it can retrieve your latest vitals, log new measurements, update medications, and extract biomarkers from attached lab report photos and PDFs. You can manage most of your health data without leaving the conversation. Everything stays on your device.
+Aura pulls data from Apple Health, manual entries, and lab reports into a single dashboard. The built-in health assistant isn't just for questions — it can retrieve your latest vitals, log new measurements, update medications, and extract biomarkers from attached lab report photos and PDFs. You can manage most of your health data without leaving the conversation. Everything stays on your device.
 
 ## Features
 
@@ -22,13 +22,13 @@ Aura pulls data from Apple Health, manual entries, and lab reports into a single
 Track heart rate, HRV, blood pressure, sleep, steps, weight, SpO2, skin temperature, calories, and more. Each metric gets a sparkline card with delta indicators, reference ranges, and educational context explaining what the numbers mean and why they matter. Filter by Today, 7d, 30d, 90d, 1y, or All. A composite Daily Health Score summarizes your overall readiness.
 
 ### Habits
-Daily habit grid organized by time of day (morning, afternoon, evening, night). Supports boolean and quantity tracking. Includes streak counts, adherence heatmaps, and drag-and-drop reordering. AI-generated smart habits based on your actual health data.
+Daily habit grid organized by time of day (morning, afternoon, evening, night). Supports boolean and quantity tracking. Includes streak counts, adherence heatmaps, and drag-and-drop reordering. Smart habit suggestions based on your actual health data.
 
 ### Biomarkers
-Lab results viewer with 40+ markers grouped by body system (Heart, Metabolic, Liver, Kidney, Thyroid, etc.). Each marker shows status (Normal, Borderline, Abnormal), reference ranges, and plain-English descriptions. Supports multiple lab sessions with date-based snapshots. Import lab reports by attaching a PDF or photo to the AI chat.
+Lab results viewer with 40+ markers grouped by body system (Heart, Metabolic, Liver, Kidney, Thyroid, etc.). Each marker shows status (Normal, Borderline, Abnormal), reference ranges, and plain-English descriptions. Supports multiple lab sessions with date-based snapshots. Import lab reports by attaching a PDF or photo to the chat.
 
-### AI Chat
-Claude-powered health assistant with full tool use — it can read and write your vitals, biomarkers, medications, and habits. Supports 60+ biomarker aliases (e.g., "LDL", "A1C", "TSH"). Attach PDFs or photos for lab report extraction.
+### Health Assistant
+Built-in health assistant that can read and write your vitals, biomarkers, medications, and habits. Supports 60+ biomarker aliases (e.g., "LDL", "A1C", "TSH"). Attach PDFs or photos for lab report extraction.
 
 ### Medications
 Log prescriptions, supplements, and OTC medications with dosage, timing (AM fasted, with food, bedtime), and frequency. Filter by type.
@@ -46,7 +46,7 @@ Choose a diet type (Mediterranean, Keto, Paleo, etc.) with pre-populated approve
 Secure document storage for health files — PDFs, images, text files. Auto-saves chat attachments. Photos saved from chat get smart titles based on conversation context.
 
 ### Settings
-Unit preferences (kg/lbs, C/F), Apple Health connection with sync, Claude API key and model selection (Haiku, Sonnet, Opus), data import/export.
+Unit preferences (kg/lbs, C/F), Apple Health connection with sync, API key and model selection, data import/export.
 
 ---
 
@@ -56,7 +56,7 @@ Unit preferences (kg/lbs, C/F), Apple Health connection with sync, Claude API ke
 |--------|--------|------|
 | **Apple Health** | HealthKit (iOS) | Steps, heart rate, weight, blood pressure, SpO2, temperature, calories, HRV, exercise minutes, sleep |
 | **Manual Entry** | Always available | All metric types, biomarkers, medications, habits |
-| **Lab Reports** | Via Chat (PDF/image) | Biomarkers extracted by Claude |
+| **Lab Reports** | Via Chat (PDF/image) | Biomarkers extracted by the health assistant |
 | **JSON Import** | Always available | Full data backup and restore |
 
 ## Tech Stack

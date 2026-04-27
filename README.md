@@ -12,6 +12,9 @@ Built for people who read their own lab reports.</p>
   <img src="assets/screenshots.png" width="100%" alt="Aura app screenshots across iOS and macOS">
 </p>
 
+<img width="1475" height="942" alt="1" src="https://github.com/user-attachments/assets/461e9c5c-3aeb-475f-992c-851c2ba307ef" />
+<img width="1392" height="1217" alt="2" src="https://github.com/user-attachments/assets/97c3587f-c2d9-4356-8d3c-1284d5e3e762" />
+
 ---
 
 Most health tracking apps are either too clinical or too mood-driven. I wanted one that respected both the data and the person reading it. Before Aura I was logging my biomarkers, habits, and health notes in a spreadsheet that quickly became unmanageable. I turned it into a webapp first, then realized I wanted better integration with Apple Health and wearables, so I refactored it in Swift for both iOS and macOS.

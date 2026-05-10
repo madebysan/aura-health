@@ -30,8 +30,7 @@ Pods/
 *.pbxuser
 
 # Secrets
-Secrets.xcconfig
-Secrets.xcconfig.example
+Secrets.local.xcconfig
 
 
 # Tracking files (local only)

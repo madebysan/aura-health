@@ -2,6 +2,9 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 import PhotosUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct ChatView: View {
     @Environment(\.modelContext) private var modelContext
@@ -70,16 +73,8 @@ struct ChatView: View {
                     if claudeService.isResponding {
                         typingIndicator
                     }
-                    if let error = errorMessage {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text(error)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .padding(.horizontal)
+                    if let errorMessage {
+                        errorBanner(errorMessage)
                     }
                 }
                 .padding()
@@ -198,8 +193,7 @@ struct ChatView: View {
             guard let item = selectedPhotoItem else { return }
             Task {
                 if let data = try? await item.loadTransferable(type: Data.self),
-                   let uiImage = UIImage(data: data),
-                   let jpegData = uiImage.jpegData(compressionQuality: 0.85) {
+                   let jpegData = jpegData(from: data) {
                     pendingPhotoData = jpegData
                     showingVaultPrompt = true
                 }
@@ -267,6 +261,31 @@ struct ChatView: View {
 
     private var canSend: Bool {
         !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !claudeService.isResponding
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal)
+    }
+
+    private func jpegData(from data: Data) -> Data? {
+        #if os(iOS)
+        UIImage(data: data)?.jpegData(compressionQuality: 0.85)
+        #elseif os(macOS)
+        guard let image = NSImage(data: data),
+              let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData) else { return nil }
+        return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.85])
+        #else
+        return nil
+        #endif
     }
 
     // MARK: - API Key Banner

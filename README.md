@@ -112,6 +112,13 @@ xcodebuild -scheme AuraHealth -destination 'platform=macOS' build
 3. Grant Apple Health permissions when prompted
 4. Add your Claude API key in **Settings → AI** to enable the chat
 
+Optional WHOOP OAuth credentials can be added in `Secrets.local.xcconfig`:
+
+```xcconfig
+WHOOP_CLIENT_ID = your-client-id
+WHOOP_CLIENT_SECRET = your-client-secret
+```
+
 ## Project structure
 
 ```

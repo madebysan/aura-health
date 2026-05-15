@@ -1,31 +1,30 @@
-<p align="center">
-  <img src="assets/app-icon.png" width="128" height="128" alt="Aura app icon">
-</p>
-<h1 align="center">Aura Health</h1>
-<p align="center">Health dashboard for your vitals, labs, habits, and the conversations about them.<br>
+<p><img src="assets/app-icon.png" width="128" height="128" alt="Aura app icon"></p>
+
+<h1>Aura Health</h1>
+
+<p>Health dashboard for your vitals, labs, habits, and the conversations about them.<br>
 Built for people who read their own lab reports.</p>
-<p align="center"><strong>Version 1.0.0</strong> · iOS 17+ · macOS 14+</p>
 
----
+<p><strong>Version 1.0.0</strong> · iOS 17+ · macOS 14+</p>
 
-<p align="center">
-  <img src="assets/screenshots.png" width="100%" alt="Aura app screenshots across iOS and macOS">
+<p>
+  <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">
+  <img src="https://img.shields.io/badge/SwiftUI-0066cc" alt="SwiftUI">
+  <img src="https://img.shields.io/badge/HealthKit-fc3158" alt="HealthKit">
+  <img src="https://img.shields.io/badge/Claude%20API-d97757" alt="Claude API">
 </p>
 
-<img width="1475" height="942" alt="1" src="https://github.com/user-attachments/assets/461e9c5c-3aeb-475f-992c-851c2ba307ef" />
-<img width="1392" height="1217" alt="2" src="https://github.com/user-attachments/assets/97c3587f-c2d9-4356-8d3c-1284d5e3e762" />
-
----
+![Aura app screenshots across iOS and macOS](assets/screenshots.png)
 
 Most health tracking apps are either too clinical or too mood-driven. I wanted one that respected both the data and the person reading it. Before Aura I was logging my biomarkers, habits, and health notes in a spreadsheet that quickly became unmanageable. I turned it into a webapp first, then realized I wanted better integration with Apple Health and wearables, so I refactored it in Swift for both iOS and macOS.
 
+![Aura vitals dashboard](https://github.com/user-attachments/assets/461e9c5c-3aeb-475f-992c-851c2ba307ef)
+
 It's for anyone who needs to track and manage their biomarkers or specific health conditions and wants to centralize all the information in a place they own without giving it away to third parties.
 
-<div align="center">
+![Aura health assistant chat](https://github.com/user-attachments/assets/97c3587f-c2d9-4356-8d3c-1284d5e3e762)
 
 https://github.com/user-attachments/assets/d81e0380-41ab-45e5-b22e-92e15c38edad
-
-</div>
 
 ## What's in it
 

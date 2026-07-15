@@ -2,8 +2,8 @@
 
 <h1>Aura Health</h1>
 
-<p>Health dashboard for your vitals, labs, habits, and the conversations about them.<br>
-Built for people who read their own lab reports.</p>
+<p>Your vitals, labs, medications, habits, and health notes in one private dashboard.<br>
+Built for people who want to understand their own data, not just collect it.</p>
 
 <p><strong>Version 1.0.0</strong> · iOS 17+ · macOS 14+</p>
 
@@ -14,79 +14,39 @@ Built for people who read their own lab reports.</p>
   <img src="https://img.shields.io/badge/Claude%20API-d97757" alt="Claude API">
 </p>
 
+<p><a href="#build-from-source">Build Aura from source</a></p>
+
 ![Aura app screenshots across iOS and macOS](assets/screenshots.png)
 
-Most health tracking apps are either too clinical or too mood-driven. I wanted one that respected both the data and the person reading it. Before Aura I was logging my biomarkers, habits, and health notes in a spreadsheet that quickly became unmanageable. I turned it into a webapp first, then realized I wanted better integration with Apple Health and wearables, so I refactored it in Swift for both iOS and macOS.
+I started Aura after the spreadsheet where I tracked biomarkers, habits, and health notes became harder to understand than the data inside it. The first version was a web app. Moving it to Swift made Apple Health integration and a shared iPhone/Mac experience possible.
+
+Aura is currently distributed as source rather than through the App Store. Your health data stays in the app's local SwiftData store, with optional CloudKit sync between your own devices.
+
+## What Aura keeps together
+
+The main dashboard brings heart rate, HRV, blood pressure, sleep, steps, weight, SpO2, skin temperature, calories, and other measurements into one timeline. Each metric includes a trend, reference range, and a short explanation. Time filters run from the current day through the full history.
 
 ![Aura vitals dashboard](https://github.com/user-attachments/assets/461e9c5c-3aeb-475f-992c-851c2ba307ef)
 
-It's for anyone who needs to track and manage their biomarkers or specific health conditions and wants to centralize all the information in a place they own without giving it away to third parties.
+Habits, medications, supplements, conditions, diet notes, and lab sessions live beside the measurements they may affect. Biomarkers are grouped by body system, and previous lab sessions remain available as dated snapshots. Correlation views help compare pairs such as sleep and recovery or HRV and strain.
+
+The built-in health assistant can read and update vitals, biomarkers, medications, and habits. Attach a lab report as a PDF or photo and it can extract values for review before saving them. It uses your own Claude API key.
 
 ![Aura health assistant chat](https://github.com/user-attachments/assets/97c3587f-c2d9-4356-8d3c-1284d5e3e762)
 
 https://github.com/user-attachments/assets/d81e0380-41ab-45e5-b22e-92e15c38edad
 
-## What's in it
+## Data and privacy
 
-### Vitals dashboard
-Your day in a single view. Heart rate, HRV, blood pressure, sleep, steps, weight, SpO2, skin temperature, calories, and more. Each metric gets a sparkline card with delta indicators, reference ranges, and a short plain-English note on what the number means and why it matters. Filter by Today / 7d / 30d / 90d / 1y / All. A composite Daily Health Score summarizes overall readiness.
+There is no Aura account, server, analytics service, or telemetry. Health data and documents stay on your device. CloudKit can sync the local database between your Apple devices.
 
-### Habits
-Daily habit grid organized by time of day (morning, afternoon, evening, night). Boolean and quantity tracking. Streak counts, adherence heatmaps, drag-and-drop reordering. Smart suggestions from your actual data.
+When you use the health assistant, Aura sends the message and relevant health context directly to the Anthropic API with the key stored in your Keychain. Local data is not sent anywhere when the assistant is not in use.
 
-### Biomarkers
-Lab results viewer with 40+ markers grouped by body system (Heart, Metabolic, Liver, Kidney, Thyroid, and more). Each marker shows status (Normal, Borderline, Abnormal), reference ranges, and a plain-English description. Supports multiple lab sessions with date-based snapshots. Import lab reports by attaching a PDF or photo to the chat.
+Aura can read Apple Health data on iOS, accept manual entries on both platforms, import lab values from chat attachments, and export or restore a JSON backup.
 
-### Health assistant and accountability buddy
-Bring your own Claude API key and use the built-in chat that can read and write your vitals, biomarkers, medications, and habits. Handles 60+ biomarker aliases (`LDL`, `A1C`, `TSH`, and more). Attach PDFs or photos and it extracts biomarkers from them.
+## Build from source
 
-### Medications
-Prescriptions, supplements, and OTC meds with dosage, timing (AM fasted, with food, bedtime), and frequency. Filter by type. Recurrent medications are added as habits automatically.
-
-### Correlations
-Scatter plots with Pearson correlation coefficients between metric pairs. Sleep Score vs Recovery, HRV vs Strain, Sleep Duration vs Resting HR, and more. Filterable by time range. A useful way to see how seemingly unrelated activities or habits actually correlate.
-
-### Conditions
-Track active / managed / resolved health conditions. Autocomplete from 70+ common conditions.
-
-### Diet
-Pick a diet type (Mediterranean, Keto, Paleo, and more) with pre-populated approved / avoided food categories. Customizable per plan.
-
-### Vault
-Document storage for health files: PDFs, images, text. Auto-saves chat attachments. Photos from chat get smart titles based on conversation context.
-
-### Settings
-Unit preferences (kg/lbs, C/F), Apple Health connection with sync, API key and model selection, data import/export for backups.
-
-## Integrations
-
-| Source | Status | Data |
-|--------|--------|------|
-| **Apple Health** | HealthKit (iOS) | Steps, heart rate, weight, blood pressure, SpO2, temperature, calories, HRV, exercise minutes, sleep |
-| **Manual entry** | Always available | All metric types, biomarkers, medications, habits |
-| **Lab reports** | Via chat (PDF / image) | Biomarkers extracted by the health assistant |
-| **JSON import** | Always available | Full data backup and restore |
-
-## Privacy
-
-Aura is designed to run without a server in the middle.
-
-- **On-device storage.** All health data lives locally in SwiftData. Nothing is uploaded to an Aura server. There is no Aura server.
-- **No accounts.** No sign-up, no analytics, no tracking.
-- **iCloud sync.** Data syncs between your devices via CloudKit, encrypted by Apple. No third-party cloud.
-- **Your API key.** The health assistant uses your Claude API key, stored in the iOS/macOS Keychain. Aura never sees or stores your key.
-- **What goes to Claude.** When you use the chat, your message plus relevant health context (recent vitals, biomarkers, medications) goes directly from your device to the Anthropic API. No middleman.
-- **No telemetry.** Zero analytics, zero crash reporting, zero usage tracking.
-
-## Tech stack
-
-- **Swift 5.9 + SwiftUI.** One codebase for iOS and macOS.
-- **SwiftData + CloudKit.** On-device persistence with device-to-device sync.
-- **HealthKit.** Apple Health integration (iOS only).
-- **Claude API.** AI chat with tool use, called directly from the device.
-- **Keychain.** API keys stored securely at runtime.
-
-## Building
+Clone the repository, open `AuraHealth.xcodeproj`, and build the iOS or macOS target in Xcode.
 
 ```bash
 git clone https://github.com/madebysan/aura-health.git
@@ -94,47 +54,28 @@ cd aura-health
 open AuraHealth.xcodeproj
 ```
 
-Build for iOS or macOS from Xcode, or from CLI:
+On first launch, grant Apple Health access on iOS. Add a Claude API key under **Settings → AI** only if you want to use the assistant.
 
-```bash
-# iOS Simulator
-xcodebuild -scheme AuraHealth -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
-
-# macOS
-xcodebuild -scheme AuraHealth -destination 'platform=macOS' build
-```
-
-## Setup
-
-1. Clone the repo and open `AuraHealth.xcodeproj`
-2. Build and run on an iOS device / simulator, or on macOS
-3. Grant Apple Health permissions when prompted
-4. Add your Claude API key in **Settings → AI** to enable the chat
-
-Optional WHOOP OAuth credentials can be added in `Secrets.local.xcconfig`:
+Optional WHOOP OAuth credentials belong in an untracked `Secrets.local.xcconfig` file:
 
 ```xcconfig
 WHOOP_CLIENT_ID = your-client-id
 WHOOP_CLIENT_SECRET = your-client-secret
 ```
 
-## Project structure
-
-```
-AuraHealth/
-  App/            # App entry point, design system tokens
-  Data/           # Biomarker reference data (40+ markers)
-  Enums/          # All enums (metric types, sources, units, etc.)
-  Models/         # SwiftData models (Measurement, Medication, Habit, etc.)
-  Services/       # HealthKit, Claude, Keychain, Import/Export, FHIR, etc.
-  Views/          # Organized by feature (Vitals, Habits, Biomarkers, Chat, etc.)
-  Resources/      # App icon and asset catalog
-```
-
 ## Known limitations
 
-- **Apple Health on macOS.** HealthKit is iOS-only. macOS users can route data in via Health Auto Export through iCloud Drive as a workaround, but there is no direct macOS HealthKit equivalent.
-- **Biomarker extraction.** Lab report parsing depends on the quality of Claude's vision response. Low-resolution photos of paper reports, or unusual lab formats, can produce incomplete extractions. You can always edit the extracted values manually.
+HealthKit is not available on macOS. Mac users can import data through the app or route exported health data through iCloud Drive.
+
+Lab extraction depends on the image and document quality. Unusual formats or low-resolution photos can produce incomplete results, so every extracted value remains editable before it is saved.
+
+## Tech stack
+
+- Swift, SwiftUI, and one shared iOS/macOS project
+- SwiftData and CloudKit for storage and sync
+- HealthKit on iOS
+- Anthropic's Claude API for the optional assistant
+- Keychain storage for the API key
 
 ## Feedback
 
@@ -143,7 +84,5 @@ Found a bug or have a feature idea? [Open an issue](https://github.com/madebysan
 ## License
 
 [MIT](LICENSE)
-
----
 
 Made by [santiagoalonso.com](https://santiagoalonso.com)

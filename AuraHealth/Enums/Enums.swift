@@ -709,25 +709,3 @@ enum TemperatureUnit: String, Codable, CaseIterable {
         }
     }
 }
-
-enum ClaudeModel: String, Codable, CaseIterable {
-    case haiku = "claude-haiku-4-5-20251001"
-    case sonnet = "claude-sonnet-4-6"
-    case opus = "claude-opus-4-6"
-
-    var displayName: String {
-        switch self {
-        case .haiku: "Haiku"
-        case .sonnet: "Sonnet"
-        case .opus: "Opus"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .haiku: "Fastest, lower cost"
-        case .sonnet: "Balanced (recommended)"
-        case .opus: "Most capable, higher cost"
-        }
-    }
-}

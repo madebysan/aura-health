@@ -9,7 +9,7 @@ struct LabImportSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    let claudeService: ClaudeService
+    let aiService: AIService
 
     @State private var extractedBiomarkers: [ExtractedBiomarker] = []
     @State private var selectedMarkers: Set<String> = []
@@ -112,8 +112,8 @@ struct LabImportSheet: View {
             .controlSize(.large)
             #endif
 
-            if !claudeService.hasAPIKey {
-                Text("Local parsing will be used. Add a Claude API key in Settings for better accuracy with complex reports.")
+            if !aiService.isReady {
+                Text("Local parsing will be used. Configure an AI provider in Settings for complex reports.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -294,16 +294,16 @@ struct LabImportSheet: View {
                     return
                 }
 
-                if claudeService.hasAPIKey {
-                    let apiMarkers = try await claudeService.extractBiomarkers(from: tempURL)
+                if aiService.isReady {
+                    let apiMarkers = try await aiService.extractBiomarkers(from: tempURL)
                     extractedBiomarkers = apiMarkers
                     selectedMarkers = Set(apiMarkers.map(\.id))
-                    extractionMethod = "Claude API"
+                    extractionMethod = aiService.provider.displayName
                     isExtracting = false
                     return
                 }
 
-                self.error = "Could not extract biomarkers from this photo. Add a Claude API key in Settings for better extraction."
+                self.error = "Could not extract biomarkers from this photo. Configure an AI provider in Settings for another extraction option."
                 isExtracting = false
             } catch {
                 self.error = error.localizedDescription
@@ -336,13 +336,13 @@ struct LabImportSheet: View {
                     // Local parsing failed, try API
                 }
 
-                // Step 2: Fall back to Claude API if available
-                if claudeService.hasAPIKey {
+                // Step 2: Fall back to the explicitly configured AI provider if available.
+                if aiService.isReady {
                     do {
-                        let apiMarkers = try await claudeService.extractBiomarkers(from: url)
+                        let apiMarkers = try await aiService.extractBiomarkers(from: url)
                         extractedBiomarkers = apiMarkers
                         selectedMarkers = Set(apiMarkers.map(\.id))
-                        extractionMethod = "Claude API"
+                        extractionMethod = aiService.provider.displayName
                         isExtracting = false
                         return
                     } catch {
@@ -353,7 +353,7 @@ struct LabImportSheet: View {
                 }
 
                 // Neither worked
-                self.error = "Could not extract biomarkers from this file. Try a different format or add a Claude API key in Settings for better extraction."
+                self.error = "Could not extract biomarkers from this file. Try a different format or configure an AI provider in Settings."
                 isExtracting = false
             }
 

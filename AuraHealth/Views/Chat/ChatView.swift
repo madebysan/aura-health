@@ -24,7 +24,7 @@ struct ChatView: View {
 
     @State private var currentConversation: Conversation?
     @State private var inputText = ""
-    @State private var claudeService = ClaudeService()
+    @State private var aiService = AIService()
     @State private var errorMessage: String?
     @State private var showingHistory = false
     @State private var showingFilePicker = false
@@ -36,7 +36,6 @@ struct ChatView: View {
     @State private var showingVaultPrompt = false
     @FocusState private var isInputFocused: Bool
     @State private var showingAPIKeyPrompt = false
-    @State private var apiKeyInput = ""
 
     /// Returns existing conversation or creates one on demand (only called when sending)
     private func ensureConversation() -> Conversation {
@@ -58,7 +57,7 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 16) {
-                    if !claudeService.hasAPIKey {
+                    if !aiService.isReady {
                         apiKeyBanner
                             .padding(.horizontal)
                     }
@@ -70,7 +69,7 @@ struct ChatView: View {
                             .id(message.id)
                             .staggeredAppearance(index: index)
                     }
-                    if claudeService.isResponding {
+                    if aiService.isResponding {
                         typingIndicator
                     }
                     if let errorMessage {
@@ -135,6 +134,7 @@ struct ChatView: View {
                 } label: {
                     Image(systemName: "plus.bubble")
                 }
+                .accessibilityLabel("New Conversation")
             }
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -142,6 +142,7 @@ struct ChatView: View {
                 } label: {
                     Image(systemName: "clock.arrow.circlepath")
                 }
+                .accessibilityLabel("Conversation History")
             }
         }
         .sheet(isPresented: $showingHistory) {
@@ -164,19 +165,37 @@ struct ChatView: View {
                 }
             )
         }
-        .alert("Claude API Key", isPresented: $showingAPIKeyPrompt) {
-            SecureField("sk-ant-...", text: $apiKeyInput)
-            Button("Save") {
-                if !apiKeyInput.isEmpty {
-                    KeychainService.setValue(apiKeyInput, for: "claude-api-key")
-                    apiKeyInput = ""
+        .alert("AI Setup Required", isPresented: $showingAPIKeyPrompt) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Choose Anthropic or OpenRouter, add its API key, and review the privacy disclosure in Settings before chatting.")
+        }
+        .confirmationDialog(
+            "Allow AI to change Aura data?",
+            isPresented: Binding(
+                get: { aiService.pendingToolApproval != nil },
+                set: { isPresented in
+                    if !isPresented, aiService.pendingToolApproval != nil {
+                        aiService.denyPendingTool()
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            if aiService.pendingToolApproval?.isDestructive == true {
+                Button("Allow Delete", role: .destructive) {
+                    aiService.approvePendingTool()
+                }
+            } else {
+                Button("Allow Change") {
+                    aiService.approvePendingTool()
                 }
             }
-            Button("Cancel", role: .cancel) {
-                apiKeyInput = ""
+            Button("Don't Allow", role: .cancel) {
+                aiService.denyPendingTool()
             }
         } message: {
-            Text("Enter your Claude API key to enable AI health chat.")
+            Text(aiService.pendingToolApproval?.summary ?? "Review this change before allowing it.")
         }
         .fileImporter(
             isPresented: $showingFilePicker,
@@ -217,6 +236,9 @@ struct ChatView: View {
                 // Auto-submit: send immediately so the user gets a summary right away
                 sendMessage()
             }
+        }
+        .onDisappear {
+            aiService.denyPendingTool()
         }
     }
 
@@ -260,7 +282,7 @@ struct ChatView: View {
     }
 
     private var canSend: Bool {
-        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !claudeService.isResponding
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !aiService.isResponding
     }
 
     private func errorBanner(_ message: String) -> some View {
@@ -294,7 +316,7 @@ struct ChatView: View {
         HStack(spacing: 8) {
             Image(systemName: "key.fill")
                 .foregroundStyle(.secondary)
-            Text("Add your Claude API key in Settings to enable AI chat")
+            Text("Configure an AI provider, API key, and consent in Settings")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
@@ -317,7 +339,7 @@ struct ChatView: View {
             VStack(spacing: 4) {
                 Text("Health Assistant")
                     .font(.title3.weight(.medium))
-                Text("Ask questions, log measurements, or get health insights.")
+                Text("Ask questions, log measurements, or organize your health information.")
                     .font(.subheadline)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -330,6 +352,12 @@ struct ChatView: View {
                 suggestionChip("Log my weight at 175 lbs")
             }
             .padding(.top, 4)
+
+            Text("Aura provides educational information, not diagnosis or medical advice.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 280)
 
             Spacer()
             Spacer()
@@ -376,6 +404,7 @@ struct ChatView: View {
                             .foregroundStyle(.tertiary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Remove Attachment")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)
@@ -399,9 +428,10 @@ struct ChatView: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
-                .disabled(!claudeService.hasAPIKey)
+                .disabled(!aiService.isReady)
+                .accessibilityLabel("Attach File")
 
-                if claudeService.hasAPIKey {
+                if aiService.isReady {
                     TextField("Ask about your health data...", text: $inputText, axis: .vertical)
                         .focused($isInputFocused)
                         .textFieldStyle(.plain)
@@ -413,7 +443,7 @@ struct ChatView: View {
                     Button {
                         showingAPIKeyPrompt = true
                     } label: {
-                        Text("Add API key to start chatting...")
+                        Text("Set up AI in Settings to start chatting…")
                             .font(.body)
                             .foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -434,6 +464,7 @@ struct ChatView: View {
                 .buttonStyle(.plain)
                 .contentShape(Rectangle())
                 .disabled(!canSend)
+                .accessibilityLabel("Send Message")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -449,10 +480,10 @@ struct ChatView: View {
                 Circle()
                     .fill(Color.secondary.opacity(0.4))
                     .frame(width: 6, height: 6)
-                    .offset(y: claudeService.isResponding ? -3 : 0)
+                    .offset(y: aiService.isResponding ? -3 : 0)
                     .animation(
                         .easeInOut(duration: 0.4).repeatForever(autoreverses: true).delay(Double(i) * 0.15),
-                        value: claudeService.isResponding
+                        value: aiService.isResponding
                     )
             }
             Spacer()
@@ -464,7 +495,7 @@ struct ChatView: View {
 
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !claudeService.isResponding else { return }
+        guard !text.isEmpty, !aiService.isResponding else { return }
 
         let conversation = ensureConversation()
         let displayText = attachedFileURL != nil
@@ -478,7 +509,7 @@ struct ChatView: View {
         }
 
         // Pass file to service before clearing
-        claudeService.pendingFileURL = attachedFileURL
+        aiService.pendingFileURL = attachedFileURL
 
         // Auto-save to Vault (skip if image came from photo picker — user already decided)
         if let fileURL = attachedFileURL, !attachedFromPhotoPicker {
@@ -490,15 +521,15 @@ struct ChatView: View {
         attachedFromPhotoPicker = false
         errorMessage = nil
 
-        claudeService.isResponding = true
+        aiService.isResponding = true
         Task {
-            defer { claudeService.isResponding = false }
-            guard claudeService.hasAPIKey else {
-                errorMessage = "Add your Claude API key in Settings to enable AI chat."
+            defer { aiService.isResponding = false }
+            guard aiService.isReady else {
+                errorMessage = "Finish AI provider setup and consent in Settings before chatting."
                 return
             }
             do {
-                let response = try await claudeService.sendMessage(
+                let response = try await aiService.sendMessage(
                     conversationHistory: conversation.messages,
                     context: modelContext
                 )

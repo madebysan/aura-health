@@ -7,8 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AF0000000000000000000001 /* PrivacyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0000000000000000000002 /* PrivacyView.swift */; };
+		AE0000000000000000000001 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0000000000000000000002 /* AIProvider.swift */; };
+		AE0000000000000000000003 /* AIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0000000000000000000004 /* AIProviderTests.swift */; };
+		AC0000000000000000000001 /* AuraStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000002 /* AuraStorage.swift */; };
+		AC0000000000000000000003 /* StorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000004 /* StorageTests.swift */; };
+		AB0000000000000000000001 /* DataLifecycleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000002 /* DataLifecycleService.swift */; };
+		AA0000000000000000000001 /* BackupServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* BackupServiceTests.swift */; };
 		00F354E4ADD5D31F13B20709 /* Measurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ED219E4F68896E7AC38FF52 /* Measurement.swift */; };
-		0CF4EE7BDA87282833A853D9 /* ClinicalRecordService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D903CFC0AADD0338FD2083A0 /* ClinicalRecordService.swift */; };
 		0DB0976B0C56C82AFB13F7DC /* DietPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBDE23321B18B97FF2CDAA21 /* DietPlan.swift */; };
 		14E4F949986058B860D6FB03 /* MedicationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F932F57EC256073902A6FF2 /* MedicationLog.swift */; };
 		1EA06499727D2438227067CE /* HealthMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDE385C74E6C9CCFD769EB5 /* HealthMemory.swift */; };
@@ -36,19 +42,16 @@
 		7279DC8ECF941145C6CA95D1 /* LocalLabParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A650BD8D64579EE17E69A6F /* LocalLabParser.swift */; };
 		7CB4FE287F74620E6489C738 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C95936DE5BB8A1471C57D4 /* Enums.swift */; };
 		85A65C7D313D632C4C6C8B40 /* HabitsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E606A4E88686708D75414E /* HabitsView.swift */; };
-		87B90ECE9EAE21C261D0B3D8 /* DailyProtocolService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 848BD405496CA2D2A4F7E7B3 /* DailyProtocolService.swift */; };
 		88FFEBD62150E819517DB807 /* BiomarkersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E491CD6E39E11B5C80C39B35 /* BiomarkersView.swift */; };
 		8D84619C82F1D9EC23375082 /* LabSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FE7C8A85A79F53946B47B6 /* LabSession.swift */; };
 		92E1B63DE836BC35FC07EE40 /* VaultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1B2A183E3D1E5F1168C9E0 /* VaultView.swift */; };
 		9CAEEF42DC6A07AB244E181E /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AC11B2E6FF6A01D5E25D09E /* ChatView.swift */; };
 		A951074E869C673FCE1E47B6 /* ConditionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3616850CABA161116DF7FB2 /* ConditionsView.swift */; };
 		A9ADB32D28994837CFC1BDAD /* MetricDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17C8B3821724E0286190E4A5 /* MetricDetailSheet.swift */; };
-		ABFA9EFA865616ED8AADE414 /* FloatingChatButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B2F6A2B3FB2286F5E8B6F6 /* FloatingChatButton.swift */; };
 		AD5FEC8A0D704D4146E21421 /* SampleDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FB68BE6677762490EB286C /* SampleDataService.swift */; };
-		BDA51E8296D8958B223C0920 /* HealthAutoExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2106B9B11C4835D357327B7A /* HealthAutoExportService.swift */; };
 		CBD29191577CFEA0837555AF /* Medication.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3B5467EA103565E15660890 /* Medication.swift */; };
-		CD6A178AD61659B1D557465E /* ClaudeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDEC4896BAC6346CE028705 /* ClaudeService.swift */; };
-		D1701CD949F9DE91E3016924 /* FHIRProviderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A5F734127A5F000BC25941E /* FHIRProviderService.swift */; };
+		CD6A178AD61659B1D557465E /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EDEC4896BAC6346CE028705 /* AIService.swift */; };
+		AD0000000000000000000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AD0000000000000000000002 /* PrivacyInfo.xcprivacy */; };
 		E6BA799428D23DF3709F9227 /* AuraHealthApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16902DEC0AA83D3D751327D /* AuraHealthApp.swift */; };
 		F340F6D32D8AE036097FB452 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18D375715646717260546E4 /* KeychainService.swift */; };
 		F52641EF29B57ADF01C77C32 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD2C6EC7A7A998A67502676 /* SettingsView.swift */; };
@@ -57,16 +60,21 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AF0000000000000000000002 /* PrivacyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyView.swift; sourceTree = "<group>"; };
+		AE0000000000000000000002 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
+		AE0000000000000000000004 /* AIProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProviderTests.swift; sourceTree = "<group>"; };
+		AC0000000000000000000002 /* AuraStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuraStorage.swift; sourceTree = "<group>"; };
+		AC0000000000000000000004 /* StorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageTests.swift; sourceTree = "<group>"; };
+		AB0000000000000000000002 /* DataLifecycleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataLifecycleService.swift; sourceTree = "<group>"; };
+		AA0000000000000000000002 /* BackupServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupServiceTests.swift; sourceTree = "<group>"; };
+		AA0000000000000000000003 /* AuraHealthTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AuraHealthTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		02C95936DE5BB8A1471C57D4 /* Enums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enums.swift; sourceTree = "<group>"; };
 		0A650BD8D64579EE17E69A6F /* LocalLabParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLabParser.swift; sourceTree = "<group>"; };
 		0C78DE0C1BDADBCF48533473 /* SparklineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparklineView.swift; sourceTree = "<group>"; };
 		1705AFBB5EDC82EB8B90C983 /* AdherenceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdherenceView.swift; sourceTree = "<group>"; };
 		17C8B3821724E0286190E4A5 /* MetricDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricDetailSheet.swift; sourceTree = "<group>"; };
-		1A5F734127A5F000BC25941E /* FHIRProviderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FHIRProviderService.swift; sourceTree = "<group>"; };
-		2106B9B11C4835D357327B7A /* HealthAutoExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAutoExportService.swift; sourceTree = "<group>"; };
 		2D1B2A183E3D1E5F1168C9E0 /* VaultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultView.swift; sourceTree = "<group>"; };
 		2F932F57EC256073902A6FF2 /* MedicationLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationLog.swift; sourceTree = "<group>"; };
-		30B2F6A2B3FB2286F5E8B6F6 /* FloatingChatButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingChatButton.swift; sourceTree = "<group>"; };
 		32DE251EBE2D7C7FA076BC2C /* BiomarkerReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiomarkerReference.swift; sourceTree = "<group>"; };
 		351AD5B1FCCC1EF501F7E2D0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3ED219E4F68896E7AC38FF52 /* Measurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Measurement.swift; sourceTree = "<group>"; };
@@ -85,9 +93,8 @@
 		7CC3B1934229B3F9E4C0ED30 /* AuraHealth.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AuraHealth.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7FEA770630A5CDE018ED3A9D /* AuraHealth.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AuraHealth.entitlements; sourceTree = "<group>"; };
 		818DBF61332470CCB45AE0A0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		848BD405496CA2D2A4F7E7B3 /* DailyProtocolService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyProtocolService.swift; sourceTree = "<group>"; };
 		84FE7C8A85A79F53946B47B6 /* LabSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabSession.swift; sourceTree = "<group>"; };
-		8EDEC4896BAC6346CE028705 /* ClaudeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeService.swift; sourceTree = "<group>"; };
+		8EDEC4896BAC6346CE028705 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		8F907AAF541954077D6AA91F /* MetricCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricCardView.swift; sourceTree = "<group>"; };
 		9FF67B195E125AA4E666D075 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		BA3D3C759241F2C803B52BEB /* LabImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabImportSheet.swift; sourceTree = "<group>"; };
@@ -99,8 +106,7 @@
 		CCD2C6EC7A7A998A67502676 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		CDD2036B2C011A9C703FB24B /* HabitLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitLog.swift; sourceTree = "<group>"; };
 		D18D375715646717260546E4 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
-		D228778872C00CEFB8E4D0E0 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
-		D903CFC0AADD0338FD2083A0 /* ClinicalRecordService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClinicalRecordService.swift; sourceTree = "<group>"; };
+		AD0000000000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		DDBCE80196920ACB927B20AD /* Conversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversation.swift; sourceTree = "<group>"; };
 		E16902DEC0AA83D3D751327D /* AuraHealthApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuraHealthApp.swift; sourceTree = "<group>"; };
 		E491CD6E39E11B5C80C39B35 /* BiomarkersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiomarkersView.swift; sourceTree = "<group>"; };
@@ -110,11 +116,22 @@
 		FE556957C3B043CE1576B1B3 /* DailyProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyProtocol.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXContainerItemProxy section */
+		AA000000000000000000000D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DB0DF9CF5C308049B01AEA69 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A73C72727C535A57F36AFE09;
+			remoteInfo = AuraHealth;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXGroup section */
 		17F97E341B3DDA9AEF6A4B68 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 				722618D2285FDE5C68020E19 /* Assets.xcassets */,
+				AD0000000000000000000002 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -138,8 +155,8 @@
 		59BEFB945EA3098AEC43321A = {
 			isa = PBXGroup;
 			children = (
-				AB3CADE57D964527B8E71A8F /* aura */,
 				E5790227A7C9FE2942877BA4 /* AuraHealth */,
+				AA0000000000000000000004 /* AuraHealthTests */,
 				D165FF28735046827C4CF472 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -187,11 +204,10 @@
 		7E8AFC00538ACDC4AEF5A842 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				8EDEC4896BAC6346CE028705 /* ClaudeService.swift */,
-				D903CFC0AADD0338FD2083A0 /* ClinicalRecordService.swift */,
-				848BD405496CA2D2A4F7E7B3 /* DailyProtocolService.swift */,
-				1A5F734127A5F000BC25941E /* FHIRProviderService.swift */,
-				2106B9B11C4835D357327B7A /* HealthAutoExportService.swift */,
+				AE0000000000000000000002 /* AIProvider.swift */,
+				AC0000000000000000000002 /* AuraStorage.swift */,
+				8EDEC4896BAC6346CE028705 /* AIService.swift */,
+				AB0000000000000000000002 /* DataLifecycleService.swift */,
 				5F531191FF59B6BAAE67EF9A /* HealthKitService.swift */,
 				67B823B1C48F7B870A0F5B56 /* ImportExportService.swift */,
 				D18D375715646717260546E4 /* KeychainService.swift */,
@@ -225,19 +241,11 @@
 			path = Trends;
 			sourceTree = "<group>";
 		};
-		AB3CADE57D964527B8E71A8F /* aura */ = {
-			isa = PBXGroup;
-			children = (
-				D228778872C00CEFB8E4D0E0 /* Secrets.xcconfig */,
-			);
-			name = aura;
-			path = .;
-			sourceTree = "<group>";
-		};
 		D165FF28735046827C4CF472 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				7CC3B1934229B3F9E4C0ED30 /* AuraHealth.app */,
+				AA0000000000000000000003 /* AuraHealthTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -255,7 +263,6 @@
 			isa = PBXGroup;
 			children = (
 				6AC11B2E6FF6A01D5E25D09E /* ChatView.swift */,
-				30B2F6A2B3FB2286F5E8B6F6 /* FloatingChatButton.swift */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -325,6 +332,7 @@
 			isa = PBXGroup;
 			children = (
 				CCD2C6EC7A7A998A67502676 /* SettingsView.swift */,
+				AF0000000000000000000002 /* PrivacyView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -337,9 +345,47 @@
 			path = Habits;
 			sourceTree = "<group>";
 		};
+		AA0000000000000000000004 /* AuraHealthTests */ = {
+			isa = PBXGroup;
+			children = (
+				AE0000000000000000000004 /* AIProviderTests.swift */,
+				AA0000000000000000000002 /* BackupServiceTests.swift */,
+				AC0000000000000000000004 /* StorageTests.swift */,
+			);
+			path = AuraHealthTests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
+/* Begin PBXFrameworksBuildPhase section */
+		AA0000000000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
 /* Begin PBXNativeTarget section */
+		AA0000000000000000000008 /* AuraHealthTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA000000000000000000000B /* Build configuration list for PBXNativeTarget "AuraHealthTests" */;
+			buildPhases = (
+				AA0000000000000000000007 /* Sources */,
+				AA0000000000000000000005 /* Frameworks */,
+				AA0000000000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA000000000000000000000C /* PBXTargetDependency */,
+			);
+			name = AuraHealthTests;
+			productName = AuraHealthTests;
+			productReference = AA0000000000000000000003 /* AuraHealthTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		A73C72727C535A57F36AFE09 /* AuraHealth */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2D8B526881C53423FACEE681 /* Build configuration list for PBXNativeTarget "AuraHealth" */;
@@ -367,13 +413,12 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					AA0000000000000000000008 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = A73C72727C535A57F36AFE09;
+					};
 					A73C72727C535A57F36AFE09 = {
 						DevelopmentTeam = QAMM2A6WRQ;
-						SystemCapabilities = {
-							com.apple.iCloud = {
-								enabled = 1;
-							};
-						};
 					};
 				};
 			};
@@ -392,49 +437,67 @@
 			projectRoot = "";
 			targets = (
 				A73C72727C535A57F36AFE09 /* AuraHealth */,
+				AA0000000000000000000008 /* AuraHealthTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		AA0000000000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		973CE1D24B48BF4AC9D5686E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				4C5C2939B82D9E6BC2567997 /* Assets.xcassets in Resources */,
+				AD0000000000000000000001 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AA0000000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AE0000000000000000000003 /* AIProviderTests.swift in Sources */,
+				AA0000000000000000000001 /* BackupServiceTests.swift in Sources */,
+				AC0000000000000000000003 /* StorageTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E9795D453AB22746AC79E0F5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AF0000000000000000000001 /* PrivacyView.swift in Sources */,
+				AE0000000000000000000001 /* AIProvider.swift in Sources */,
+				AC0000000000000000000001 /* AuraStorage.swift in Sources */,
 				2C35B3D325680C42F79C3E28 /* AdherenceView.swift in Sources */,
+				AB0000000000000000000001 /* DataLifecycleService.swift in Sources */,
 				E6BA799428D23DF3709F9227 /* AuraHealthApp.swift in Sources */,
 				2F68990EC1600875D09E7E43 /* Biomarker.swift in Sources */,
 				464E57AE0268E94DEB26A80C /* BiomarkerReference.swift in Sources */,
 				88FFEBD62150E819517DB807 /* BiomarkersView.swift in Sources */,
 				9CAEEF42DC6A07AB244E181E /* ChatView.swift in Sources */,
-				CD6A178AD61659B1D557465E /* ClaudeService.swift in Sources */,
-				0CF4EE7BDA87282833A853D9 /* ClinicalRecordService.swift in Sources */,
+				CD6A178AD61659B1D557465E /* AIService.swift in Sources */,
 				277577D408A725405A29FE09 /* Condition.swift in Sources */,
 				A951074E869C673FCE1E47B6 /* ConditionsView.swift in Sources */,
 				21A8F3FBC26CF787BA992502 /* ContentView.swift in Sources */,
 				629C2637BFFD0CB88E50106A /* Conversation.swift in Sources */,
 				44121500DAC7C93184382D03 /* DailyProtocol.swift in Sources */,
-				87B90ECE9EAE21C261D0B3D8 /* DailyProtocolService.swift in Sources */,
 				5944BF2B1DDAB7694652B412 /* DesignSystem.swift in Sources */,
 				0DB0976B0C56C82AFB13F7DC /* DietPlan.swift in Sources */,
 				7CB4FE287F74620E6489C738 /* Enums.swift in Sources */,
-				D1701CD949F9DE91E3016924 /* FHIRProviderService.swift in Sources */,
-				ABFA9EFA865616ED8AADE414 /* FloatingChatButton.swift in Sources */,
 				4A8826D140D9B8A12BECF64A /* Habit.swift in Sources */,
 				685FC5BFCA995DC740B58483 /* HabitLog.swift in Sources */,
 				85A65C7D313D632C4C6C8B40 /* HabitsView.swift in Sources */,
-				BDA51E8296D8958B223C0920 /* HealthAutoExportService.swift in Sources */,
 				542E8DECFD3D283183F94F3E /* HealthKitService.swift in Sources */,
 				1EA06499727D2438227067CE /* HealthMemory.swift in Sources */,
 				F9C5D34776981146FCBD537F /* HealthScoreRingView.swift in Sources */,
@@ -463,21 +526,76 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		AA000000000000000000000C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A73C72727C535A57F36AFE09 /* AuraHealth */;
+			targetProxy = AA000000000000000000000D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		AA0000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QAMM2A6WRQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.santiagoalonso.aurahealth.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AuraHealth.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/AuraHealth";
+			};
+			name = Debug;
+		};
+		AA000000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QAMM2A6WRQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.santiagoalonso.aurahealth.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/AuraHealth.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/AuraHealth";
+			};
+			name = Release;
+		};
 		91299CF6B63912EE995EA4A9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = AuraHealth/AuraHealth.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = NO;
-				ICLOUD_CONTAINER_ENVIRONMENT = Development;
 				INFOPLIST_FILE = AuraHealth/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Aura;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Aura Health reads your health data to show trends and insights.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Aura Health needs write access for future features.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -485,11 +603,11 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.santiagoalonso.aurahealth;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -499,14 +617,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = AuraHealth/AuraHealth.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 1;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
 				GENERATE_INFOPLIST_FILE = NO;
-				ICLOUD_CONTAINER_ENVIRONMENT = Development;
 				INFOPLIST_FILE = AuraHealth/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Aura;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Aura Health reads your health data to show trends and insights.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Aura Health needs write access for future features.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -514,17 +631,16 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.santiagoalonso.aurahealth;
 				SDKROOT = auto;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
 		F179BEAC5FEEF7527F281E68 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D228778872C00CEFB8E4D0E0 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -570,7 +686,6 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -583,7 +698,6 @@
 		};
 		F5FBC7323E39AE206B1DB7D3 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D228778872C00CEFB8E4D0E0 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -635,7 +749,6 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -650,6 +763,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AA000000000000000000000B /* Build configuration list for PBXNativeTarget "AuraHealthTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000000000000000000009 /* Debug */,
+				AA000000000000000000000A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		2D8B526881C53423FACEE681 /* Build configuration list for PBXNativeTarget "AuraHealth" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

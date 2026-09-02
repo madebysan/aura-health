@@ -21,22 +21,6 @@ struct SampleDataService {
         try? context.save()
     }
 
-    static func clearAllData(from context: ModelContext) {
-        try? context.delete(model: Measurement.self)
-        try? context.delete(model: MedicationLog.self)
-        try? context.delete(model: Medication.self)
-        try? context.delete(model: HabitLog.self)
-        try? context.delete(model: Habit.self)
-        try? context.delete(model: Biomarker.self)
-        try? context.delete(model: Condition.self)
-        try? context.delete(model: DietPlan.self)
-        try? context.delete(model: MetricRange.self)
-        try? context.delete(model: Conversation.self)
-        try? context.delete(model: HealthMemory.self)
-        // Don't delete VaultDocuments — user may have real docs
-        try? context.save()
-    }
-
     // MARK: - Measurements (90 days of vitals)
 
     private static func loadMeasurements(into context: ModelContext) {

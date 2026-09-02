@@ -28,35 +28,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.healthcare-fitness</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Aura Health reads your health data to show trends and insights.</string>
-	<key>NSHealthClinicalHealthRecordsShareUsageDescription</key>
-	<string>Aura Health reads your clinical records (lab results, medications, conditions) from connected healthcare providers to give you a complete health picture.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Aura Health needs write access for future features.</string>
-	<key>WhoopClientID</key>
-	<string>$(WHOOP_CLIENT_ID)</string>
-	<key>WhoopClientSecret</key>
-	<string>$(WHOOP_CLIENT_SECRET)</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>WHOOP OAuth Callback</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>aurahealth</string>
-			</array>
-		</dict>
-	</array>
+	<string>Aura reads heart rate, sleep, activity, weight, blood pressure, oxygen saturation, and temperature data you choose to share so it can organize your trends in one private dashboard.</string>
 </dict>
 </plist>

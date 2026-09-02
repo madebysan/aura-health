@@ -86,6 +86,7 @@ struct MedicationsView: View {
                 Button { showingAddSheet = true } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add Medication")
             }
         }
         .sheet(isPresented: $showingAddSheet) {

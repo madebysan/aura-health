@@ -73,6 +73,7 @@ struct ConditionsView: View {
                 Button { showingAddCondition = true } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add Condition")
             }
         }
         .sheet(isPresented: $showingAddCondition) { ConditionFormSheet() }
@@ -164,6 +165,7 @@ struct DietPlansView: View {
                 Button { showingAddDiet = true } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add Diet Plan")
             }
         }
         .sheet(isPresented: $showingAddDiet) { DietPlanFormSheet() }

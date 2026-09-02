@@ -52,6 +52,7 @@ struct VaultView: View {
                 Button { showingUpload = true } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add Document")
             }
         }
         .sheet(isPresented: $showingUpload) { VaultUploadSheet() }

@@ -10,6 +10,9 @@ DerivedData/
 *.dSYM.zip
 *.dSYM
 build/
+fastlane/report.xml
+fastlane/README.md
+fastlane/test_output/
 
 # Swift Package Manager
 .build/

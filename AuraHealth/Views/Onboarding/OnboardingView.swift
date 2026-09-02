@@ -7,6 +7,8 @@ struct OnboardingView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("weightUnit") private var weightUnit: WeightUnit = .kg
     @AppStorage("temperatureUnit") private var temperatureUnit: TemperatureUnit = .celsius
+    @AppStorage("aiProvider") private var aiProvider: AIProvider = .anthropic
+    @AppStorage("aiModel") private var aiModelID = AIProviderCatalog.defaultModelID(for: .anthropic)
 
     @State private var phase: OnboardingPhase = .welcome
 
@@ -78,7 +80,7 @@ struct OnboardingView: View {
                 Button {
                     phase = .features
                 } label: {
-                    Text("Set Up My Account")
+                    Text("Set Up Aura")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -107,7 +109,7 @@ struct OnboardingView: View {
             "cross.vial.fill",
             .green,
             "Lab Results & Biomarkers",
-            "Import your blood work and track biomarkers across tests. Spot trends your doctor might miss."
+            "Import your blood work and review biomarker changes across tests."
         ),
         (
             "bubble.left.and.bubble.right.fill",
@@ -202,8 +204,8 @@ struct OnboardingView: View {
                     icon: "heart.text.square",
                     color: .red,
                     title: "Connect Apple Health",
-                    subtitle: healthKitService.isAuthorized ? "Connected" : "Sync workouts, steps, heart rate & more",
-                    connected: healthKitService.isAuthorized
+                    subtitle: healthKitService.hasRequestedAccess ? "Access requested" : "Import activity, sleep, heart rate, and more",
+                    connected: healthKitService.hasRequestedAccess
                 ) {
                     Task { await healthKitService.requestAuthorization() }
                 }
@@ -419,102 +421,126 @@ struct OnboardingView: View {
         .padding()
     }
 
-    // MARK: - Chat Setup (API Key)
+    // MARK: - Chat Setup
 
     @State private var apiKeyInput = ""
-    @State private var apiKeySaved = false
+    @State private var consentAcknowledged = false
+    @State private var providerReady = false
 
-    private var hasExistingKey: Bool {
-        KeychainService.getValue(for: "claude-api-key") != nil
+    private var hasProviderKey: Bool {
+        AIKeyStore.value(for: aiProvider) != nil
     }
 
     private var chatSetupView: some View {
-        VStack(spacing: 28) {
-            Spacer()
+        ScrollView {
+            VStack(spacing: 20) {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 56))
+                    .foregroundStyle(.cyan)
 
-            Image(systemName: "bubble.left.and.bubble.right.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.cyan)
+                VStack(spacing: 8) {
+                    Text("Optional AI Health Chat")
+                        .font(.title.bold())
 
-            VStack(spacing: 12) {
-                Text("AI Health Chat")
-                    .font(.title.bold())
-
-                Text("Chat can answer questions about your vitals, interpret lab reports, log measurements, and spot trends — all powered by Claude.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            }
-
-            // Capabilities list
-            VStack(alignment: .leading, spacing: 12) {
-                chatCapability(icon: "doc.text.magnifyingglass", color: .green, text: "Attach a PDF lab report and import biomarkers automatically")
-                chatCapability(icon: "chart.line.uptrend.xyaxis", color: .pink, text: "Ask about your vitals, trends, and health summary")
-                chatCapability(icon: "square.and.pencil", color: .orange, text: "Log measurements, medications, and habits by chat")
-            }
-            .padding(.horizontal, 32)
-
-            Spacer()
-
-            // API Key input
-            if apiKeySaved || hasExistingKey {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("API key configured")
-                        .font(.subheadline)
+                    Text("Ask about your own records or import a lab report. Aura is still fully usable without AI.")
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
-            } else {
-                VStack(spacing: 10) {
-                    Text("Enter your Claude API key to enable chat")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
 
-                    HStack(spacing: 10) {
-                        SecureField("sk-ant-...", text: $apiKeyInput)
-                            .textFieldStyle(.roundedBorder)
-
-                        Button("Save") {
-                            if !apiKeyInput.isEmpty {
-                                KeychainService.setValue(apiKeyInput, for: "claude-api-key")
-                                apiKeyInput = ""
-                                apiKeySaved = true
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(apiKeyInput.isEmpty)
+                Picker("Provider", selection: $aiProvider) {
+                    ForEach(AIProvider.allCases) { provider in
+                        Text(provider.displayName).tag(provider)
                     }
                 }
-                .padding(.horizontal, 40)
-            }
+                .pickerStyle(.segmented)
 
-            VStack(spacing: 12) {
-                Button {
-                    hasCompletedOnboarding = true
-                } label: {
-                    Text("Finish Setup")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                VStack(alignment: .leading, spacing: 12) {
+                    chatCapability(icon: "doc.text.magnifyingglass", color: .green, text: "Review PDF and image lab reports before saving")
+                    chatCapability(icon: "chart.line.uptrend.xyaxis", color: .pink, text: "Ask about vitals, trends, and summaries")
+                    chatCapability(icon: "square.and.pencil", color: .orange, text: "Log measurements, medications, and habits")
                 }
-                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 8)
 
-                if !apiKeySaved && !hasExistingKey {
+                if providerReady {
+                    Label("\(aiProvider.displayName) is ready", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if !hasProviderKey {
+                            SecureField(aiProvider.keyPlaceholder, text: $apiKeyInput)
+                                .textContentType(.password)
+                                .textFieldStyle(.roundedBorder)
+                        }
+
+                        Toggle("I allow AI processing", isOn: $consentAcknowledged)
+
+                        Text("When you explicitly send a message or attachment, Aura shares that content and health records returned by its read tools for that request with \(aiProvider.displayName). Nothing is sent automatically.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Link("Read \(aiProvider.displayName)'s privacy policy", destination: aiProvider.privacyPolicyURL)
+                            .font(.caption)
+
+                        Button("Save and Enable AI") {
+                            saveAISetup()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity)
+                        .disabled(!consentAcknowledged || (!hasProviderKey && apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+                    }
+                }
+
+                VStack(spacing: 12) {
                     Button {
                         hasCompletedOnboarding = true
                     } label: {
-                        Text("Skip — I'll add it later in Settings")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        Text("Finish Setup")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    if !providerReady {
+                        Button {
+                            hasCompletedOnboarding = true
+                        } label: {
+                            Text("Skip AI for Now")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 32)
+            .padding()
         }
-        .padding()
+        .onAppear {
+            refreshAISetupState()
+        }
+        .onChange(of: aiProvider) {
+            aiModelID = AIProviderCatalog.defaultModelID(for: aiProvider)
+            apiKeyInput = ""
+            consentAcknowledged = false
+            refreshAISetupState()
+        }
+    }
+
+    private func saveAISetup() {
+        let trimmed = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            guard AIKeyStore.setValue(trimmed, for: aiProvider) else { return }
+        }
+        AIConsentStore().grant(for: aiProvider)
+        apiKeyInput = ""
+        providerReady = true
+    }
+
+    private func refreshAISetupState() {
+        providerReady = AIKeyStore.value(for: aiProvider) != nil
+            && AIConsentStore().hasConsent(for: aiProvider)
+        if !providerReady {
+            consentAcknowledged = false
+        }
     }
 
     private func chatCapability(icon: String, color: Color, text: String) -> some View {

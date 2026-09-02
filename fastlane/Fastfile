@@ -1,0 +1,93 @@
+default_platform(:ios)
+
+platform :ios do
+  repo_root = File.expand_path("..", __dir__)
+  project_path = File.join(repo_root, "AuraHealth.xcodeproj")
+  scheme_name = "AuraHealth"
+  build_output = File.join(repo_root, "build/app-store")
+  ipa_path = "#{build_output}/AuraHealth.ipa"
+
+  desc "Run the local App Store readiness checks that do not need credentials"
+  lane :preflight do
+    sh("cd #{repo_root} && plutil -lint AuraHealth/Info.plist AuraHealth/AuraHealth.entitlements AuraHealth/Resources/PrivacyInfo.xcprivacy")
+    sh("xcodebuild test -project #{project_path} -scheme #{scheme_name} -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest'")
+    sh("test \"$(xcodebuild -project #{project_path} -scheme #{scheme_name} -showBuildSettings | awk -F' = ' '/TARGETED_DEVICE_FAMILY/{print $2; exit}')\" = \"1\"")
+    sh("! grep -Eiq 'icloud|health-records' #{repo_root}/AuraHealth/AuraHealth.entitlements")
+    sh("! grep -q 'cloudKitDatabase: .automatic' #{repo_root}/AuraHealth/Services/AuraStorage.swift")
+    sh("test $(wc -c < #{repo_root}/fastlane/metadata/en-US/keywords.txt) -le 100")
+    sh("test $(find #{repo_root}/fastlane/screenshots/en-US -name '*.png' | wc -l) -ge 3")
+    sh("test $(curl -L -sS -o /dev/null -w '%{http_code}' https://github.com/madebysan/aura-health/blob/main/PRIVACY.md) -eq 200")
+    sh("test $(curl -L -sS -o /dev/null -w '%{http_code}' https://github.com/madebysan/aura-health/blob/main/SUPPORT.md) -eq 200")
+  end
+
+  desc "Create an App Store archive and exported IPA"
+  lane :build_app_store do
+    build_app(
+      project: project_path,
+      scheme: scheme_name,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: build_output,
+      output_name: "AuraHealth.ipa",
+      archive_path: "#{build_output}/AuraHealth.xcarchive",
+      clean: true
+    )
+  end
+
+  desc "Upload the already-built IPA to internal TestFlight"
+  lane :upload_testflight do
+    UI.user_error!("Set AURA_ALLOW_UPLOAD=YES after Santiago approves the upload") unless ENV["AURA_ALLOW_UPLOAD"] == "YES"
+    upload_to_testflight(
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: false,
+      distribute_external: false
+    )
+  end
+
+  desc "Upload production metadata without changing the binary"
+  lane :upload_metadata do
+    UI.user_error!("Set AURA_ALLOW_METADATA_WRITE=YES after Santiago approves the App Store Connect update") unless ENV["AURA_ALLOW_METADATA_WRITE"] == "YES"
+    deliver(
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      force: true
+    )
+  end
+
+  desc "Upload current iPhone screenshots without changing the binary"
+  lane :upload_screenshots do
+    UI.user_error!("Set AURA_ALLOW_METADATA_WRITE=YES after Santiago approves the App Store Connect update") unless ENV["AURA_ALLOW_METADATA_WRITE"] == "YES"
+    deliver(
+      skip_binary_upload: true,
+      skip_metadata: true,
+      overwrite_screenshots: true,
+      force: true
+    )
+  end
+
+  desc "Submit the attached build for App Review with manual release"
+  lane :submit_app_store_review do
+    UI.user_error!("Submission requires Santiago's fresh approval") unless ENV["AURA_CONFIRM_SUBMIT"] == "YES"
+    phone = ENV.fetch("APP_REVIEW_PHONE")
+
+    deliver(
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      skip_binary_upload: true,
+      app_review_information: {
+        first_name: "Santiago",
+        last_name: "Alonso",
+        phone_number: phone,
+        email_address: "hi@santiagoalonso.com",
+        notes: File.read(File.join(repo_root, "fastlane/metadata/review_information/notes.txt"))
+      },
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        content_rights_contains_third_party_content: true,
+        content_rights_has_rights: true,
+        export_compliance_uses_encryption: false
+      }
+    )
+  end
+end

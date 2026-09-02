@@ -19,7 +19,7 @@ struct KeychainService {
             kSecAttrService as String: service,
             kSecAttrAccount as String: vaultPasswordKey,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
 
         let status = SecItemAdd(query as CFDictionary, nil)
@@ -65,8 +65,9 @@ struct KeychainService {
 
     // MARK: - Generic Key-Value (for tokens, API keys)
 
-    static func setValue(_ value: String, for key: String) {
-        guard let data = value.data(using: .utf8) else { return }
+    @discardableResult
+    static func setValue(_ value: String, for key: String) -> Bool {
+        guard let data = value.data(using: .utf8) else { return false }
         deleteValue(for: key)
 
         let query: [String: Any] = [
@@ -74,9 +75,9 @@ struct KeychainService {
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
-        SecItemAdd(query as CFDictionary, nil)
+        return SecItemAdd(query as CFDictionary, nil) == errSecSuccess
     }
 
     static func getValue(for key: String) -> String? {
@@ -114,7 +115,7 @@ struct KeychainService {
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
         SecItemAdd(query as CFDictionary, nil)
     }

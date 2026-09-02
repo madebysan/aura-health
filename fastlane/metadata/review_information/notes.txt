@@ -1,0 +1,9 @@
+Aura is an iPhone-only, local-first personal health organizer. No login or subscription is required.
+
+Apple Health access is optional and read-only. Reviewers may skip Apple Health and use the built-in sample-data path during onboarding.
+
+AI is optional. The app remains useful without an API key. If a reviewer wants to inspect AI setup, Settings shows provider selection, user-supplied API key storage, model selection, and explicit provider-specific consent. No health information or attachment is sent automatically.
+
+Aura does not use iCloud or CloudKit for health information. Clear All Data removes local Aura records, documents, conversations, credentials, and preferences without altering Apple Health.
+
+Aura is an organizational and educational wellness tool, not a medical device. It does not diagnose or treat medical conditions.

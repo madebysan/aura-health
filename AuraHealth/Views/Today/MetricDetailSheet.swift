@@ -170,6 +170,10 @@ struct MetricDetailSheet: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    Text("Educational context only. Consult a qualified healthcare professional before making medical decisions.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Reference range")
                             .font(.caption.weight(.semibold))

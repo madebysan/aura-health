@@ -19,7 +19,7 @@ struct BiomarkersView: View {
     @State private var showOlderMarkers = false
     @State private var showingLabNotes = false
 
-    @State private var claudeService = ClaudeService()
+    @State private var aiService = AIService()
 
     // MARK: - Snapshot Data
 
@@ -270,13 +270,14 @@ struct BiomarkersView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add or Import Biomarker")
             }
         }
         .sheet(isPresented: $showingAddSheet) {
             AddBiomarkerSheet()
         }
         .sheet(isPresented: $showingLabImport) {
-            LabImportSheet(claudeService: claudeService)
+            LabImportSheet(aiService: aiService)
         }
         .sheet(item: $selectedBiomarker) { biomarker in
             BiomarkerDetailSheet(marker: biomarker.marker, biomarkers: biomarkers)
@@ -732,7 +733,7 @@ struct BiomarkerDetailSheet: View {
 
                                     if latest.status != .normal {
                                         Label {
-                                            Text("**What to do:** \(info.ifOutOfRange)")
+                                            Text("**Questions to discuss:** \(info.ifOutOfRange)")
                                                 .font(.subheadline)
                                         } icon: {
                                             Image(systemName: "arrow.right.circle.fill")
@@ -741,6 +742,10 @@ struct BiomarkerDetailSheet: View {
                                         }
                                     }
                                 }
+
+                                Text("Educational context only. Reference ranges vary by laboratory and individual; consult a qualified healthcare professional before making medical decisions.")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
                             }
                             .cardStyle()
                         }

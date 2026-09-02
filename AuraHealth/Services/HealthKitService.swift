@@ -9,7 +9,9 @@ private let logger = Logger(subsystem: "com.santiagoalonso.aurahealth", category
 @Observable
 @MainActor
 final class HealthKitService {
-    var isAuthorized = false
+    /// HealthKit does not reveal whether individual read permissions were granted.
+    /// This only records that Aura completed the system authorization request.
+    var hasRequestedAccess = false
     var isSyncing = false
     var lastSyncDate: Date?
     var error: String?
@@ -32,7 +34,7 @@ final class HealthKitService {
         }
         // Check if we've previously authorized
         if isAvailable && UserDefaults.standard.bool(forKey: "healthkit-authorized") {
-            isAuthorized = true
+            hasRequestedAccess = true
         }
     }
 
@@ -63,7 +65,7 @@ final class HealthKitService {
 
         do {
             try await healthStore.requestAuthorization(toShare: [], read: readTypes)
-            isAuthorized = true
+            hasRequestedAccess = true
             UserDefaults.standard.set(true, forKey: "healthkit-authorized")
             error = nil
         } catch {
@@ -71,10 +73,10 @@ final class HealthKitService {
         }
     }
 
-    func disconnect() {
+    func stopSyncing() {
         // Can't revoke HealthKit access programmatically — user must do it in Settings/Health app
-        // But we can stop syncing and clear our state
-        isAuthorized = false
+        // Aura can only stop its own sync behavior and clear local sync state.
+        hasRequestedAccess = false
         lastSyncDate = nil
         UserDefaults.standard.removeObject(forKey: "healthkit-authorized")
         UserDefaults.standard.removeObject(forKey: "healthkit-last-sync")
@@ -98,9 +100,9 @@ final class HealthKitService {
     }
 
     func syncData(into context: ModelContext, days: Int = 30) async {
-        if !isAuthorized {
+        if !hasRequestedAccess {
             await requestAuthorization()
-            guard isAuthorized else { return }
+            guard hasRequestedAccess else { return }
         }
 
         isSyncing = true

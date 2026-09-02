@@ -229,7 +229,7 @@ enum BiomarkerReference {
             name: "LDL Cholesterol", system: .heart, unit: "mg/dL", refMin: 0, refMax: 100,
             description: "Low-density lipoprotein — the 'bad' cholesterol that builds up in arteries.",
             whyItMatters: "Elevated LDL is a primary driver of atherosclerosis and cardiovascular disease.",
-            ifOutOfRange: "Reduce trans fats, increase soluble fiber, consider statins if lifestyle changes aren't enough."
+            ifOutOfRange: "Ask a qualified clinician how this result fits your overall cardiovascular risk and whether nutrition, activity, or medication should be discussed."
         ),
         "hdl cholesterol": BiomarkerInfo(
             name: "HDL Cholesterol", system: .heart, unit: "mg/dL", refMin: 40, refMax: 100,
@@ -253,7 +253,7 @@ enum BiomarkerReference {
             name: "Apolipoprotein B", system: .heart, unit: "mg/dL", refMin: 0, refMax: 90,
             description: "A protein found on every atherogenic lipoprotein particle (LDL, VLDL, Lp(a)). Each particle has exactly one ApoB molecule, making it a direct count of particles that can enter artery walls.",
             whyItMatters: "Considered the single best blood marker for cardiovascular risk — better than LDL cholesterol. It measures the actual number of dangerous particles, not just the cholesterol they carry.",
-            ifOutOfRange: "Diet optimization (reduce saturated fat, increase fiber), exercise, and potentially statin therapy. Optimal is below 80 mg/dL; ideal for high-risk patients is below 60."
+            ifOutOfRange: "Discuss the result with a qualified clinician in the context of your full cardiovascular history and personal target range."
         ),
         // MARK: Metabolic
         "glucose": BiomarkerInfo(
@@ -271,7 +271,7 @@ enum BiomarkerReference {
         "hba1c": BiomarkerInfo(
             name: "HbA1c", system: .metabolic, unit: "%", refMin: 4.0, refMax: 5.7,
             description: "Glycated hemoglobin — reflects your average blood sugar over the past 2–3 months.",
-            whyItMatters: "The gold standard for long-term glucose control and diabetes diagnosis. Below 5.7% is normal, 5.7–6.4% is prediabetic.",
+            whyItMatters: "Often used by clinicians to understand average glucose exposure over time. Interpretation and diagnostic thresholds depend on clinical context.",
             ifOutOfRange: "Work with your doctor on diet, exercise, and medication adjustments. Even small reductions reduce complication risk."
         ),
         "insulin": BiomarkerInfo(
@@ -327,14 +327,14 @@ enum BiomarkerReference {
             name: "Globulin", system: .liver, unit: "g/dL", refMin: 1.9, refMax: 3.7,
             description: "A group of proteins made by the liver and immune system, including antibodies.",
             whyItMatters: "High globulin can indicate chronic inflammation, infection, or autoimmune disease. Low levels may suggest immune deficiency.",
-            ifOutOfRange: "If elevated, further workup for inflammation or immune conditions. If low, evaluate immune function."
+            ifOutOfRange: "Ask a qualified clinician whether the result needs repeat testing or interpretation alongside symptoms and other blood counts."
         ),
         // MARK: Kidney
         "creatinine": BiomarkerInfo(
             name: "Creatinine", system: .kidney, unit: "mg/dL", refMin: 0.6, refMax: 1.27,
             description: "A waste product from muscle metabolism, filtered by the kidneys. Creatinine levels reflect kidney filtration capacity.",
             whyItMatters: "Rising creatinine suggests declining kidney function. It's also influenced by muscle mass — muscular people naturally run higher.",
-            ifOutOfRange: "Stay hydrated, avoid NSAIDs, monitor over time. If persistently elevated, a kidney function workup is needed."
+            ifOutOfRange: "Discuss hydration, medications, recent activity, and whether repeat kidney-function testing is appropriate with a qualified clinician."
         ),
         "egfr": BiomarkerInfo(
             name: "eGFR", system: .kidney, unit: "mL/min/1.73m2", refMin: 60, refMax: 120,
@@ -370,7 +370,7 @@ enum BiomarkerReference {
             name: "Chloride", system: .kidney, unit: "mmol/L", refMin: 96, refMax: 110,
             description: "An electrolyte that works with sodium and potassium to maintain fluid balance and acid-base equilibrium.",
             whyItMatters: "Abnormal chloride usually moves in tandem with sodium. Isolated changes can indicate acid-base disorders.",
-            ifOutOfRange: "Rarely addressed alone — usually treated by correcting the underlying sodium or acid-base imbalance."
+            ifOutOfRange: "Discuss the result with a qualified clinician, who can interpret it alongside sodium, kidney function, and acid-base markers."
         ),
         "calcium": BiomarkerInfo(
             name: "Calcium", system: .kidney, unit: "mg/dL", refMin: 8.6, refMax: 10.3,
@@ -382,13 +382,13 @@ enum BiomarkerReference {
         "tsh": BiomarkerInfo(
             name: "TSH", system: .thyroid, unit: "mIU/L", refMin: 0.4, refMax: 4.5,
             description: "Thyroid-stimulating hormone — produced by the pituitary gland to signal the thyroid to make T3 and T4.",
-            whyItMatters: "The most sensitive screening test for thyroid disorders. High TSH suggests hypothyroidism (underactive), low TSH suggests hyperthyroidism (overactive).",
-            ifOutOfRange: "Mildly elevated TSH (4.5–10) with normal T4: subclinical hypothyroidism — monitor or treat based on symptoms. Above 10 or with low T4: likely needs treatment."
+            whyItMatters: "A screening marker clinicians interpret with thyroid hormones, symptoms, medications, and health history.",
+            ifOutOfRange: "Ask a qualified clinician how the result relates to free T4, symptoms, medications, and whether repeat testing is appropriate."
         ),
         "free t4": BiomarkerInfo(
             name: "Free T4", system: .thyroid, unit: "ng/dL", refMin: 0.8, refMax: 1.8,
             description: "The unbound, active form of thyroxine — the main hormone produced by the thyroid gland.",
-            whyItMatters: "Low free T4 with high TSH confirms hypothyroidism. High free T4 with low TSH confirms hyperthyroidism.",
+            whyItMatters: "Interpreted with TSH and clinical context to assess thyroid function.",
             ifOutOfRange: "Interpret alongside TSH. If both are abnormal, thyroid medication may be needed. See an endocrinologist."
         ),
         "free t3": BiomarkerInfo(
@@ -400,7 +400,7 @@ enum BiomarkerReference {
         "t4": BiomarkerInfo(
             name: "T4 (Total)", system: .thyroid, unit: "ug/dL", refMin: 4.5, refMax: 12.0,
             description: "Total thyroxine — includes both bound and unbound T4. Less accurate than free T4 because binding proteins can vary.",
-            whyItMatters: "Provides a general picture of thyroid output. Free T4 is preferred for diagnosis, but total T4 adds context.",
+            whyItMatters: "Provides context about thyroid hormone levels and is interpreted alongside TSH, free T4, medications, and symptoms.",
             ifOutOfRange: "Interpret alongside TSH and free T4. Estrogen, pregnancy, and certain medications can alter binding proteins and affect total T4."
         ),
         // MARK: Blood / CBC
@@ -408,7 +408,7 @@ enum BiomarkerReference {
             name: "WBC (White Blood Cells)", system: .blood, unit: "x10E3/uL", refMin: 3.4, refMax: 10.8,
             description: "White blood cells are your immune system's soldiers. They fight infections, respond to allergens, and patrol for abnormal cells.",
             whyItMatters: "Elevated WBC often indicates infection, inflammation, or stress. Persistently low WBC may suggest immune suppression or bone marrow issues.",
-            ifOutOfRange: "Mild elevations during illness are normal. If persistently elevated without illness, investigate for chronic inflammation. Low counts need further workup."
+            ifOutOfRange: "Ask a qualified clinician whether illness, medications, or other blood-count results explain the change and whether repeat testing is appropriate."
         ),
         "rbc": BiomarkerInfo(
             name: "RBC (Red Blood Cells)", system: .blood, unit: "x10E6/uL", refMin: 4.2, refMax: 5.8,
@@ -487,13 +487,13 @@ enum BiomarkerReference {
             name: "Estradiol (E2)", system: .hormones, unit: "pg/mL", refMin: 11, refMax: 43,
             description: "The primary form of estrogen. In men, it's converted from testosterone by aromatase and is essential for bone health and brain function.",
             whyItMatters: "In men, both too low and too high estradiol cause problems — low impairs bone density and mood, high causes water retention and gynecomastia.",
-            ifOutOfRange: "High: often from excess body fat (more aromatase activity) — lose weight, reduce alcohol. Low: may need evaluation if on testosterone therapy."
+            ifOutOfRange: "Discuss the value with a qualified clinician in the context of symptoms, medications, and other hormone results."
         ),
         "shbg": BiomarkerInfo(
             name: "SHBG", system: .hormones, unit: "nmol/L", refMin: 16.5, refMax: 76.0,
             description: "Sex hormone-binding globulin — a protein that binds testosterone and estradiol, making them inactive.",
             whyItMatters: "High SHBG reduces free testosterone even when total T is normal. Low SHBG may increase free T but also free estradiol.",
-            ifOutOfRange: "High: often caused by hyperthyroidism, liver disease, or estrogen excess. Low: associated with insulin resistance, obesity, and hypothyroidism."
+            ifOutOfRange: "Discuss the value with a qualified clinician alongside thyroid, liver, metabolic, medication, and hormone context."
         ),
         "lh": BiomarkerInfo(
             name: "LH (Luteinizing Hormone)", system: .hormones, unit: "IU/L", refMin: 1.7, refMax: 8.6,

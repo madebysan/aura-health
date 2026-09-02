@@ -1,26 +1,42 @@
 import Foundation
 import SwiftData
 
-/// Claude API integration with tool use for reading and modifying health data
+/// Provider-neutral health chat facade with Anthropic and OpenRouter transports.
 @Observable
 @MainActor
-final class ClaudeService {
+final class AIService {
     var isResponding = false
+    var pendingToolApproval: AIToolApproval?
+
+    private var approvalContinuation: CheckedContinuation<Bool, Never>?
+
+    var provider: AIProvider {
+        AIPreferences.provider
+    }
+
+    var selectedModel: AIModelOption {
+        AIProviderCatalog.model(id: AIPreferences.modelID, provider: provider)
+    }
 
     private var apiKey: String {
-        KeychainService.getValue(for: "claude-api-key") ?? ""
+        AIKeyStore.value(for: provider) ?? ""
     }
 
     var hasAPIKey: Bool {
         !apiKey.isEmpty
     }
 
-    private static let apiURL = "https://api.anthropic.com/v1/messages"
-
-    private var model: String {
-        let stored = UserDefaults.standard.string(forKey: "claudeModel") ?? ClaudeModel.sonnet.rawValue
-        return stored
+    var hasConsent: Bool {
+        AIConsentStore().hasConsent(for: provider)
     }
+
+    var isReady: Bool {
+        hasAPIKey && hasConsent
+    }
+
+    private static let anthropicAPIURL = "https://api.anthropic.com/v1/messages"
+
+    private var model: String { selectedModel.id }
 
     // MARK: - System Prompt (lean — no data, just behavior rules)
 
@@ -383,8 +399,26 @@ final class ClaudeService {
 
     /// Attached file URL for the current message (set by the chat UI before calling sendMessage)
     var pendingFileURL: URL?
+    private var activeFileURL: URL?
 
     func sendMessage(
+        conversationHistory: [ChatMessage],
+        context: ModelContext
+    ) async throws -> String {
+        guard hasAPIKey else { throw ClaudeError.noAPIKey }
+        guard hasConsent else { throw ClaudeError.consentRequired }
+        activeFileURL = pendingFileURL
+        defer { activeFileURL = nil }
+
+        switch provider {
+        case .anthropic:
+            return try await sendAnthropicMessage(conversationHistory: conversationHistory, context: context)
+        case .openRouter:
+            return try await sendOpenRouterMessage(conversationHistory: conversationHistory, context: context)
+        }
+    }
+
+    private func sendAnthropicMessage(
         conversationHistory: [ChatMessage],
         context: ModelContext
     ) async throws -> String {
@@ -417,7 +451,7 @@ final class ClaudeService {
 
         // Tool use loop (max 3 rounds — most queries need 1 tool call)
         for _ in 0..<3 {
-            let response = try await callAPI(messages: messages)
+            let response = try await callAnthropicAPI(messages: messages)
 
             // Check stop_reason to determine if we need to handle tool calls
             let isToolUse = response.stopReason == "tool_use"
@@ -454,6 +488,75 @@ final class ClaudeService {
                 ])
             }
             messages.append(["role": "user", "content": toolResults])
+        }
+
+        return "I'm having trouble processing this request. Please try again."
+    }
+
+    private func sendOpenRouterMessage(
+        conversationHistory: [ChatMessage],
+        context: ModelContext
+    ) async throws -> String {
+        hasFileAttachment = false
+        defer { hasFileAttachment = false }
+
+        var messages: [[String: Any]] = [["role": "system", "content": systemPrompt]]
+        let recentMessages = Array(conversationHistory.suffix(10))
+
+        for (index, message) in recentMessages.enumerated() {
+            guard message.role == .user || message.role == .assistant else { continue }
+            let isLastMessage = index == recentMessages.count - 1
+
+            if isLastMessage, message.role == .user, let fileURL = pendingFileURL {
+                messages.append([
+                    "role": "user",
+                    "content": try buildOpenRouterFileContentBlocks(text: message.content, fileURL: fileURL),
+                ])
+                pendingFileURL = nil
+            } else {
+                messages.append(["role": message.role.rawValue, "content": message.content])
+            }
+        }
+
+        for _ in 0..<3 {
+            let response = try await callOpenRouterAPI(messages: messages)
+            guard let message = response.choices.first?.message else {
+                throw ClaudeError.invalidResponse
+            }
+
+            let toolCalls = message.toolCalls ?? []
+            if toolCalls.isEmpty {
+                return message.content?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                    ? message.content!
+                    : "I couldn't produce a response. Please try again."
+            }
+
+            let encodedCalls: [[String: Any]] = toolCalls.map { call in
+                [
+                    "id": call.id,
+                    "type": call.type,
+                    "function": [
+                        "name": call.function.name,
+                        "arguments": call.function.arguments,
+                    ],
+                ]
+            }
+            messages.append([
+                "role": "assistant",
+                "content": message.content ?? "",
+                "tool_calls": encodedCalls,
+            ])
+
+            for call in toolCalls {
+                let inputData = Data(call.function.arguments.utf8)
+                let input = (try? JSONSerialization.jsonObject(with: inputData)) as? [String: Any] ?? [:]
+                let result = await executeTool(name: call.function.name, input: input, context: context)
+                messages.append([
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": result,
+                ])
+            }
         }
 
         return "I'm having trouble processing this request. Please try again."
@@ -498,10 +601,45 @@ final class ClaudeService {
         return blocks
     }
 
+    private func buildOpenRouterFileContentBlocks(text: String, fileURL: URL) throws -> [[String: Any]] {
+        let accessing = fileURL.startAccessingSecurityScopedResource()
+        defer { if accessing { fileURL.stopAccessingSecurityScopedResource() } }
+
+        let ext = fileURL.pathExtension.lowercased()
+        var blocks: [[String: Any]] = [["type": "text", "text": text]]
+
+        if ext == "pdf" {
+            guard selectedModel.supportsPDFs else { throw ClaudeError.unsupportedAttachment }
+            let data = try Data(contentsOf: fileURL)
+            blocks.append([
+                "type": "file",
+                "file": [
+                    "filename": fileURL.lastPathComponent,
+                    "file_data": "data:application/pdf;base64,\(data.base64EncodedString())",
+                ],
+            ])
+            hasFileAttachment = true
+        } else if ["jpg", "jpeg", "png", "gif", "webp"].contains(ext) {
+            guard selectedModel.supportsImages else { throw ClaudeError.unsupportedAttachment }
+            let data = try Data(contentsOf: fileURL)
+            let mediaType = ext == "png" ? "image/png" : ext == "gif" ? "image/gif" : ext == "webp" ? "image/webp" : "image/jpeg"
+            blocks.append([
+                "type": "image_url",
+                "image_url": ["url": "data:\(mediaType);base64,\(data.base64EncodedString())"],
+            ])
+            hasFileAttachment = true
+        } else {
+            let content = try String(contentsOf: fileURL, encoding: .utf8)
+            blocks.append(["type": "text", "text": "Attached file (\(fileURL.lastPathComponent)):\n\n\(content)"])
+        }
+
+        return blocks
+    }
+
     // MARK: - API Call
 
-    private func callAPI(messages: [[String: Any]]) async throws -> ToolResponse {
-        guard let url = URL(string: Self.apiURL) else { throw ClaudeError.invalidURL }
+    private func callAnthropicAPI(messages: [[String: Any]]) async throws -> ToolResponse {
+        guard let url = URL(string: Self.anthropicAPIURL) else { throw ClaudeError.invalidURL }
 
         let maxTokens = hasFileAttachment ? 4096 : 1024
 
@@ -531,16 +669,54 @@ final class ClaudeService {
             throw ClaudeError.invalidResponse
         }
         guard httpResponse.statusCode == 200 else {
-            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown"
-            throw ClaudeError.apiError(statusCode: httpResponse.statusCode, message: errorBody)
+            throw ClaudeError.apiError(statusCode: httpResponse.statusCode, message: apiErrorMessage(from: data))
         }
 
         return try JSONDecoder().decode(ToolResponse.self, from: data)
     }
 
+    private func callOpenRouterAPI(
+        messages: [[String: Any]],
+        includeTools: Bool = true
+    ) async throws -> OpenRouterChatResponse {
+        let request = try AIRequestFactory.openRouterRequest(
+            apiKey: apiKey,
+            model: model,
+            messages: messages,
+            tools: Self.tools,
+            maxTokens: hasFileAttachment ? 4096 : 1024,
+            includeTools: includeTools
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ClaudeError.invalidResponse
+        }
+        guard httpResponse.statusCode == 200 else {
+            throw ClaudeError.apiError(statusCode: httpResponse.statusCode, message: apiErrorMessage(from: data))
+        }
+        return try JSONDecoder().decode(OpenRouterChatResponse.self, from: data)
+    }
+
+    private func apiErrorMessage(from data: Data) -> String {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let error = json["error"] as? [String: Any],
+              let message = error["message"] as? String else {
+            return "The provider rejected the request."
+        }
+        return String(message.prefix(300))
+    }
+
     // MARK: - Tool Execution
 
     private func executeTool(name: String, input: [String: Any], context: ModelContext) async -> String {
+        if AIToolPolicy.requiresApproval(name) {
+            let approved = await requestApproval(for: name, input: input)
+            guard approved else {
+                return "The user did not approve this change. No Aura data was modified."
+            }
+        }
+
         switch name {
         case "get_vitals":
             return executeGetVitals(input: input, context: context)
@@ -587,6 +763,28 @@ final class ClaudeService {
         default:
             return "Unknown tool: \(name)"
         }
+    }
+
+    private func requestApproval(for toolName: String, input: [String: Any]) async -> Bool {
+        guard approvalContinuation == nil else { return false }
+        pendingToolApproval = AIToolPolicy.approval(for: toolName, input: input)
+        return await withCheckedContinuation { continuation in
+            approvalContinuation = continuation
+        }
+    }
+
+    func approvePendingTool() {
+        let continuation = approvalContinuation
+        approvalContinuation = nil
+        pendingToolApproval = nil
+        continuation?.resume(returning: true)
+    }
+
+    func denyPendingTool() {
+        let continuation = approvalContinuation
+        approvalContinuation = nil
+        pendingToolApproval = nil
+        continuation?.resume(returning: false)
     }
 
     // MARK: - Read Tools
@@ -749,7 +947,7 @@ final class ClaudeService {
             gridSection: gridSection
         )
         context.insert(habit)
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
         return "Created habit: \(name) (\(category.displayName), \(gridSection.displayName))\(trackingType == .quantity ? " — tracking \(unit)" : "")"
     }
@@ -787,7 +985,7 @@ final class ClaudeService {
             if let quantity { log.quantity = quantity }
             context.insert(log)
         }
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
         if let quantity, habit.trackingType == .quantity {
             return "Logged: \(habit.name) — \(Int(quantity)) \(habit.unit) on \(formatDate(date))"
@@ -811,7 +1009,7 @@ final class ClaudeService {
         let notes = input["notes"] as? String ?? ""
 
         context.insert(Condition(name: name, status: status, notes: notes))
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
         return "Added condition: \(name) (\(status.displayName))"
     }
@@ -844,7 +1042,7 @@ final class ClaudeService {
             type: type,
             timing: timing
         ))
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
         return "Added medication: \(name)\(dosage.isEmpty ? "" : " \(dosage)") — \(frequency.displayName), \(timing.displayName)"
     }
@@ -896,7 +1094,7 @@ final class ClaudeService {
             refMax: finalRefMax,
             lab: lab
         ))
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
         let status = Biomarker(testDate: testDate, marker: marker, value: value, unit: unit, refMin: finalRefMin, refMax: finalRefMax).status
         return "Added: \(marker) = \(String(format: "%.1f", value)) \(unit) (\(status.displayName)) on \(formatDate(testDate))"
@@ -942,7 +1140,7 @@ final class ClaudeService {
         )
         measurement.value2 = value2
         context.insert(measurement)
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
         // Report back in the unit the user used, not the storage unit
         let reportValue = metricType == .weight && displayUnit == "lbs" ? value : storageValue
@@ -972,7 +1170,7 @@ final class ClaudeService {
         }
 
         context.insert(MedicationLog(date: date, medication: med, taken: true))
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
         return "Logged: \(med.name) taken on \(formatDate(date))"
     }
@@ -1027,7 +1225,7 @@ final class ClaudeService {
     }
 
     private func executeImportLabResults(context: ModelContext) async -> String {
-        guard let fileURL = pendingFileURL else {
+        guard let fileURL = activeFileURL else {
             return "No file attached. Please attach a lab report PDF or image and try again."
         }
 
@@ -1066,7 +1264,7 @@ final class ClaudeService {
                 ))
                 added += 1
             }
-            try? context.save()
+            guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
             var result = "Imported \(added) biomarker\(added == 1 ? "" : "s") from lab report."
             if skipped > 0 { result += " Skipped \(skipped) duplicate\(skipped == 1 ? "" : "s")." }
@@ -1096,7 +1294,7 @@ final class ClaudeService {
         }
 
         habit.active = false
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
         return "Deactivated habit: \(habit.name)"
     }
 
@@ -1118,7 +1316,7 @@ final class ClaudeService {
         }
 
         med.active = false
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
         return "Deactivated medication: \(med.name)"
     }
 
@@ -1141,7 +1339,7 @@ final class ClaudeService {
 
         let oldStatus = condition.status.displayName
         condition.status = status
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
         return "Updated \(condition.name): \(oldStatus) → \(status.displayName)"
     }
 
@@ -1194,7 +1392,7 @@ final class ClaudeService {
         for m in toDelete {
             context.delete(m)
         }
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
         let deleted = toDelete.map { "\($0.displayValue) \(metricType.unit)" }.joined(separator: ", ")
         return "Deleted \(metricType.displayName): \(deleted) from \(formatDate(targetDate))."
@@ -1244,7 +1442,7 @@ final class ClaudeService {
         for b in toDelete {
             context.delete(b)
         }
-        try? context.save()
+        guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
         let deleted = toDelete.map { "\($0.marker): \($0.value) \($0.unit)" }.joined(separator: ", ")
         return "Deleted: \(deleted) from \(formatDate(targetDate))."
@@ -1264,62 +1462,53 @@ final class ClaudeService {
 
     func extractBiomarkers(from fileURL: URL) async throws -> [ExtractedBiomarker] {
         guard hasAPIKey else { throw ClaudeError.noAPIKey }
+        guard hasConsent else { throw ClaudeError.consentRequired }
 
         isResponding = true
         defer { isResponding = false }
+        hasFileAttachment = false
+        defer { hasFileAttachment = false }
 
-        let accessing = fileURL.startAccessingSecurityScopedResource()
-        defer { if accessing { fileURL.stopAccessingSecurityScopedResource() } }
-
-        let contentBlocks: [[String: Any]]
-        let isPDF = fileURL.pathExtension.lowercased() == "pdf"
-
-        if isPDF {
-            let data = try Data(contentsOf: fileURL)
-            let base64 = data.base64EncodedString()
-            contentBlocks = [
-                [
-                    "type": "document",
-                    "source": ["type": "base64", "media_type": "application/pdf", "data": base64]
-                ],
-                ["type": "text", "text": Self.extractionPrompt]
+        let responseText: String
+        switch provider {
+        case .anthropic:
+            let contentBlocks = buildFileContentBlocks(text: Self.extractionPrompt, fileURL: fileURL)
+            let requestBody: [String: Any] = [
+                "model": model,
+                "max_tokens": 4096,
+                "messages": [["role": "user", "content": contentBlocks]],
             ]
-        } else {
-            let text = try String(contentsOf: fileURL, encoding: .utf8)
-            contentBlocks = [
-                ["type": "text", "text": "Here is a lab report:\n\n\(text)\n\n\(Self.extractionPrompt)"]
-            ]
+            guard let url = URL(string: Self.anthropicAPIURL) else { throw ClaudeError.invalidURL }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 60
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+            if fileURL.pathExtension.lowercased() == "pdf" {
+                request.setValue("pdfs-2024-09-25", forHTTPHeaderField: "anthropic-beta")
+            }
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw ClaudeError.invalidResponse
+            }
+            guard httpResponse.statusCode == 200 else {
+                throw ClaudeError.apiError(statusCode: httpResponse.statusCode, message: apiErrorMessage(from: data))
+            }
+            let decoded = try JSONDecoder().decode(ToolResponse.self, from: data)
+            responseText = decoded.content.compactMap(\.text).joined()
+
+        case .openRouter:
+            let content = try buildOpenRouterFileContentBlocks(text: Self.extractionPrompt, fileURL: fileURL)
+            let response = try await callOpenRouterAPI(
+                messages: [["role": "user", "content": content]],
+                includeTools: false
+            )
+            responseText = response.choices.first?.message.content ?? ""
         }
 
-        let requestBody: [String: Any] = [
-            "model": model,
-            "max_tokens": 4096,
-            "messages": [["role": "user", "content": contentBlocks]]
-        ]
-
-        guard let url = URL(string: Self.apiURL) else { throw ClaudeError.invalidURL }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 60 // Lab extraction can be slow for large PDFs
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        if isPDF {
-            request.setValue("pdfs-2024-09-25", forHTTPHeaderField: "anthropic-beta")
-        }
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown"
-            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw ClaudeError.apiError(statusCode: code, message: errorBody)
-        }
-
-        let decoded = try JSONDecoder().decode(ToolResponse.self, from: data)
-        let responseText = decoded.content.first?.text ?? ""
         return parseExtractedBiomarkers(responseText)
     }
 
@@ -1359,6 +1548,15 @@ final class ClaudeService {
         return f
     }()
 
+    private func saveChanges(in context: ModelContext) -> Bool {
+        do {
+            try context.save()
+            return true
+        } catch {
+            return false
+        }
+    }
+
     private func formatDate(_ date: Date) -> String {
         Self.displayFormatter.string(from: date)
     }
@@ -1394,15 +1592,19 @@ struct ExtractedBiomarker: Codable, Identifiable {
 
 enum ClaudeError: LocalizedError {
     case noAPIKey
+    case consentRequired
     case invalidURL
     case invalidResponse
+    case unsupportedAttachment
     case apiError(statusCode: Int, message: String)
 
     var errorDescription: String? {
         switch self {
-        case .noAPIKey: "No API key configured. Add your Claude API key in Settings."
+        case .noAPIKey: "No API key is configured for the selected provider."
+        case .consentRequired: "Review and accept the selected provider's privacy disclosure in Settings before sending health data."
         case .invalidURL: "Invalid API URL."
         case .invalidResponse: "Invalid response from server."
+        case .unsupportedAttachment: "The selected model does not support this attachment type."
         case .apiError(let code, let message): "API error (\(code)): \(message)"
         }
     }

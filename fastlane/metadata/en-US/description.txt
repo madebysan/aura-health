@@ -1,0 +1,18 @@
+Aura keeps your vitals, lab results, medications, habits, conditions, and health notes together in one private iPhone dashboard.
+
+READ YOUR TRENDS
+Import selected Apple Health categories or add measurements manually. Review heart rate, HRV, sleep, steps, weight, blood pressure, oxygen saturation, temperature, and other records over time.
+
+ORGANIZE LAB RESULTS
+Track biomarkers across lab sessions, keep the original report in your local vault, and review educational context alongside each value. Every imported result remains editable before it is saved.
+
+KEEP ROUTINES TOGETHER
+Log habits, medications, supplements, conditions, and diet notes beside the measurements they may affect.
+
+OPTIONAL AI CHAT
+Choose Anthropic or OpenRouter and use your own API key. AI remains disabled until you review the provider disclosure and allow processing. Aura sends information only when you explicitly send a message or attachment.
+
+LOCAL-FIRST PRIVACY
+Aura has no account, advertising, analytics, or developer-owned health-data server. Your Aura database stays locally on your iPhone. You can create a complete backup or delete local data and credentials from Settings.
+
+Aura is an organizational and educational wellness tool. It is not a medical device and does not diagnose, treat, or replace advice from a qualified healthcare professional.

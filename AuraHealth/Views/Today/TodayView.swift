@@ -93,6 +93,7 @@ struct VitalsView: View {
                     Image(systemName: "slider.horizontal.3")
                 }
                 .help("Choose which cards to show")
+                .accessibilityLabel("Choose Visible Vital Cards")
             }
         }
         #if os(macOS)
@@ -559,6 +560,7 @@ struct InsightCard: View {
                         .background(Color.primary.opacity(0.06), in: Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss Insight")
             }
         }
         .padding(14)

@@ -5,7 +5,6 @@ import SwiftData
 
 struct HabitsView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(DailyProtocolService.self) private var dailyProtocolService
 
     @Query(sort: \Habit.gridOrder)
     private var allHabits: [Habit]
@@ -13,49 +12,20 @@ struct HabitsView: View {
     @Query(sort: \HabitLog.date, order: .reverse)
     private var allLogs: [HabitLog]
 
-    @Query(sort: \SmartHabit.priority)
-    private var allSmartHabits: [SmartHabit]
-
     @State private var selectedTab = 0
     @State private var showingAddSheet = false
     @State private var editingHabit: Habit?
     /// Tracks the last habit toggled so sensory feedback fires on each new tap (iOS only).
     @State private var lastToggledHabitID: UUID?
-    /// Whether a refresh is in progress for pull-to-refresh (iOS only).
-    @State private var isRefreshing = false
-    @State private var expandedSmartHabitID: UUID?
     @State private var draggingHabit: Habit?
 
     private var activeHabits: [Habit] {
         allHabits.filter(\.active)
     }
 
-    /// Today's AI-generated smart habits (not dismissed).
-    private var todaySmartHabits: [SmartHabit] {
-        let today = Calendar.current.startOfDay(for: Date())
-        return allSmartHabits.filter { $0.date == today && !$0.dismissed }
-    }
-
-    /// Smart habits grouped by grid section for merging into the daily grid.
-    private var smartHabitsBySection: [GridSection: [SmartHabit]] {
-        Dictionary(grouping: todaySmartHabits, by: \.gridSection)
-    }
-
-    private var groupedHabits: [(section: GridSection, habits: [Habit])] {
-        let grouped = Dictionary(grouping: activeHabits, by: \.gridSection)
-        return GridSection.allCases.compactMap { section in
-            guard let habits = grouped[section], !habits.isEmpty else { return nil }
-            return (section: section, habits: habits)
-        }
-    }
-
-    /// All sections that have either manual or smart habits.
     private var allActiveSections: [GridSection] {
-        let manualGrouped = Dictionary(grouping: activeHabits, by: \.gridSection)
-        return GridSection.allCases.filter { section in
-            (manualGrouped[section] != nil && !manualGrouped[section]!.isEmpty) ||
-            (smartHabitsBySection[section] != nil && !smartHabitsBySection[section]!.isEmpty)
-        }
+        let grouped = Dictionary(grouping: activeHabits, by: \.gridSection)
+        return GridSection.allCases.filter { grouped[$0]?.isEmpty == false }
     }
 
     var body: some View {
@@ -74,12 +44,6 @@ struct HabitsView: View {
                     adherenceTab
                 }
             }
-            #if os(iOS)
-            // Pull-to-refresh: re-queries SwiftData automatically on next runloop tick.
-            .refreshable {
-                await dailyProtocolService.regenerate(context: modelContext)
-            }
-            #endif
         }
         .navigationTitle("Habits")
         .toolbar {
@@ -87,16 +51,11 @@ struct HabitsView: View {
                 Button { showingAddSheet = true } label: {
                     Image(systemName: "plus")
                 }
+                .accessibilityLabel("Add Habit")
             }
         }
-        .task {
-            await dailyProtocolService.generateIfNeeded(context: modelContext)
-            dailyProtocolService.cleanupOldProtocols(context: modelContext)
-        }
-        #if os(iOS)
         // Sensory feedback fires whenever a habit is toggled (iOS 17+).
         .sensoryFeedback(.impact(flexibility: .solid), trigger: lastToggledHabitID)
-        #endif
         .sheet(isPresented: $showingAddSheet) {
             HabitFormSheet()
         }
@@ -109,18 +68,7 @@ struct HabitsView: View {
 
     private var dailyGridTab: some View {
         VStack(spacing: 0) {
-            // Smart habits generating indicator
-            if dailyProtocolService.isGenerating {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text("Generating today's smart habits...")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 8)
-            }
-
-            if activeHabits.isEmpty && todaySmartHabits.isEmpty {
+            if activeHabits.isEmpty {
                 EmptyStateView(
                     icon: "repeat",
                     title: "No Habits",
@@ -137,7 +85,7 @@ struct HabitsView: View {
                 Divider()
                     .padding(.horizontal)
 
-                // Habit rows grouped by section (manual + smart) — with drag & drop
+                // Habit rows grouped by section with drag and drop.
                 let manualGrouped = Dictionary(grouping: activeHabits, by: \.gridSection)
                 VStack(spacing: 0) {
                     ForEach(allActiveSections, id: \.self) { section in
@@ -174,23 +122,8 @@ struct HabitsView: View {
                                     .padding(.leading, 16)
                             }
                         }
-
-                        // Smart habits for this section
-                        if let smartHabits = smartHabitsBySection[section] {
-                            ForEach(smartHabits) { smartHabit in
-                                smartHabitRow(smartHabit)
-                                Divider()
-                                    .padding(.leading, 16)
-                            }
-                        }
                     }
                 }
-            }
-
-            if let error = dailyProtocolService.lastError {
-                InlineErrorBanner(message: error)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
             }
         }
         .frame(maxWidth: 700)
@@ -305,66 +238,6 @@ struct HabitsView: View {
         .padding(.bottom, 4)
     }
 
-    private func smartHabitRow(_ smartHabit: SmartHabit) -> some View {
-        HStack(spacing: 0) {
-            // Smart habit name + sparkle indicator
-            Button {
-                withAnimation(AppAnimation.expand) {
-                    expandedSmartHabitID = expandedSmartHabitID == smartHabit.id ? nil : smartHabit.id
-                }
-            } label: {
-                VStack(alignment: .leading, spacing: expandedSmartHabitID == smartHabit.id ? 4 : 0) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkle")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.purple)
-                        Text(smartHabit.name)
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                            .lineLimit(expandedSmartHabitID == smartHabit.id ? 3 : 1)
-                    }
-                    if expandedSmartHabitID == smartHabit.id && !smartHabit.reason.isEmpty {
-                        Text(smartHabit.reason)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.plain)
-
-            // Today-only toggle
-            SmartHabitDayCell(smartHabit: smartHabit, onToggle: {
-                #if os(iOS)
-                lastToggledHabitID = smartHabit.id
-                #endif
-            })
-            #if os(macOS)
-            .frame(width: 32, height: 32)
-            #else
-            .frame(width: 36, height: 36)
-            #endif
-
-            // Dismiss button
-            Button {
-                withAnimation(AppAnimation.quickToggle) {
-                    smartHabit.dismissed = true
-                }
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.quaternary)
-            }
-            .buttonStyle(.plain)
-            .padding(.leading, 4)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .contentShape(Rectangle())
-    }
-
     private func habitRow(_ habit: Habit) -> some View {
         HStack(spacing: 0) {
             // Habit name + edit affordance
@@ -383,6 +256,7 @@ struct HabitsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Edit \(habit.name)")
 
             // Day cells
             ForEach(dayDates, id: \.self) { date in
@@ -519,48 +393,6 @@ struct DayCell: View {
                 modelContext.insert(log)
             }
         }
-    }
-}
-
-// MARK: - Smart Habit Day Cell (Today Only)
-
-struct SmartHabitDayCell: View {
-    let smartHabit: SmartHabit
-    var onToggle: (() -> Void)? = nil
-
-    @State private var justToggled = false
-
-    var body: some View {
-        Button {
-            justToggled.toggle()
-            onToggle?()
-            withAnimation(AppAnimation.quickToggle) {
-                smartHabit.done.toggle()
-            }
-        } label: {
-            ZStack {
-                if smartHabit.done {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.purple.opacity(0.8))
-                        .frame(width: 28, height: 28)
-                        .overlay(
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.white)
-                        )
-                } else {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.purple.opacity(0.08))
-                        .frame(width: 28, height: 28)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .strokeBorder(Color.purple.opacity(0.2), lineWidth: 1)
-                        )
-                }
-            }
-            .symbolEffect(.bounce, value: justToggled)
-        }
-        .buttonStyle(.plain)
     }
 }
 

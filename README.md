@@ -11,7 +11,7 @@ Built for people who want to understand their own data, not just collect it.</p>
   <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">
   <img src="https://img.shields.io/badge/SwiftUI-0066cc" alt="SwiftUI">
   <img src="https://img.shields.io/badge/HealthKit-fc3158" alt="HealthKit">
-  <img src="https://img.shields.io/badge/Anthropic%20%2B%20OpenRouter-d97757" alt="Anthropic and OpenRouter">
+  <img src="https://img.shields.io/badge/BYOK-d97757" alt="BYOK">
 </p>
 
 <p><a href="#build-from-source">Build Aura from source</a></p>

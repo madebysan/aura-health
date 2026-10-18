@@ -120,10 +120,18 @@ extension RangePosition {
 extension MetricType {
     /// Position of a value against this metric's typical range.
     func rangePosition(of value: Double) -> RangePosition {
+        // Compare the number the user sees, so 6.96 h (shown as "7.0") isn't "below 7"
+        let shown = displayedNumber(value)
         let range = defaultRange
-        if value < range.low { return .below }
-        if value > range.high { return .above }
+        if shown < range.low { return .below }
+        if shown > range.high { return .above }
         return .within
+    }
+
+    /// The value as `Measurement.displayValue` shows it: whole numbers for blood
+    /// pressure, one decimal otherwise.
+    func displayedNumber(_ value: Double) -> Double {
+        self == .bloodPressure ? value.rounded(.towardZero) : (value * 10).rounded() / 10
     }
 }
 

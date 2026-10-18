@@ -49,4 +49,12 @@ final class VitalsSummaryTests: XCTestCase {
         XCTAssertFalse(VitalsSummary.isWithin(days: VitalsSummary.visibleDays, of: old, now: now))
         XCTAssertFalse(VitalsSummary.isWithin(days: VitalsSummary.visibleDays, of: nil, now: now))
     }
+
+    func testStatusMatchesTheShownNumber() {
+        // 6.96 h displays as "7.0", which is inside 7–9 h
+        XCTAssertEqual(MetricType.sleepDuration.rangePosition(of: 6.96), .within)
+        XCTAssertEqual(MetricType.sleepDuration.rangePosition(of: 6.94), .below)
+        // Blood pressure shows whole numbers: 120.4 displays as 120, inside 90–120
+        XCTAssertEqual(MetricType.bloodPressure.rangePosition(of: 120.4), .within)
+    }
 }

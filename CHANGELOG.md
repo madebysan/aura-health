@@ -35,6 +35,8 @@
 - Onboarding is three screens: what Aura is and its privacy promise, Apple Health with units, and the assistant. The feature carousel, diet step and API-key form are gone.
 - At the largest text sizes, the Labs summary moves the flag count to its own line and the More list drops its icons so labels fit.
 - Chat says "1 message", not "1 messages".
+- A vital's status now matches the number on screen: 6.96 hours, shown as "7.0", is no longer flagged below a 7–9 hour range.
+- App Store screenshots and the README image show the current light Notebook look: Vitals, Habits, Labs, Chat and Privacy.
 - Fixed links and assistant requests that should open a screen under More (such as Settings); they only switched to the More tab.
 
 - Narrowed Aura to an iPhone-only iOS 17+ release.

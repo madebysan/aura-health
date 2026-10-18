@@ -8,12 +8,20 @@
 - Biomarker status now reads "In range", "Near limit", "Above range" or "Below range". Results just outside a range are shown in amber instead of red, and a lab minimum of 0 means there is no lower limit.
 - Biomarkers opens each past lab session with that session's own values; it used to show the latest value instead.
 - Range bars put their limit labels at the band edges and skip the meaningless "too low" zone for upper-only ranges such as LDL.
-- Vitals rows show a status word and arrow instead of a color-only dot, readings older than 7 days show "Last logged", and every note is listed with its own Dismiss.
+- Vitals rows show a status word and arrow instead of a color-only dot, and readings older than 7 days show "Last logged".
 - Vitals, Biomarkers, Habits and their sheets scale or stack at accessibility text sizes; charts and habit day cells have VoiceOver labels and spoken summaries.
 - Sample data fills each empty area on its own, so an Apple Health sync no longer blocks habits, labs and the rest. It now includes example chat threads, and Settings asks before loading it.
 - Blood pressure charts draw systolic and diastolic as separate lines.
 - Deleting a diet plan asks for confirmation.
 - Replaced SF Symbols with Phosphor Light icons throughout the app. Fruits no longer uses the Apple logo.
+- Simplified every screen after a UI audit (decision board, 2026-10-18):
+  - Vitals opens with one plain sentence about what is outside your typical range, then a Flagged group and everything else. Rows only carry a status word when flagged, the "since last" line and the Notes list are gone, and the Daily health score is replaced by the sentence. Metrics without a reading in 30 days leave the list until the next one; a + button adds any measurement.
+  - Time ranges moved from the top of Vitals into each metric's sheet. The sheet lists the latest 10 readings with "Show all", draws the typical band only when it fits the chart, and no longer repeats the range as a sentence.
+  - Habits is one view: no Adherence tab (each habit's 30-day rate is in its edit sheet and the overall rate in the header), no per-section counts, streaks from 2 days, and no Category picker.
+  - Biomarkers shows "15/16 in range · 1 flagged" without the strip and legend, and past lab reports open from a "lab reports" list instead of tabs (dates now include the year).
+  - Chat has one "Set up AI" row that opens Settings, no intro paragraph, and photos attach without asking about the Vault; "Save to Vault" sits on the attachment.
+  - Removed the Correlations screen. More is one ruled list. Medications lists Active and Archived without type tabs. Diet and Conditions no longer repeat their titles. Settings shows Apple Health as one row with Connect.
+- Fixed links and assistant requests that should open a screen under More (such as Settings); they only switched to the More tab.
 
 - Narrowed Aura to an iPhone-only iOS 17+ release.
 - Replaced CloudKit-backed storage with a non-destructive local SwiftData container.

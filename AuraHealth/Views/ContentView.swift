@@ -3,7 +3,6 @@ import SwiftUI
 enum AppSection: String, CaseIterable, Identifiable {
     case tracking
     case vitals
-    case correlations
     case conditions
     case medications
     case biomarkers
@@ -18,7 +17,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .tracking: "Habits"
         case .vitals: "Vitals"
-        case .correlations: "Correlations"
         case .conditions: "Conditions"
         case .medications: "Medications"
         case .biomarkers: "Biomarkers"
@@ -33,7 +31,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .tracking: "ph.list-checks"
         case .vitals: "ph.heartbeat"
-        case .correlations: "ph.chart-line"
         case .conditions: "ph.stethoscope"
         case .medications: "ph.pill"
         case .biomarkers: "ph.drop"
@@ -48,7 +45,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .tracking: .orange
         case .vitals: .pink
-        case .correlations: .indigo
         case .conditions: .purple
         case .medications: .blue
         case .biomarkers: .green
@@ -107,8 +103,9 @@ struct ContentView: View {
             selectedSection = .chat
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateTo)) { notification in
+            // Sections without a tab live under More (tagged .settings); MoreMenuView opens them.
             if let section = notification.object as? AppSection {
-                selectedSection = section
+                selectedSection = AppSection.tabBarSections.contains(section) ? section : .settings
             }
         }
         .task { await autoSync() }
@@ -138,26 +135,19 @@ struct MoreMenuView: View {
     @State private var navigationPath = NavigationPath()
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 30
 
-    // Grouped sections for the "More" list.
-    // The tab bar covers: Vitals, Habits, Biomarkers, Chat.
-    private let healthSections: [AppSection] = [.correlations, .medications, .conditions, .diet]
-    private let toolSections: [AppSection]   = [.vault]
-    private let appSections: [AppSection]    = [.settings]
+    // The tab bar covers Vitals, Habits, Biomarkers and Chat. Settings sits apart, below.
+    private let sections: [AppSection] = [.medications, .conditions, .diet, .vault]
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            List {
-                Section(header: NotebookFormHeader("Health")) {
-                    ForEach(healthSections, content: moreRow)
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(sections, content: moreRow)
+                    moreRow(.settings)
+                        .padding(.top, 28)
                 }
-                Section(header: NotebookFormHeader("Tools")) {
-                    ForEach(toolSections, content: moreRow)
-                }
-                Section(header: NotebookFormHeader("App")) {
-                    ForEach(appSections, content: moreRow)
-                }
+                .padding(.horizontal, 20)
             }
-            .scrollContentBackground(.hidden)
             .notebookBackground()
             .navigationTitle("More")
             .navigationDestination(for: AppSection.self) { section in
@@ -165,25 +155,35 @@ struct MoreMenuView: View {
                     .toolbar(.hidden, for: .tabBar)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateTo)) { notification in
+            if let section = notification.object as? AppSection, !AppSection.tabBarSections.contains(section) {
+                navigationPath = NavigationPath([section])
+            }
+        }
     }
 
-    /// A single row with the section's colored icon and a navigation chevron.
-    @ViewBuilder
+    /// One ruled row: ink glyph, label, chevron.
     private func moreRow(_ section: AppSection) -> some View {
         NavigationLink(value: section) {
             HStack(spacing: 14) {
-                // Monochrome ink glyph, notebook style
                 Image(section.iconName)
                     .font(.body)
                     .foregroundStyle(Notebook.ink)
                     .frame(width: iconSize, height: iconSize)
                     .accessibilityHidden(true)
-
                 Text(section.label)
                     .foregroundStyle(Notebook.ink)
+                Spacer()
+                Image("ph.caret-right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Notebook.inkTertiary)
+                    .accessibilityHidden(true)
             }
+            .padding(.vertical, 12)
+            .ruled()
+            .contentShape(Rectangle())
         }
-        .listRowBackground(Notebook.paperRaised)
+        .buttonStyle(.plain)
     }
 }
 
@@ -208,7 +208,6 @@ struct DetailView: View {
         switch section {
         case .tracking:     HabitsView()
         case .vitals:       VitalsView()
-        case .correlations: CorrelationsView()
         case .conditions:   ConditionsView()
         case .medications:  MedicationsView()
         case .biomarkers:   BiomarkersView()

@@ -13,6 +13,7 @@
 		AC0000000000000000000001 /* AuraStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000002 /* AuraStorage.swift */; };
 		AC0000000000000000000003 /* StorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000004 /* StorageTests.swift */; };
 		AC0000000000000000000005 /* BiomarkerStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000006 /* BiomarkerStatusTests.swift */; };
+		77F8A297DC077F83E8A01FD5 /* VitalsSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68D93379579D0ECBDD057625 /* VitalsSummaryTests.swift */; };
 		AB0000000000000000000001 /* DataLifecycleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000002 /* DataLifecycleService.swift */; };
 		AA0000000000000000000001 /* BackupServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* BackupServiceTests.swift */; };
 		00F354E4ADD5D31F13B20709 /* Measurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ED219E4F68896E7AC38FF52 /* Measurement.swift */; };
@@ -36,7 +37,6 @@
 		542E8DECFD3D283183F94F3E /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F531191FF59B6BAAE67EF9A /* HealthKitService.swift */; };
 		5944BF2B1DDAB7694652B412 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726482D69446E3054B2B4198 /* DesignSystem.swift */; };
 		AC0000000000000000000007 /* Notebook.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000008 /* Notebook.swift */; };
-		59A57CF39769D31CBD55C879 /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67091125519B2132B67E0D2D /* TrendsView.swift */; };
 		629C2637BFFD0CB88E50106A /* Conversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDBCE80196920ACB927B20AD /* Conversation.swift */; };
 		666740AAE3166C24E94EBA05 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F43818B6C38C5986D44EB4F7 /* TodayView.swift */; };
 		685FC5BFCA995DC740B58483 /* HabitLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDD2036B2C011A9C703FB24B /* HabitLog.swift */; };
@@ -66,6 +66,7 @@
 		AC0000000000000000000002 /* AuraStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuraStorage.swift; sourceTree = "<group>"; };
 		AC0000000000000000000004 /* StorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageTests.swift; sourceTree = "<group>"; };
 		AC0000000000000000000006 /* BiomarkerStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiomarkerStatusTests.swift; sourceTree = "<group>"; };
+		68D93379579D0ECBDD057625 /* VitalsSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitalsSummaryTests.swift; sourceTree = "<group>"; };
 		AB0000000000000000000002 /* DataLifecycleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataLifecycleService.swift; sourceTree = "<group>"; };
 		AA0000000000000000000002 /* BackupServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupServiceTests.swift; sourceTree = "<group>"; };
 		AA0000000000000000000003 /* AuraHealthTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AuraHealthTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -81,7 +82,6 @@
 		4A4E40CA33E5A7FF7D4E8A42 /* Biomarker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Biomarker.swift; sourceTree = "<group>"; };
 		54FB68BE6677762490EB286C /* SampleDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleDataService.swift; sourceTree = "<group>"; };
 		5F531191FF59B6BAAE67EF9A /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
-		67091125519B2132B67E0D2D /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
 		67B823B1C48F7B870A0F5B56 /* ImportExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportExportService.swift; sourceTree = "<group>"; };
 		6A7926559A500A4987A90596 /* VaultDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultDocument.swift; sourceTree = "<group>"; };
 		6AC11B2E6FF6A01D5E25D09E /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
@@ -183,7 +183,6 @@
 				DE5FF2B9A4C583EB4724FB46 /* Onboarding */,
 				EEE7ACD63ABBA3F6199C4688 /* Settings */,
 				61DB53A6FFFBB4BDF7FB57B2 /* Today */,
-				A9D783558D15048BD8B81B3B /* Trends */,
 				A6593EF5827DB77CD1C8209B /* Vault */,
 				818DBF61332470CCB45AE0A0 /* ContentView.swift */,
 			);
@@ -230,14 +229,6 @@
 				2D1B2A183E3D1E5F1168C9E0 /* VaultView.swift */,
 			);
 			path = Vault;
-			sourceTree = "<group>";
-		};
-		A9D783558D15048BD8B81B3B /* Trends */ = {
-			isa = PBXGroup;
-			children = (
-				67091125519B2132B67E0D2D /* TrendsView.swift */,
-			);
-			path = Trends;
 			sourceTree = "<group>";
 		};
 		D165FF28735046827C4CF472 /* Products */ = {
@@ -343,6 +334,7 @@
 				AA0000000000000000000002 /* BackupServiceTests.swift */,
 				AC0000000000000000000004 /* StorageTests.swift */,
 				AC0000000000000000000006 /* BiomarkerStatusTests.swift */,
+				68D93379579D0ECBDD057625 /* VitalsSummaryTests.swift */,
 			);
 			path = AuraHealthTests;
 			sourceTree = "<group>";
@@ -462,6 +454,7 @@
 				AA0000000000000000000001 /* BackupServiceTests.swift in Sources */,
 				AC0000000000000000000003 /* StorageTests.swift in Sources */,
 				AC0000000000000000000005 /* BiomarkerStatusTests.swift in Sources */,
+				77F8A297DC077F83E8A01FD5 /* VitalsSummaryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -510,7 +503,6 @@
 				F52641EF29B57ADF01C77C32 /* SettingsView.swift in Sources */,
 				4DD9C4E2733D8E9980BCD78E /* SparklineView.swift in Sources */,
 				666740AAE3166C24E94EBA05 /* TodayView.swift in Sources */,
-				59A57CF39769D31CBD55C879 /* TrendsView.swift in Sources */,
 				4D66E99C253989E95DC01764 /* VaultDocument.swift in Sources */,
 				92E1B63DE836BC35FC07EE40 /* VaultView.swift in Sources */,
 			);

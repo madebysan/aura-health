@@ -12,6 +12,8 @@ struct MetricDetailSheet: View {
     private var allMeasurements: [Measurement]
 
     @State private var showingAddSheet = false
+    @State private var range: TimeRange = .month
+    @State private var showAllHistory = false
     @ScaledMetric(relativeTo: .largeTitle) private var heroValueSize: CGFloat = 52
 
     private var history: [Measurement] {
@@ -21,10 +23,14 @@ struct MetricDetailSheet: View {
     private var latest: Measurement? { history.first }
     private var previous: Measurement? { history.count > 1 ? history[1] : nil }
 
-    private var last30Days: [Measurement] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        return history.filter { $0.timestamp >= cutoff }.reversed()
+    /// Readings in the selected chart range, oldest first.
+    private var chartData: [Measurement] {
+        guard let start = range.startDate else { return history.reversed() }
+        return history.filter { $0.timestamp >= start }.reversed()
     }
+
+    /// The ranges offered above the chart (Vitals itself no longer has range tabs).
+    private static let ranges: [TimeRange] = [.week, .month, .quarter, .year]
 
     var body: some View {
         NavigationStack {
@@ -62,8 +68,8 @@ struct MetricDetailSheet: View {
                         rangeBar(value: latest.value)
                             .notebookBlock()
 
-                        // Trend chart (last 30 days)
-                        if last30Days.count > 1 {
+                        // Trend chart with its own range
+                        if history.count > 1 {
                             trendChart
                                 .notebookBlock()
                         }
@@ -235,8 +241,8 @@ struct MetricDetailSheet: View {
     // MARK: - Trend Chart
 
     private var yDomain: ClosedRange<Double> {
-        var allValues = last30Days.map(\.value)
-        allValues.append(contentsOf: last30Days.compactMap(\.value2))
+        var allValues = chartData.map(\.value)
+        allValues.append(contentsOf: chartData.compactMap(\.value2))
         guard let lo = allValues.min(), let hi = allValues.max() else { return 0...100 }
         let padding = max((hi - lo) * 0.15, 5)
         return max(lo - padding, 0)...(hi + padding)
@@ -244,17 +250,26 @@ struct MetricDetailSheet: View {
 
     private var trendChart: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Last 30 days")
-                .kicker()
+            UnderlineTabs(options: Self.ranges, selection: $range) { $0.rawValue }
 
+            if chartData.count < 2 {
+                Text("Not enough readings in this range.")
+                    .font(.footnote)
+                    .foregroundStyle(Notebook.inkSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 160, alignment: .center)
+            } else {
             Chart {
-                RectangleMark(
-                    yStart: .value("Low", metricType.defaultRange.low),
-                    yEnd: .value("High", metricType.defaultRange.high)
-                )
-                .foregroundStyle(Notebook.band.opacity(0.5))
+                // The typical band only when it sits inside the plot; a generic default
+                // wider than the data (weight 50–100 kg) would just fill the chart.
+                if bandFitsPlot {
+                    RectangleMark(
+                        yStart: .value("Low", metricType.defaultRange.low),
+                        yEnd: .value("High", metricType.defaultRange.high)
+                    )
+                    .foregroundStyle(Notebook.band.opacity(0.5))
+                }
 
-                ForEach(last30Days, id: \.id) { measurement in
+                ForEach(chartData, id: \.id) { measurement in
                 if metricType == .bloodPressure {
                     LineMark(
                         x: .value("Date", measurement.timestamp),
@@ -276,13 +291,6 @@ struct MetricDetailSheet: View {
                         .interpolationMethod(.monotone)
                     }
                 } else {
-                    AreaMark(
-                        x: .value("Date", measurement.timestamp),
-                        y: .value("Value", measurement.value)
-                    )
-                    .foregroundStyle(Notebook.ink.opacity(0.05))
-                    .interpolationMethod(.catmullRom)
-
                     LineMark(
                         x: .value("Date", measurement.timestamp),
                         y: .value("Value", measurement.value)
@@ -314,9 +322,15 @@ struct MetricDetailSheet: View {
             .chartYScale(domain: yDomain)
             .frame(height: 160)
             .clipped()
-            .accessibilityLabel("\(metricType.displayName), last 30 days")
-            .accessibilityValue(ChartSummary.trend(points: last30Days.map { ($0.timestamp, $0.value) }, unit: metricType.unit))
+            .accessibilityLabel("\(metricType.displayName), \(range.rawValue)")
+            .accessibilityValue(ChartSummary.trend(points: chartData.map { ($0.timestamp, $0.value) }, unit: metricType.unit))
+            }
         }
+    }
+
+    private var bandFitsPlot: Bool {
+        let band = metricType.defaultRange
+        return yDomain.contains(band.low) && yDomain.contains(band.high)
     }
 
     // MARK: - History
@@ -328,7 +342,8 @@ struct MetricDetailSheet: View {
             Text("History")
                 .kicker()
 
-            ForEach(history, id: \.id) { measurement in
+            let shown = showAllHistory ? history : Array(history.prefix(10))
+            ForEach(shown, id: \.id) { measurement in
                 HStack {
                     Text(measurement.timestamp, format: .dateTime.month(.abbreviated).day().year())
                         .font(Notebook.mono(.subheadline))
@@ -360,9 +375,20 @@ struct MetricDetailSheet: View {
                     }
                 }
 
-                if measurement.id != history.last?.id {
+                if measurement.id != shown.last?.id {
                     Divider()
                 }
+            }
+
+            if history.count > 10 {
+                Button(showAllHistory ? "Show fewer" : "Show all (\(history.count))") {
+                    withAnimation(AppAnimation.expand) { showAllHistory.toggle() }
+                }
+                .font(Notebook.mono(.caption))
+                .underline()
+                .foregroundStyle(Notebook.inkSecondary)
+                .buttonStyle(.plain)
+                .frame(minHeight: 44)
             }
         }
         .confirmationDialog("Delete this measurement?", isPresented: .init(

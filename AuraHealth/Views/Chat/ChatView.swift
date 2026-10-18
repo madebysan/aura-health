@@ -33,9 +33,10 @@ struct ChatView: View {
     @State private var showingPhotoPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var pendingPhotoData: Data?
-    @State private var showingVaultPrompt = false
+    /// The attached photo's bytes, kept until sent so "Save to Vault" can store them.
+    @State private var attachedPhotoData: Data?
+    @State private var attachedPhotoSaved = false
     @FocusState private var isInputFocused: Bool
-    @State private var showingAPIKeyPrompt = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Returns existing conversation or creates one on demand (only called when sending)
@@ -169,11 +170,6 @@ struct ChatView: View {
                 }
             )
         }
-        .alert("AI Setup Required", isPresented: $showingAPIKeyPrompt) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Choose Anthropic or OpenRouter, add its API key, and review the privacy disclosure in Settings before chatting.")
-        }
         .confirmationDialog(
             "Allow AI to change Aura data?",
             isPresented: Binding(
@@ -218,17 +214,10 @@ struct ChatView: View {
                 if let data = try? await item.loadTransferable(type: Data.self),
                    let jpegData = jpegData(from: data) {
                     pendingPhotoData = jpegData
-                    showingVaultPrompt = true
+                    attachPhoto()
                 }
                 selectedPhotoItem = nil
             }
-        }
-        .confirmationDialog("Save to Vault?", isPresented: $showingVaultPrompt, titleVisibility: .visible) {
-            Button("Save to Vault") { attachPhoto(saveToVault: true) }
-            Button("Just attach") { attachPhoto(saveToVault: false) }
-            Button("Cancel", role: .cancel) { pendingPhotoData = nil }
-        } message: {
-            Text("Would you like to save this photo to your Vault?")
         }
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             startNewChat()
@@ -252,7 +241,8 @@ struct ChatView: View {
         errorMessage = nil
     }
 
-    private func attachPhoto(saveToVault: Bool) {
+    /// Photos attach straight away; saving one to the Vault is a separate tap on the attachment.
+    private func attachPhoto() {
         guard let data = pendingPhotoData else { return }
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
@@ -261,8 +251,14 @@ struct ChatView: View {
 
         attachedFromPhotoPicker = true
         attachedFileURL = tempURL
+        attachedPhotoData = data
+        attachedPhotoSaved = false
+        pendingPhotoData = nil
+    }
 
-        if saveToVault {
+    private func savePhotoToVault() {
+        guard let data = attachedPhotoData, let tempURL = attachedFileURL else { return }
+        do {
             let conversationTitle = currentConversation?.title
             let photoTitle: String
             if let title = conversationTitle, title != "New Chat" {
@@ -282,7 +278,7 @@ struct ChatView: View {
             )
             modelContext.insert(doc)
         }
-        pendingPhotoData = nil
+        attachedPhotoSaved = true
     }
 
     private var canSend: Bool {
@@ -308,27 +304,36 @@ struct ChatView: View {
 
     // MARK: - API Key Banner
 
+    /// The one "AI is off" message; it opens Settings.
     private var apiKeyBanner: some View {
-        NoteLine(
-            text: "Configure an AI provider, API key, and consent in Settings.",
-            tag: "AI off",
-            tagColor: Notebook.inkSecondary
-        )
+        Button {
+            NotificationCenter.default.post(name: .navigateTo, object: AppSection.settings)
+        } label: {
+            HStack {
+                Text("Set up AI to start chatting")
+                    .font(.subheadline)
+                    .foregroundStyle(Notebook.ink)
+                Spacer()
+                Text("Settings")
+                    .font(Notebook.mono(.caption))
+                    .foregroundStyle(Notebook.inkSecondary)
+                Image("ph.caret-right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Notebook.inkTertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, 14)
+            .ruled()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens Settings")
     }
 
     // MARK: - Empty State
 
     private var chatEmptyState: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Health Assistant").kicker()
-                Text("Ask questions, log measurements, or organize your health information.")
-                    .font(.title3)
-                    .foregroundStyle(Notebook.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.top, 12)
-
             // Recent threads, so past conversations are one tap away
             let recent = conversations.filter { !$0.messages.isEmpty }.prefix(3)
             if !recent.isEmpty {
@@ -420,8 +425,23 @@ struct ChatView: View {
                         .truncationMode(.middle)
                         .foregroundStyle(Notebook.ink)
                     Spacer(minLength: 4)
+                    if attachedFromPhotoPicker {
+                        if attachedPhotoSaved {
+                            Text("In Vault")
+                                .font(Notebook.mono(.caption))
+                                .foregroundStyle(Notebook.inkSecondary)
+                        } else {
+                            Button("Save to Vault") { savePhotoToVault() }
+                                .font(Notebook.mono(.caption))
+                                .underline()
+                                .foregroundStyle(Notebook.inkSecondary)
+                                .buttonStyle(.plain)
+                                .frame(minHeight: 44)
+                        }
+                    }
                     Button {
                         attachedFileURL = nil
+                        attachedPhotoData = nil
                     } label: {
                         Image("ph.x")
                             .font(.footnote.weight(.semibold))
@@ -468,16 +488,11 @@ struct ChatView: View {
                             .foregroundStyle(Notebook.ink)
                             .lineLimit(1...4)
                     } else {
-                        Button {
-                            showingAPIKeyPrompt = true
-                        } label: {
-                            Text("Set up AI in Settings to start chatting…")
-                                .foregroundStyle(Notebook.inkSecondary)
-                                .lineLimit(2)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
+                        Text("Ask about your health data...")
+                            .foregroundStyle(Notebook.inkTertiary)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityHint("Set up AI in Settings first")
                     }
                 }
                 .font(.body)
@@ -557,7 +572,7 @@ struct ChatView: View {
         // Pass file to service before clearing
         aiService.pendingFileURL = attachedFileURL
 
-        // Auto-save to Vault (skip if image came from photo picker — user already decided)
+        // Files save to the Vault on send; photos only when "Save to Vault" was tapped
         if let fileURL = attachedFileURL, !attachedFromPhotoPicker {
             saveToVault(url: fileURL)
         }
@@ -565,6 +580,8 @@ struct ChatView: View {
         inputText = ""
         attachedFileURL = nil
         attachedFromPhotoPicker = false
+        attachedPhotoData = nil
+        attachedPhotoSaved = false
         errorMessage = nil
 
         aiService.isResponding = true

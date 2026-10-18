@@ -178,18 +178,6 @@ enum ChartSummary {
         if change < -0.02 { return "Trending down" }
         return "Steady"
     }
-
-    /// "Strong positive relationship" for a correlation coefficient.
-    static func correlation(_ r: Double) -> String {
-        let strength: String
-        switch abs(r) {
-        case ..<0.3: strength = "Weak"
-        case ..<0.5: strength = "Moderate"
-        default: strength = "Strong"
-        }
-        let sign = r >= 0 ? "positive" : "negative"
-        return "\(strength) \(sign) relationship, r \(String(format: "%.2f", r))"
-    }
 }
 
 // MARK: - Range Status Icon
@@ -263,10 +251,6 @@ struct ReferenceRangeBar: View {
                 }
             }
             .frame(height: labelHeight)
-
-            Text("\(title): \(AppFormat.range(low: low, high: high, unit: unit))")
-                .font(Notebook.mono(.caption))
-                .foregroundStyle(Notebook.inkSecondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
@@ -407,34 +391,6 @@ struct StatusBadge: View {
             .padding(.vertical, style == .outlined ? 2 : 0)
             .overlay(style == .outlined ? Rectangle().stroke(color.opacity(0.4), lineWidth: 1) : nil)
             .foregroundStyle(color)
-    }
-}
-
-// MARK: - Filter Pill
-
-/// A mono, uppercase filter in the notebook tab style: ink and underlined when
-/// active, secondary otherwise. 44 pt tall.
-struct FilterPill: View {
-    let label: String
-    let isActive: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(label)
-                .font(Notebook.mono(.footnote))
-                .tracking(0.6)
-                .textCase(.uppercase)
-                .foregroundStyle(isActive ? Notebook.ink : Notebook.inkTertiary)
-                .padding(.horizontal, 2)
-                .frame(minHeight: 44)
-                .overlay(alignment: .bottom) {
-                    if isActive { Rectangle().fill(Notebook.ink).frame(height: 2) }
-                }
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }
 

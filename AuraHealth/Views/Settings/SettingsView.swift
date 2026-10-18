@@ -84,6 +84,25 @@ struct SettingsView: View {
                     Label("Import Aura Data", image: "ph.file-arrow-down")
                 }
 
+                #if DEBUG
+                Button {
+                    showingSampleConfirmation = true
+                } label: {
+                    Label(sampleDataLoaded ? "Sample Data Added" : "Load Sample Data",
+                          image: sampleDataLoaded ? "ph.check" : "ph.download-simple")
+                }
+                .disabled(sampleDataLoaded)
+                .confirmationDialog("Load sample data?", isPresented: $showingSampleConfirmation, titleVisibility: .visible) {
+                    Button("Load Sample Data") {
+                        SampleDataService.loadSampleData(into: modelContext)
+                        sampleDataLoaded = true
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Adds example vitals, habits, lab results, medications, conditions, a diet plan and chat threads. Areas that already have your data are left as they are, so nothing is replaced.")
+                }
+                #endif
+
                 Button(role: .destructive) {
                     showingClearConfirmation = true
                 } label: {
@@ -117,29 +136,6 @@ struct SettingsView: View {
             }
             .listRowBackground(Notebook.paperRaised)
 
-            #if DEBUG
-            Section {
-                Button {
-                    showingSampleConfirmation = true
-                } label: {
-                    Label(sampleDataLoaded ? "Sample Data Added" : "Load Sample Data",
-                          image: sampleDataLoaded ? "ph.check" : "ph.download-simple")
-                }
-                .disabled(sampleDataLoaded)
-                .confirmationDialog("Load sample data?", isPresented: $showingSampleConfirmation, titleVisibility: .visible) {
-                    Button("Load Sample Data") {
-                        SampleDataService.loadSampleData(into: modelContext)
-                        sampleDataLoaded = true
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Adds example vitals, habits, lab results, medications, conditions, a diet plan and chat threads. Areas that already have your data are left as they are, so nothing is replaced.")
-                }
-            } header: {
-                sectionHeader("Developer")
-            }
-            .listRowBackground(Notebook.paperRaised)
-            #endif
 
             Section {
                 HStack(alignment: .firstTextBaseline) {
@@ -239,10 +235,16 @@ struct SettingsView: View {
 
                 Spacer()
 
+                // One row: the status, or Connect when Apple Health is available but not yet asked
                 if healthKitService.hasRequestedAccess {
                     StatusWord(text: "access requested", color: Notebook.ink)
                 } else if healthKitService.isAvailable {
-                    StatusWord(text: "available")
+                    Button("Connect") {
+                        Task { await healthKitService.requestAuthorization() }
+                    }
+                    .font(Notebook.mono(.subheadline, weight: .medium))
+                    .foregroundStyle(Notebook.ink)
+                    .buttonStyle(.borderless)
                 } else {
                     StatusWord(text: "not available")
                 }
@@ -289,12 +291,6 @@ struct SettingsView: View {
                 Text("Manage individual permissions in Settings → Health → Data Access & Devices.")
                     .font(.footnote)
                     .foregroundStyle(Notebook.inkSecondary)
-            } else if healthKitService.isAvailable {
-                Button {
-                    Task { await healthKitService.requestAuthorization() }
-                } label: {
-                    Label("Connect Apple Health", image: "ph.link")
-                }
             }
 
             if let error = healthKitService.error {

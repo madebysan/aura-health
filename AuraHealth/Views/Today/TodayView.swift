@@ -2,32 +2,67 @@ import SwiftUI
 import SwiftData
 import Charts
 
-// MARK: - Vitals Range
+// MARK: - Vitals Summary
 
-enum VitalsRange: String, CaseIterable, Identifiable {
-    case today = "Today"
-    case week = "7d"
-    case month = "30d"
-    case quarter = "90d"
-    case year = "1y"
-    case all = "All"
+/// What the top of Vitals says: which recent readings are outside their typical
+/// range, and one plain sentence about them. Pure, so it can be tested.
+enum VitalsSummary {
+    struct Flag: Equatable {
+        let metric: MetricType
+        let position: RangePosition
+    }
 
-    var id: String { rawValue }
+    /// Readings older than this are "last logged", not current, so they never flag.
+    static let currentDays = 7
+    /// Metrics with no reading for this long leave the Vitals list until the next one.
+    static let visibleDays = 30
 
-    var days: Int? {
-        switch self {
-        case .today: 1
-        case .week: 7
-        case .month: 30
-        case .quarter: 90
-        case .year: 365
-        case .all: nil
+    static func isWithin(days: Int, of measurement: Measurement?, now: Date = Date()) -> Bool {
+        guard let measurement,
+              let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: now)
+        else { return false }
+        return measurement.timestamp >= cutoff
+    }
+
+    /// Current readings outside their typical range, in list order.
+    static func flags(order: [MetricType], latest: (MetricType) -> Measurement?, now: Date = Date()) -> [Flag] {
+        order.compactMap { metric in
+            guard let reading = latest(metric), isWithin(days: currentDays, of: reading, now: now) else { return nil }
+            let position = metric.rangePosition(of: reading.value)
+            return position == .above || position == .below ? Flag(metric: metric, position: position) : nil
         }
     }
 
-    var startDate: Date? {
-        guard let days else { return nil }
-        return Calendar.current.date(byAdding: .day, value: -days, to: Date())
+    /// "Blood pressure and heart rate are above your typical range, and sleep duration is below it."
+    static func sentence(flags: [Flag], hasReadings: Bool) -> String {
+        guard hasReadings else { return "No readings yet. Connect Apple Health or add a measurement." }
+        let above = flags.filter { $0.position == .above }.map { name($0.metric) }
+        let below = flags.filter { $0.position == .below }.map { name($0.metric) }
+        guard !above.isEmpty || !below.isEmpty else { return "Everything is within your typical range." }
+        let text: String
+        switch (above.isEmpty, below.isEmpty) {
+        case (false, true): text = "\(list(above)) \(verb(above)) above your typical range."
+        case (true, false): text = "\(list(below)) \(verb(below)) below your typical range."
+        default: text = "\(list(above)) \(verb(above)) above your typical range, and \(list(below)) \(verb(below)) below it."
+        }
+        return text.prefix(1).uppercased() + text.dropFirst()
+    }
+
+    /// Lowercases ordinary names ("Blood Pressure" → "blood pressure") but keeps acronyms ("HRV", "SpO2").
+    static func name(_ metric: MetricType) -> String {
+        metric.displayName.split(separator: " ").map { word in
+            word.dropFirst().contains(where: \.isUppercase) ? String(word) : word.lowercased()
+        }.joined(separator: " ")
+    }
+
+    private static func verb(_ items: [String]) -> String { items.count == 1 ? "is" : "are" }
+
+    private static func list(_ items: [String]) -> String {
+        switch items.count {
+        case 0: return ""
+        case 1: return items[0]
+        default: return items.dropLast().joined(separator: ", ") + " and " + items.last!
+        }
     }
 }
 
@@ -45,7 +80,6 @@ struct VitalsView: View {
     @Query(filter: #Predicate<Habit> { $0.active })
     private var activeHabits: [Habit]
 
-    @State private var selectedRange: VitalsRange = .today
     @State private var selectedMetricType: MetricType?
     @State private var detailMetricType: MetricType?
     @State private var showCardSettings = false
@@ -63,18 +97,11 @@ struct VitalsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text(Date(), format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).year())
+                Text(headerLine)
                     .kicker()
                     .padding(.bottom, 10)
 
-                // Range picker
-                UnderlineTabs(options: VitalsRange.allCases, selection: $selectedRange) { $0.rawValue }
-
-                if selectedRange == .today {
-                    todayContent
-                } else {
-                    trendsContent
-                }
+                todayContent
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
@@ -90,6 +117,17 @@ struct VitalsView: View {
                 }
                 .help("Choose which cards to show")
                 .accessibilityLabel("Choose Visible Vital Cards")
+            }
+            ToolbarItem(placement: .automatic) {
+                // Metrics without recent readings leave the list, so adding lives here.
+                Menu {
+                    ForEach(visibleMetrics.filter { !Self.autoOnlyMetrics.contains($0) }) { metric in
+                        Button(metric.displayName) { selectedMetricType = metric }
+                    }
+                } label: {
+                    Image("ph.plus")
+                }
+                .accessibilityLabel("Add Measurement")
             }
         }
         #if os(macOS)
@@ -128,168 +166,97 @@ struct VitalsView: View {
         dismissedInsightsRaw = dismissed.joined(separator: "|")
     }
 
-    @State private var showAllNotes = false
-
-    private func noteTag(_ step: SuggestedStep) -> String {
-        switch step.type {
-        case .warning: "Flag"
-        case .suggestion: "Tip"
-        case .info: "Note"
-        }
+    /// Tips are notes that aren't flags ("You haven't logged Weight in 9 days").
+    /// Flags now live in the Flagged group, so only the first open tip is shown.
+    private var activeTip: SuggestedStep? {
+        generateSuggestedSteps().first { $0.type != .warning && !dismissedInsights.contains($0.message) }
     }
 
-    private func noteColor(_ step: SuggestedStep) -> Color {
-        step.type == .warning ? Notebook.signal : Notebook.inkSecondary
+    private var flags: [VitalsSummary.Flag] {
+        VitalsSummary.flags(order: todayVisibleMetrics) { latestMeasurement(for: $0) }
     }
 
-    private var activeInsights: [SuggestedStep] {
-        generateSuggestedSteps().filter { !dismissedInsights.contains($0.message) }
+    private var headerLine: String {
+        let date = Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).year())
+        let count = flags.count
+        return count == 0 ? date : "\(date) · \(count) to look at"
     }
 
     private var todayContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // 1. Daily Health summary
-            HealthScoreHeroCard(
-                score: dailyHealthScore,
-                recentScores: recentHealthScores,
-                contributors: scoreContributors
-            )
-            .staggeredAppearance(index: 0)
+        let flagged = flags.map(\.metric)
+        let others = todayVisibleMetrics.filter { !flagged.contains($0) }
+        return VStack(alignment: .leading, spacing: 0) {
+            // 1. What changed, in one sentence
+            Text(VitalsSummary.sentence(flags: flags, hasReadings: !allMeasurements.isEmpty))
+                .font(.body)
+                .foregroundStyle(Notebook.ink)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .ruled()
+                .staggeredAppearance(index: 0)
 
-            // 2. Notes: every note is visible as its own line with its own Dismiss.
-            // With several, a "Notes" header shows the count; beyond three they fold.
-            let insights = activeInsights
-            if insights.count > 1 {
-                NotebookSectionHeader(title: "Notes", trailing: "\(insights.count)")
-                    .staggeredAppearance(index: 1)
-            }
-            let shown = showAllNotes ? insights : Array(insights.prefix(3))
-            ForEach(shown, id: \.message) { step in
-                NoteLine(text: step.message, tag: noteTag(step), tagColor: noteColor(step)) {
-                    withAnimation(AppAnimation.collapse) {
-                        dismissInsight(step.message)
-                    }
+            // 2. One tip at most, dismissible
+            if let tip = activeTip {
+                NoteLine(text: tip.message, tag: "Tip", tagColor: Notebook.inkSecondary) {
+                    withAnimation(AppAnimation.collapse) { dismissInsight(tip.message) }
                 }
-                .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .move(edge: .leading))))
-            }
-            if insights.count > 3 {
-                Button(showAllNotes ? "Show fewer notes" : "Show \(insights.count - 3) more") {
-                    withAnimation(AppAnimation.expand) { showAllNotes.toggle() }
-                }
-                .font(Notebook.mono(.caption))
-                .underline()
-                .foregroundStyle(Notebook.inkSecondary)
-                .buttonStyle(.plain)
-                .frame(minHeight: 44)
+                .transition(.opacity)
             }
 
-            // 3. Vitals table
-            HStack {
-                Text("Measure")
-                Spacer()
-                Text("Latest")
-                    .frame(alignment: .trailing)
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Text("Trend").frame(width: 64, alignment: .leading)
-                }
+            // 3. Flagged metrics lead, everything else follows
+            if !flagged.isEmpty {
+                NotebookSectionHeader(title: "Flagged", trailing: "\(flagged.count)")
+                    .padding(.top, 8)
+                metricRows(flagged, startIndex: 1)
             }
-            .kicker(Notebook.inkTertiary)
-            .padding(.top, 20)
-            .padding(.bottom, 8)
-            .accessibilityHidden(true)
+            if !others.isEmpty {
+                NotebookSectionHeader(title: flagged.isEmpty ? "Measures" : "Everything else")
+                    .padding(.top, 8)
+                metricRows(others, startIndex: flagged.count + 1)
+            }
+            if todayVisibleMetrics.isEmpty && !allMeasurements.isEmpty {
+                Text("No readings in the last \(VitalsSummary.visibleDays) days. Use + to add one.")
+                    .font(.footnote)
+                    .foregroundStyle(Notebook.inkSecondary)
+                    .padding(.top, 16)
+            }
+        }
+    }
 
-            ForEach(Array(todayVisibleMetrics.enumerated()), id: \.element) { index, metricType in
-                MetricCardView(
-                    metricType: metricType,
-                    latest: latestMeasurement(for: metricType),
-                    previous: previousMeasurement(for: metricType),
-                    recentValues: recentValues(for: metricType, days: 7),
-                    onAdd: {
-                        if latestMeasurement(for: metricType) != nil {
-                            detailMetricType = metricType
-                        } else {
-                            selectedMetricType = metricType
-                        }
-                    }
-                )
-                .contextMenu {
-                    Button {
+    private func metricRows(_ metrics: [MetricType], startIndex: Int) -> some View {
+        ForEach(Array(metrics.enumerated()), id: \.element) { index, metricType in
+            MetricCardView(
+                metricType: metricType,
+                latest: latestMeasurement(for: metricType),
+                recentValues: recentValues(for: metricType, days: 7),
+                onAdd: {
+                    if latestMeasurement(for: metricType) != nil {
+                        detailMetricType = metricType
+                    } else {
                         selectedMetricType = metricType
-                    } label: {
-                        Label("Add Measurement", image: "ph.plus")
                     }
                 }
-                .staggeredAppearance(index: index + 2)
-            }
-        }
-    }
-
-    // MARK: - Trends Content (charts for selected range)
-
-    private var trendsContent: some View {
-        VStack(spacing: 0) {
-            let filtered = filteredMeasurements()
-            if filtered.isEmpty {
-                EmptyStateView(
-                    icon: "ph.chart-line",
-                    title: "No Data Yet",
-                    message: "Start logging measurements from the Today view to see trends here.",
-                    chatHint: "Try \"Log my weight as 75kg\" in Chat"
-                )
-                .padding(.top, 40)
-            } else {
-                let sortedMetrics = visibleMetrics.sorted { a, b in
-                    let aHasData = !filteredMeasurements(for: a).isEmpty
-                    let bHasData = !filteredMeasurements(for: b).isEmpty
-                    if aHasData != bHasData { return aHasData }
-                    return false
-                }
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(sortedMetrics.enumerated()), id: \.element) { index, metricType in
-                        let data = filteredMeasurements(for: metricType)
-                        if !data.isEmpty {
-                            TrendChartCard(metricType: metricType, measurements: data)
-                                .staggeredAppearance(index: index)
-                        }
-                    }
+            )
+            .contextMenu {
+                Button {
+                    selectedMetricType = metricType
+                } label: {
+                    Label("Add Measurement", image: "ph.plus")
                 }
             }
-        }
-    }
-
-    private func filteredMeasurements(for type: MetricType? = nil) -> [Measurement] {
-        allMeasurements.filter { m in
-            let typeMatch = type == nil || m.metricType == type
-            let dateMatch: Bool
-            if let start = selectedRange.startDate {
-                dateMatch = m.timestamp >= start
-            } else {
-                dateMatch = true
-            }
-            return typeMatch && dateMatch
+            .staggeredAppearance(index: index + startIndex)
         }
     }
 
     // MARK: - Auto-only Metrics (hide when no data)
 
-    /// Metrics that only arrive from integrations (WHOOP / Apple Health) and aren't manually addable.
-    /// Hidden from the Today grid when there's no data for them.
+    /// Metrics that only arrive from integrations (Apple Health) and can't be added by hand.
     private static let autoOnlyMetrics: Set<MetricType> = [.activeMinutes, .recovery, .strain, .sleepScore]
 
+    /// Only metrics with a reading in the last 30 days; they return with the next reading.
     private var todayVisibleMetrics: [MetricType] {
-        let filtered = visibleMetrics.filter { metric in
-            if Self.autoOnlyMetrics.contains(metric) {
-                return latestMeasurement(for: metric) != nil
-            }
-            return true
-        }
-        // Sort: metrics with data first, then metrics without data
-        return filtered.sorted { a, b in
-            let aHasData = latestMeasurement(for: a) != nil
-            let bHasData = latestMeasurement(for: b) != nil
-            if aHasData != bHasData { return aHasData }
-            return false
-        }
+        visibleMetrics.filter { VitalsSummary.isWithin(days: VitalsSummary.visibleDays, of: latestMeasurement(for: $0)) }
     }
 
     // MARK: - Data Helpers (cached by type)
@@ -303,15 +270,6 @@ struct VitalsView: View {
         measurementsByType[type]?.first
     }
 
-    private func previousMeasurement(for type: MetricType) -> Measurement? {
-        guard let matching = measurementsByType[type], matching.count > 1 else { return nil }
-        return matching[1]
-    }
-
-    private func latestValue(for type: MetricType) -> Double? {
-        latestMeasurement(for: type)?.value
-    }
-
     private func recentValues(for type: MetricType, days: Int) -> [Double] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
         guard let matching = measurementsByType[type] else { return [] }
@@ -319,90 +277,6 @@ struct VitalsView: View {
             .filter { $0.timestamp >= cutoff }
             .sorted { $0.timestamp < $1.timestamp }
             .map(\.value)
-    }
-
-    private var recentHealthScores: [Double] {
-        let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        // Pre-group measurements by day for score calculation
-        let recentCutoff = cal.date(byAdding: .day, value: -7, to: today)!
-        let recentMeasurements = allMeasurements.filter { $0.timestamp >= recentCutoff }
-        let byDay = Dictionary(grouping: recentMeasurements) { cal.startOfDay(for: $0.timestamp) }
-
-        return (0..<7).reversed().compactMap { daysAgo -> Double? in
-            guard let date = cal.date(byAdding: .day, value: -daysAgo, to: today) else { return nil }
-            let dayMeasurements = byDay[date] ?? []
-            return computeHealthScore(from: dayMeasurements)
-        }.filter { $0 > 0 }
-    }
-
-    /// Each contributing metric has a weight and a normalizer that maps its value to 0–100.
-    private static let scoreComponents: [(type: MetricType, weight: Double, normalize: (Double) -> Double)] = [
-        // WHOOP-specific (highest signal when available)
-        (.recovery, 0.30, { min($0, 100) }),
-        (.sleepScore, 0.25, { min($0, 100) }),
-        // Available from Apple Health + WHOOP
-        (.hrv, 0.15, { min(max(($0 - 20) / 80 * 100, 0), 100) }),
-        (.heartRate, 0.10, { v in
-            // Resting HR: lower is better. 40-100 range → 100-0 score
-            min(max((100 - v) / 60 * 100, 0), 100)
-        }),
-        (.sleepDuration, 0.10, { v in
-            // 7-9h is optimal (100), <5h or >11h scores low
-            if v >= 7 && v <= 9 { return 100 }
-            if v >= 6 && v < 7 { return 70 }
-            if v >= 9 && v <= 10 { return 80 }
-            if v >= 5 && v < 6 { return 40 }
-            return 20
-        }),
-        (.steps, 0.05, { min($0 / 10000 * 100, 100) }),
-        (.activeMinutes, 0.03, { min($0 / 60 * 100, 100) }),
-        (.spo2, 0.02, { v in
-            // 95-100% is healthy
-            if v >= 95 { return 100 }
-            if v >= 90 { return 60 }
-            return 20
-        }),
-    ]
-
-    private func computeHealthScore(from measurements: [Measurement]) -> Double {
-        var total: Double = 0
-        var totalWeight: Double = 0
-
-        for component in Self.scoreComponents {
-            if let value = measurements.first(where: { $0.metricType == component.type })?.value {
-                total += component.normalize(value) * component.weight
-                totalWeight += component.weight
-            }
-        }
-
-        guard totalWeight > 0 else { return 0 }
-        return total / totalWeight
-    }
-
-    private var dailyHealthScore: Double {
-        var total: Double = 0
-        var totalWeight: Double = 0
-
-        for component in Self.scoreComponents {
-            if let value = latestValue(for: component.type) {
-                total += component.normalize(value) * component.weight
-                totalWeight += component.weight
-            }
-        }
-
-        guard totalWeight > 0 else { return 0 }
-        return total / totalWeight
-    }
-
-    /// Human-readable summary of which metrics contribute to the score
-    private var scoreContributors: String {
-        let available = Self.scoreComponents.compactMap { component -> String? in
-            guard latestValue(for: component.type) != nil else { return nil }
-            return component.type.displayName.lowercased()
-        }
-        guard !available.isEmpty else { return "No data yet" }
-        return "Based on \(available.joined(separator: ", "))"
     }
 
     private func generateSuggestedSteps() -> [SuggestedStep] {
@@ -440,62 +314,7 @@ struct VitalsView: View {
     }
 }
 
-// MARK: - Health Score Hero Card (full width)
-
-struct HealthScoreHeroCard: View {
-    let score: Double
-    let recentScores: [Double]
-    var contributors: String = "No data yet"
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Daily health").kicker()
-
-            if score > 0 {
-                HStack(alignment: .firstTextBaseline) {
-                    BigNumber(value: "\(Int(score))", suffix: "/100")
-                    Spacer()
-                    Text(scoreLabel).kicker()
-                }
-
-                // Last 7 days, today solid
-                if recentScores.count >= 2 {
-                    BarSparkline(values: recentScores, floor: 40)
-                        .frame(height: 22)
-                        .padding(.top, 4)
-                        .accessibilityLabel("Daily health, last 7 days")
-                        .accessibilityValue(ChartSummary.direction(from: recentScores.first ?? 0, to: recentScores.last ?? 0))
-                }
-
-                Text(contributors)
-                    .font(Notebook.mono(.caption))
-                    .foregroundStyle(Notebook.inkSecondary)
-                    .padding(.top, 4)
-            } else {
-                Text("No data yet")
-                    .font(Notebook.mono(.title3))
-                    .foregroundStyle(Notebook.inkSecondary)
-                Text("Connect Apple Health or add a measurement to see your score.")
-                    .font(.footnote)
-                    .foregroundStyle(Notebook.inkSecondary)
-            }
-        }
-        .padding(.vertical, 18)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .ruled()
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(score > 0 ? "Daily health \(Int(score)) out of 100, \(scoreLabel)" : "Daily health, no data yet")
-    }
-
-    private var scoreLabel: String {
-        if score >= 80 { return "Excellent" }
-        if score >= 60 { return "Good" }
-        if score >= 40 { return "Fair" }
-        return "Low"
-    }
-}
-
-// MARK: - Insight Card (individual, dismissible)
+// MARK: - Suggested Step (flag or tip)
 
 struct SuggestedStep {
     enum StepType { case warning, suggestion, info }

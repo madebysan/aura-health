@@ -37,7 +37,7 @@ The visual direction is **Notebook**: a personal lab notebook. Ink on paper, num
 - There is no green. Being in range is the default state, not an achievement.
 - Under review (2026-10-18): a muted status palette with sage green for in range, ochre for near limit and brick red for out of range, applied only to status words, range ticks and the newest trend bar. Compare it with the Ink / Color switch in `design/prototypes/notebook-screens/`. Until san decides, the rule above stands.
 
-Every status also needs a word: "in range", "near limit", "↑ above range", "↓ below range". Color only adds emphasis.
+Every flag needs a word: "near limit", "↑ above range", "↓ below range". Color only adds emphasis. On Vitals, in range is the unmarked default: a row with no status word is in range (decided 2026-10-18, D01). Lab results still say "in range", because a lab report is read marker by marker.
 
 ## Icons
 
@@ -57,7 +57,7 @@ Every status also needs a word: "in range", "near limit", "↑ above range", "�
 
 ## Components
 
-- `UnderlineTabs`: mono uppercase tabs with one sliding underline (250 ms). Use for time ranges, lab sessions and view modes.
+- `UnderlineTabs`: mono uppercase tabs with one sliding underline (250 ms). Use for a chart's time range inside a detail sheet. Don't use tabs to switch a whole screen between two views; give the second view its own page.
 - `NotebookSectionHeader`: uppercase label, optional trailing count, hairline below.
 - `NoteLine`: an insight or warning written as a line ("NOTE … Dismiss"), not a banner.
 - `BigNumber`: a large mono value with a quiet suffix ("15/16 in range").
@@ -76,7 +76,8 @@ Prefer these primitives before creating another local variant.
 ## Navigation
 
 - Main tabs: Vitals, Habits, Biomarkers, Chat, More.
-- Keep Settings, Privacy, Conditions, Medications, Diet, Correlations, and Vault under More or a contextual drill-in.
+- Keep Settings, Privacy, Conditions, Medications, Diet, and Vault under More or a contextual drill-in. More is one ruled list with Settings set apart by space.
+- Vitals is one list: a one-sentence summary, a Flagged group, then everything else. Time ranges live in each metric's sheet. Past lab reports open from "N lab reports" on Biomarkers.
 - Use sheets for focused creation/editing and navigation stacks for durable destinations.
 - Destructive actions require clear confirmation that names what is removed.
 

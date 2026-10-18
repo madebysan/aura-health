@@ -386,8 +386,8 @@ final class AIService {
                 "properties": [
                     "section": [
                         "type": "string",
-                        "enum": ["today", "vitals", "correlations", "conditions", "medications", "biomarkers", "diet", "exercise", "vault", "settings"],
-                        "description": "App section to navigate to"
+                        "enum": ["vitals", "tracking", "biomarkers", "chat", "medications", "conditions", "diet", "vault", "settings"],
+                        "description": "App section to navigate to (tracking is Habits)"
                     ]
                 ],
                 "required": ["section"]

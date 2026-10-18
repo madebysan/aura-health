@@ -7,49 +7,16 @@ struct MedicationsView: View {
     @Query(sort: \Medication.name)
     private var medications: [Medication]
 
-    @State private var typeFilter: MedicationType?
-    @State private var showArchived = false
     @State private var showingAddSheet = false
     @State private var editingMedication: Medication?
 
-    private var filteredMedications: [Medication] {
-        medications.filter { med in
-            let matchesType = typeFilter == nil || med.type == typeFilter
-            let matchesActive = showArchived || med.active
-            return matchesType && matchesActive
-        }
-    }
-
-    private var listTitle: String {
-        if let typeFilter { return typeFilter.displayName }
-        return showArchived ? "All medications" : "Active"
-    }
+    private var activeMedications: [Medication] { medications.filter(\.active) }
+    private var archivedMedications: [Medication] { medications.filter { !$0.active } }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // Filters — only show when there are medications
-                if !medications.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 18) {
-                            FilterPill(label: "All", isActive: typeFilter == nil) {
-                                withAnimation(AppAnimation.viewSwitch) { typeFilter = nil }
-                            }
-                            ForEach(MedicationType.allCases, id: \.self) { type in
-                                FilterPill(label: type.displayName, isActive: typeFilter == type) {
-                                    withAnimation(AppAnimation.viewSwitch) { typeFilter = type }
-                                }
-                            }
-                            FilterPill(label: "Archived", isActive: showArchived) {
-                                withAnimation(AppAnimation.viewSwitch) { showArchived.toggle() }
-                            }
-                        }
-                    }
-                    .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
-                    .ruled()
-                }
-
-                if filteredMedications.isEmpty {
+                if medications.isEmpty {
                     EmptyStateView(
                         icon: "ph.pill",
                         title: "No Medications",
@@ -60,29 +27,16 @@ struct MedicationsView: View {
                     )
                     .padding(.top, 20)
                 } else {
-                    NotebookSectionHeader(title: listTitle, trailing: "\(filteredMedications.count)")
-
-                    ForEach(Array(filteredMedications.enumerated()), id: \.element.id) { index, medication in
-                        Button {
-                            editingMedication = medication
-                        } label: {
-                            MedicationCardView(medication: medication)
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button {
-                                medication.active.toggle()
-                            } label: {
-                                Label(medication.active ? "Archive" : "Unarchive",
-                                      image: medication.active ? "ph.archive" : "ph.box-arrow-up")
-                            }
-                            Button(role: .destructive) {
-                                modelContext.delete(medication)
-                            } label: {
-                                Label("Delete", image: "ph.trash")
-                            }
-                        }
-                        .staggeredAppearance(index: index)
+                    // Active first; archived ones follow in their own section (no type filter:
+                    // every row already says Prescription, Supplement or OTC).
+                    if !activeMedications.isEmpty {
+                        NotebookSectionHeader(title: "Active", trailing: "\(activeMedications.count)")
+                        medicationRows(activeMedications)
+                    }
+                    if !archivedMedications.isEmpty {
+                        NotebookSectionHeader(title: "Archived", trailing: "\(archivedMedications.count)")
+                            .padding(.top, 12)
+                        medicationRows(archivedMedications)
                     }
                 }
             }
@@ -111,6 +65,31 @@ struct MedicationsView: View {
             MedicationFormSheet(medication: medication)
         }
     }
+
+    private func medicationRows(_ list: [Medication]) -> some View {
+        ForEach(Array(list.enumerated()), id: \.element.id) { index, medication in
+            Button {
+                editingMedication = medication
+            } label: {
+                MedicationCardView(medication: medication)
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                Button {
+                    medication.active.toggle()
+                } label: {
+                    Label(medication.active ? "Archive" : "Unarchive",
+                          image: medication.active ? "ph.archive" : "ph.box-arrow-up")
+                }
+                Button(role: .destructive) {
+                    modelContext.delete(medication)
+                } label: {
+                    Label("Delete", image: "ph.trash")
+                }
+            }
+            .staggeredAppearance(index: index)
+        }
+    }
 }
 
 // MARK: - Medication Row
@@ -137,9 +116,6 @@ struct MedicationCardView: View {
                 Text(detail)
                     .font(Notebook.mono(.caption))
                     .foregroundStyle(Notebook.inkSecondary)
-                if !medication.active {
-                    StatusWord(text: "archived")
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)

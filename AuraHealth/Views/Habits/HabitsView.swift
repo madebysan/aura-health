@@ -48,7 +48,6 @@ struct HabitsView: View {
     @Query(sort: \HabitLog.date, order: .reverse)
     private var allLogs: [HabitLog]
 
-    @State private var selectedTab = 0
     @State private var showingAddSheet = false
     @State private var editingHabit: Habit?
     /// Tracks the last habit toggled so sensory feedback fires on each new tap (iOS only).
@@ -74,20 +73,24 @@ struct HabitsView: View {
         activeHabits.filter { $0.log(on: Date())?.done == true }.count
     }
 
+    /// "Sun, Oct 18 · 5 of 8 done · 67% over 30 days". The 30-day rate replaced the Adherence tab;
+    /// each habit's own rate and strip are in its edit sheet.
+    private var headerLine: String {
+        let date = Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        guard !activeHabits.isEmpty else { return date }
+        let rates = activeHabits.map { $0.doneRate(lastDays: 30) }
+        let overall = rates.reduce(0, +) / rates.count
+        return "\(date) · \(doneTodayCount) of \(activeHabits.count) done · \(overall)% over 30 days"
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("\(Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))) · \(doneTodayCount) of \(activeHabits.count) done today")
+                Text(headerLine)
                     .kicker()
                     .padding(.bottom, 10)
 
-                UnderlineTabs(options: [0, 1], selection: $selectedTab) { $0 == 0 ? "Daily" : "Adherence" }
-
-                if selectedTab == 0 {
-                    dailyGridTab
-                } else {
-                    adherenceTab
-                }
+                dailyGridTab
             }
             .frame(maxWidth: 700, alignment: .leading)
             .frame(maxWidth: .infinity)
@@ -247,17 +250,22 @@ struct HabitsView: View {
     }
 
     private func sectionHeader(_ section: GridSection) -> some View {
-        let habits = activeHabits.filter { $0.gridSection == section }
-        let done = habits.filter { $0.log(on: Date())?.done == true }.count
-        return HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline) {
             Text(section.displayName).kicker()
             Spacer()
-            Text("\(done)/\(habits.count) today").kicker()
         }
         .padding(.top, 22)
         .padding(.bottom, 6)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
+    }
+
+    /// The unit for amount habits, and the streak once it reaches 2 days.
+    private func rowDetail(_ habit: Habit) -> String? {
+        var parts: [String] = []
+        if habit.trackingType == .quantity && !habit.unit.isEmpty { parts.append(habit.unit) }
+        if habit.currentStreak >= 2 { parts.append("streak \(habit.currentStreak)d") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private func habitRow(_ habit: Habit) -> some View {
@@ -276,9 +284,11 @@ struct HabitsView: View {
                         .font(.callout.weight(.medium))
                         .foregroundStyle(Notebook.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text((habit.trackingType == .quantity && !habit.unit.isEmpty ? "\(habit.unit) · " : "") + "streak \(habit.currentStreak)d")
-                        .font(Notebook.mono(.caption2))
-                        .foregroundStyle(Notebook.inkSecondary)
+                    if let detail = rowDetail(habit) {
+                        Text(detail)
+                            .font(Notebook.mono(.caption2))
+                            .foregroundStyle(Notebook.inkSecondary)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.trailing, 8)
@@ -314,35 +324,6 @@ struct HabitsView: View {
         .frame(minHeight: 52)
         .ruled()
         .contentShape(Rectangle())
-    }
-
-    // MARK: - Adherence Tab
-
-    private var adherenceTab: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if activeHabits.isEmpty {
-                EmptyStateView(
-                    icon: "ph.check-circle",
-                    title: "No Habits to Track",
-                    message: "Add habits to see your adherence stats."
-                )
-            } else {
-                let rates = activeHabits.map { (habit: $0, rate: $0.doneRate(lastDays: 30)) }.sorted { $0.rate > $1.rate }
-                let overall = rates.isEmpty ? 0 : rates.map(\.rate).reduce(0, +) / rates.count
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Last 30 days").kicker()
-                    BigNumber(value: "\(overall)", suffix: "% overall")
-                }
-                .padding(.vertical, 18)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .ruled()
-
-                ForEach(Array(rates.enumerated()), id: \.element.habit.id) { index, item in
-                    AdherenceRow(habit: item.habit, rate: item.rate)
-                        .staggeredAppearance(index: index)
-                }
-            }
-        }
     }
 }
 
@@ -454,7 +435,7 @@ struct DayCell: View {
     }
 }
 
-// MARK: - Adherence Row
+// MARK: - Adherence (in the habit's edit sheet)
 
 struct AdherenceRow: View {
     let habit: Habit
@@ -472,18 +453,14 @@ struct AdherenceRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text(habit.name)
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(Notebook.ink)
+                BigNumber(value: "\(rate)", suffix: "% done")
                 Spacer()
-                Text("\(rate)%")
-                    .font(Notebook.mono(.title3, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(Notebook.ink)
+                if habit.currentStreak >= 2 {
+                    Text("streak \(habit.currentStreak)d")
+                        .font(Notebook.mono(.caption))
+                        .foregroundStyle(Notebook.inkSecondary)
+                }
             }
-            Text("last 30 days · streak \(habit.currentStreak)d")
-                .font(Notebook.mono(.caption))
-                .foregroundStyle(Notebook.inkSecondary)
 
             // One square per day: filled done, outlined missed, faint when not logged
             HStack(spacing: 2) {
@@ -496,8 +473,7 @@ struct AdherenceRow: View {
             }
             .accessibilityHidden(true)
         }
-        .padding(.vertical, 16)
-        .ruled()
+        .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(habit.name), \(rate) percent over the last 30 days, streak \(habit.currentStreak) days")
     }
@@ -512,7 +488,6 @@ struct HabitFormSheet: View {
     var habit: Habit?
 
     @State private var name = ""
-    @State private var category: HabitCategory = .lifestyle
     @State private var gridSection: GridSection = .morning
     @State private var active = true
 
@@ -523,11 +498,6 @@ struct HabitFormSheet: View {
             NotebookForm {
                 Section {
                     NotebookField("Name", text: $name, prompt: "e.g. Morning walk")
-                    Picker("Category", selection: $category) {
-                        ForEach(HabitCategory.allCases, id: \.self) { c in
-                            Text(c.displayName).tag(c)
-                        }
-                    }
                     Picker("Time of Day", selection: $gridSection) {
                         ForEach(GridSection.allCases, id: \.self) { s in
                             Text(s.displayName).tag(s)
@@ -535,7 +505,10 @@ struct HabitFormSheet: View {
                     }
                 }
 
-                if isEditing {
+                if let habit {
+                    Section(header: NotebookFormHeader("Last 30 days")) {
+                        AdherenceRow(habit: habit, rate: habit.doneRate(lastDays: 30))
+                    }
                     Section {
                         Toggle("Active", isOn: $active)
                     }
@@ -554,7 +527,6 @@ struct HabitFormSheet: View {
             .onAppear {
                 guard let habit else { return }
                 name = habit.name
-                category = habit.category
                 gridSection = habit.gridSection
                 active = habit.active
             }
@@ -567,13 +539,11 @@ struct HabitFormSheet: View {
     private func save() {
         if let habit {
             habit.name = name
-            habit.category = category
             habit.gridSection = gridSection
             habit.active = active
         } else {
             modelContext.insert(Habit(
                 name: name,
-                category: category,
                 gridSection: gridSection
             ))
         }

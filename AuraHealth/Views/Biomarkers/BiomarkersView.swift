@@ -5,6 +5,10 @@ import Charts
 struct BiomarkersView: View {
     @Environment(\.modelContext) private var modelContext
 
+    /// nil: the latest value of every marker (the tab). A date: that one lab report,
+    /// opened from the lab reports list.
+    var reportDate: Date? = nil
+
     @Query(sort: \Biomarker.testDate, order: .reverse)
     private var biomarkers: [Biomarker]
 
@@ -15,7 +19,6 @@ struct BiomarkersView: View {
     @State private var showingAddSheet = false
     @State private var showingLabImport = false
     @State private var selectedBiomarker: Biomarker?
-    @State private var selectedSnapshotIndex = -1  // -1 = latest per marker, 0+ = specific lab date
     @State private var showOlderMarkers = false
     @State private var showingLabNotes = false
 
@@ -39,11 +42,10 @@ struct BiomarkersView: View {
         return dates.sorted(by: >)
     }
 
-    private var isShowingAll: Bool { selectedSnapshotIndex == -1 }
+    private var isShowingAll: Bool { reportDate == nil }
 
     private var selectedDate: Date? {
-        guard !isShowingAll, !labDates.isEmpty else { return nil }
-        return labDates[min(selectedSnapshotIndex, labDates.count - 1)]
+        reportDate.map { Calendar.current.startOfDay(for: $0) }
     }
 
     private var currentLabSession: LabSession? {
@@ -118,7 +120,7 @@ struct BiomarkersView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                if biomarkers.isEmpty {
+                if biomarkers.isEmpty && isShowingAll {
                     VStack(spacing: 12) {
                         EmptyStateView(
                             icon: "ph.drop",
@@ -140,9 +142,7 @@ struct BiomarkersView: View {
                         .kicker()
                         .padding(.bottom, 10)
 
-                    snapshotPicker
-
-                    if labsAreStale {
+                    if isShowingAll && labsAreStale {
                         NoteLine(text: "Your most recent results are over 3 months old. Consider scheduling a follow-up with your doctor.", tag: "Labs")
                     }
 
@@ -150,6 +150,10 @@ struct BiomarkersView: View {
 
                     if !isShowingAll, let date = selectedDate {
                         labNotesRow(for: date)
+                    }
+
+                    if isShowingAll {
+                        labReportsLink
                     }
 
                     toolsRow
@@ -203,11 +207,12 @@ struct BiomarkersView: View {
             .padding(.bottom, 24)
         }
         .notebookBackground()
-        .navigationTitle("Biomarkers")
+        .navigationTitle(navigationTitle)
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(isShowingAll ? .large : .inline)
         #endif
         .toolbar {
+            if isShowingAll {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button {
@@ -225,6 +230,7 @@ struct BiomarkersView: View {
                 }
                 .accessibilityLabel("Add or Import Biomarker")
             }
+            }
         }
         .sheet(isPresented: $showingAddSheet) {
             AddBiomarkerSheet()
@@ -235,16 +241,52 @@ struct BiomarkersView: View {
         .sheet(item: $selectedBiomarker) { biomarker in
             BiomarkerDetailSheet(marker: biomarker.marker, biomarkers: biomarkers, focusDate: biomarker.testDate)
         }
-        .onChange(of: selectedSnapshotIndex) {
-            showOlderMarkers = false
-        }
+    }
+
+    private var navigationTitle: String {
+        guard let date = selectedDate else { return "Biomarkers" }
+        if let name = currentLabSession?.name, !name.isEmpty { return name }
+        return date.formatted(date: .abbreviated, time: .omitted)
     }
 
     private var headerKicker: String {
-        let labs = Set(biomarkers.map(\.lab).filter { !$0.isEmpty })
-        let markers = Set(biomarkers.map(\.marker)).count
-        let source = labs.count == 1 ? labs.first! : "\(labDates.count) sessions"
+        let shown = selectedDate == nil ? biomarkers : sessionRows.map(\.shown)
+        let labs = Set(shown.map(\.lab).filter { !$0.isEmpty })
+        let markers = Set(shown.map(\.marker)).count
+        if let date = selectedDate {
+            // The title is the date unless the report has a name; don't repeat it
+            let named = !(currentLabSession?.name ?? "").isEmpty
+            let parts = [labs.count == 1 ? labs.first : nil,
+                         named ? date.formatted(.dateTime.month(.abbreviated).day().year()) : nil,
+                         "\(markers) markers"]
+            return parts.compactMap { $0 }.joined(separator: " · ")
+        }
+        let source = labs.count == 1 ? labs.first! : "\(labDates.count) lab reports"
         return "\(source) · \(markers) markers"
+    }
+
+    // MARK: - Lab Reports Link
+
+    /// Past reports moved here from the session tabs; each opens this same screen for its date.
+    private var labReportsLink: some View {
+        NavigationLink {
+            LabReportsView()
+        } label: {
+            HStack {
+                Text(labDates.count == 1 ? "1 lab report" : "\(labDates.count) lab reports")
+                    .font(.subheadline)
+                    .foregroundStyle(Notebook.ink)
+                Spacer()
+                Image("ph.caret-right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Notebook.inkTertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, 14)
+            .ruled()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - System Section
@@ -277,69 +319,29 @@ struct BiomarkersView: View {
         }
     }
 
-    // MARK: - Snapshot Picker
-
-    private var snapshotPicker: some View {
-        UnderlineTabs(options: [-1] + Array(labDates.indices), selection: $selectedSnapshotIndex) { index in
-            guard index >= 0 else { return "Latest" }
-            let date = labDates[index]
-            let cal = Calendar.current
-            if let name = labSessions.first(where: { cal.isDate($0.date, inSameDayAs: date) })?.name, !name.isEmpty {
-                return name
-            }
-            return date.formatted(.dateTime.month(.abbreviated).day())
-        }
-    }
-
     // MARK: - Status Summary
 
+    /// "15/16 in range · 1 flagged". The words carry it; the strip and legend are gone.
     private var statusSummary: some View {
         let rows = sessionRows
         let normal = rows.filter { $0.shown.status == .normal }.count
-        let borderline = rows.filter { $0.shown.status == .borderline }.count
-        let abnormal = rows.filter { $0.shown.status == .abnormal }.count
-        let clearlyOut = rows.contains { $0.shown.status == .abnormal && !$0.shown.isMarginallyOutOfRange }
-        let severity: (Biomarker) -> Int = { $0.status == .abnormal ? 2 : $0.status == .borderline ? 1 : 0 }
-        let ordered = rows.map(\.shown).sorted { severity($0) < severity($1) }
+        let flagged = rows.filter { $0.shown.status == .borderline || $0.shown.status == .abnormal }.count
 
         return VStack(alignment: .leading, spacing: 8) {
-            Text(selectedDate.map { $0.formatted(date: .abbreviated, time: .omitted) } ?? "Latest results").kicker()
-            BigNumber(value: "\(normal)", suffix: "/\(rows.count) in range")
-
-            HStack(spacing: 3) {
-                ForEach(Array(ordered.enumerated()), id: \.offset) { _, bio in
-                    Rectangle()
-                        .fill(bio.status == .normal ? Notebook.ink.opacity(0.2) : AppColors.biomarkerColor(bio))
-                        .frame(height: 18)
+            Text(selectedDate == nil ? "Latest results" : "Results").kicker()
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                BigNumber(value: "\(normal)", suffix: "/\(rows.count) in range")
+                if flagged > 0 {
+                    Text("· \(flagged) flagged")
+                        .font(Notebook.mono(.subheadline))
+                        .foregroundStyle(Notebook.signal)
                 }
-            }
-            .accessibilityHidden(true)
-
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 16) { legendItems(normal: normal, borderline: borderline, abnormal: abnormal, clearlyOut: clearlyOut) }
-                VStack(alignment: .leading, spacing: 4) { legendItems(normal: normal, borderline: borderline, abnormal: abnormal, clearlyOut: clearlyOut) }
             }
         }
         .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .ruled()
         .accessibilityElement(children: .combine)
-    }
-
-    @ViewBuilder
-    private func legendItems(normal: Int, borderline: Int, abnormal: Int, clearlyOut: Bool) -> some View {
-        legendItem(count: normal, label: "in range", color: Notebook.ink.opacity(0.25))
-        legendItem(count: borderline, label: "near limit", color: Notebook.near)
-        legendItem(count: abnormal, label: "out of range", color: clearlyOut ? Notebook.signal : Notebook.near)
-    }
-
-    private func legendItem(count: Int, label: String, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Rectangle().fill(color).frame(width: 9, height: 9).accessibilityHidden(true)
-            Text("\(count)").foregroundStyle(Notebook.ink)
-            Text(label).foregroundStyle(Notebook.inkSecondary)
-        }
-        .font(Notebook.mono(.caption))
     }
 
     // MARK: - Search and Filter
@@ -428,6 +430,85 @@ struct BiomarkersView: View {
         .sheet(isPresented: $showingLabNotes) {
             LabNotesSheet(date: date, labSession: labSession(for: date))
         }
+    }
+}
+
+// MARK: - Lab Reports
+
+/// Every lab report, newest first. Each opens the Biomarkers screen for that date,
+/// with its notes.
+struct LabReportsView: View {
+    @Query(sort: \Biomarker.testDate, order: .reverse) private var biomarkers: [Biomarker]
+    @Query private var labSessions: [LabSession]
+
+    private struct Report: Identifiable {
+        let date: Date
+        let name: String
+        let lab: String
+        let markers: Int
+        let flagged: Int
+        var id: Date { date }
+    }
+
+    private var reports: [Report] {
+        let cal = Calendar.current
+        let byDay = Dictionary(grouping: biomarkers) { cal.startOfDay(for: $0.testDate) }
+        return byDay.keys.sorted(by: >).map { day in
+            let items = byDay[day] ?? []
+            let labs = Set(items.map(\.lab).filter { !$0.isEmpty })
+            return Report(
+                date: day,
+                name: labSessions.first { cal.isDate($0.date, inSameDayAs: day) }?.name ?? "",
+                lab: labs.count == 1 ? labs.first! : "",
+                markers: Set(items.map(\.marker)).count,
+                flagged: items.filter { $0.status == .borderline || $0.status == .abnormal }.count
+            )
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(reports) { report in
+                    NavigationLink {
+                        BiomarkersView(reportDate: report.date)
+                    } label: {
+                        HStack(alignment: .firstTextBaseline) {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(report.name.isEmpty ? report.date.formatted(date: .abbreviated, time: .omitted) : report.name)
+                                    .font(.callout.weight(.medium))
+                                    .foregroundStyle(Notebook.ink)
+                                Text([report.name.isEmpty ? nil : report.date.formatted(date: .abbreviated, time: .omitted),
+                                      report.lab.isEmpty ? nil : report.lab,
+                                      "\(report.markers) markers"].compactMap { $0 }.joined(separator: " · "))
+                                    .font(Notebook.mono(.caption))
+                                    .foregroundStyle(Notebook.inkSecondary)
+                            }
+                            Spacer()
+                            if report.flagged > 0 {
+                                StatusWord(text: "\(report.flagged) flagged", color: Notebook.signal)
+                            }
+                            Image("ph.caret-right")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Notebook.inkTertiary)
+                                .accessibilityHidden(true)
+                        }
+                        .padding(.vertical, 14)
+                        .ruled()
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .frame(maxWidth: 600, alignment: .leading)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+        }
+        .notebookBackground()
+        .navigationTitle("Lab reports")
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
     }
 }
 

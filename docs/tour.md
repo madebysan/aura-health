@@ -4,11 +4,11 @@ What Aura tracks, the health assistant, and the tech stack. The short version is
 
 ## What Aura keeps together
 
-The main dashboard brings heart rate, HRV, blood pressure, sleep, steps, weight, SpO2, skin temperature, calories, and other measurements into one timeline. Each metric includes a trend, reference range, and a short explanation. Time filters run from the current day through the full history.
+The main dashboard brings heart rate, HRV, blood pressure, sleep, steps, weight, SpO2, skin temperature, calories, and other measurements into one timeline. A one-line summary on top says what is outside your typical range, and flagged metrics come first. Each metric opens a chart (7 days to a year), its typical range, and a short explanation.
 
 ![Aura vitals dashboard](https://github.com/user-attachments/assets/461e9c5c-3aeb-475f-992c-851c2ba307ef)
 
-Habits, medications, supplements, conditions, diet notes, and lab sessions live beside the measurements they may affect. Biomarkers are grouped by body system, and previous lab sessions remain available as dated snapshots. Correlation views help compare pairs such as sleep and recovery or HRV and strain.
+Habits, medications, supplements, conditions, diet notes, and lab sessions live beside the measurements they may affect. Biomarkers are grouped by body system, and each past lab report opens from the lab reports list with its own values and notes.
 
 The optional health assistant can read and update vitals, biomarkers, medications, and habits. Attach a lab report as a PDF or photo and it can extract values for review before saving them. You choose Anthropic or OpenRouter and use your own API key.
 

@@ -25,7 +25,7 @@ I started Aura after the spreadsheet where I tracked biomarkers, habits and heal
 
 ## How it works
 
-Heart rate, HRV, blood pressure, sleep, steps, weight and more sit on one dashboard, filtered from today to the full history. Habits, medications, supplements, conditions and diet notes live beside the measurements they may affect, and correlation views compare pairs like sleep and recovery. A full JSON backup can be created and restored. The tour is in [docs/tour.md](docs/tour.md).
+Heart rate, HRV, blood pressure, sleep, steps, weight and more sit on one dashboard that says in one sentence what is outside your typical range; each metric opens a chart from 7 days to a year. Habits, medications, supplements, conditions and diet notes live beside the measurements they may affect. A full JSON backup can be created and restored. The tour is in [docs/tour.md](docs/tour.md).
 
 ## Privacy
 

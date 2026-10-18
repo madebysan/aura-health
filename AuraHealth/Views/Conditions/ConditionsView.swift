@@ -28,7 +28,7 @@ struct ConditionsView: View {
                         chatHint: "Try \"I have seasonal allergies, managed\" in Chat"
                     )
                 } else {
-                    NotebookSectionHeader(title: "Conditions", trailing: "\(activeCount) active")
+                    NotebookSectionHeader(title: "\(activeCount) active")
 
                     ForEach(Array(conditions.enumerated()), id: \.element.id) { index, condition in
                         Button {
@@ -220,7 +220,8 @@ struct DietPlansView: View {
                 Text(plan.name)
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(Notebook.ink)
-                if !plan.dietType.isEmpty && plan.dietType != plan.name {
+                // The type only when the name doesn't already say it ("Mediterranean Diet")
+                if !plan.dietType.isEmpty && !plan.name.localizedCaseInsensitiveContains(plan.dietType) {
                     Text(plan.dietType)
                         .font(Notebook.mono(.caption))
                         .foregroundStyle(Notebook.inkSecondary)

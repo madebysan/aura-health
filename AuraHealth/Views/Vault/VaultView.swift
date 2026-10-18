@@ -69,7 +69,8 @@ struct DocumentCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Image(systemName: document.fileType.iconName)
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.title3.weight(.medium))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(fileColor)
                     .frame(width: 36, height: 36)
                     .background(fileColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))

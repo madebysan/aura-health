@@ -355,7 +355,7 @@ struct OnboardingView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: diet.iconName)
-                                .font(.system(size: 15))
+                                .font(.subheadline)
                                 .foregroundStyle(selectedDietType == diet ? .white : diet.color)
                                 .frame(width: 22)
                             Text(diet.rawValue)
@@ -364,7 +364,7 @@ struct OnboardingView: View {
                             Spacer()
                             if selectedDietType == diet {
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.caption.weight(.bold))
                                     .foregroundStyle(.white)
                             }
                         }
@@ -546,7 +546,7 @@ struct OnboardingView: View {
     private func chatCapability(icon: String, color: Color, text: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 18))
+                .font(.body)
                 .foregroundStyle(color)
                 .frame(width: 28)
 
@@ -562,7 +562,7 @@ struct OnboardingView: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
-                    .font(.system(size: 28))
+                    .font(.title)
                     .foregroundStyle(color)
                     .frame(width: 40)
 

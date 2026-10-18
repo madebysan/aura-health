@@ -450,7 +450,7 @@ struct BiomarkersView: View {
                             statusSegment(count: counts.borderline, total: total, width: width, color: AppColors.statusOrange, label: "Near limit")
                         }
                         if counts.abnormal > 0 {
-                            statusSegment(count: counts.abnormal, total: total, width: width, color: AppColors.statusRed, label: "Out of range")
+                            statusSegment(count: counts.abnormal, total: total, width: width, color: outOfRangeColor, label: "Out of range")
                         }
                     }
                 }
@@ -468,7 +468,7 @@ struct BiomarkersView: View {
                         statusLegendItem(count: counts.borderline, label: "Near limit", color: AppColors.statusOrange)
                     }
                     if counts.abnormal > 0 {
-                        statusLegendItem(count: counts.abnormal, label: "Out of range", color: AppColors.statusRed)
+                        statusLegendItem(count: counts.abnormal, label: "Out of range", color: outOfRangeColor)
                     }
                     if !dynamicTypeSize.isAccessibilitySize {
                         Spacer()
@@ -505,6 +505,15 @@ struct BiomarkersView: View {
             .foregroundStyle(.white)
             .frame(width: segmentWidth, height: summaryBarHeight)
             .background(color.opacity(0.7))
+    }
+
+    /// Red only when at least one result is clearly out of range; orange when
+    /// every out-of-range result is marginal, matching the row colors.
+    private var outOfRangeColor: Color {
+        let clearlyOut = groupedByMarker.map(\.latest).contains {
+            $0.status == .abnormal && !$0.isMarginallyOutOfRange
+        }
+        return clearlyOut ? AppColors.statusRed : AppColors.statusOrange
     }
 
     private var statusCounts: (normal: Int, borderline: Int, abnormal: Int) {

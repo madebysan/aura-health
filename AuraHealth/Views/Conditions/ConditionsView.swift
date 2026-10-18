@@ -182,7 +182,7 @@ struct DietPlansView: View {
                 HStack(spacing: 6) {
                     if let option = dietOption {
                         Image(systemName: option.iconName)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.footnote.weight(.semibold))
                             .foregroundStyle(option.color)
                     }
                     Text(plan.name)
@@ -201,10 +201,11 @@ struct DietPlansView: View {
                 editingDiet = plan
             } label: {
                 Image(systemName: "pencil")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Edit \(plan.name)")
 
             Button {
                 withAnimation(AppAnimation.quickToggle) {
@@ -212,10 +213,11 @@ struct DietPlansView: View {
                 }
             } label: {
                 Image(systemName: "trash")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Delete \(plan.name)")
         }
         .cardStyle()
     }
@@ -248,7 +250,7 @@ struct DietPlansView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: category?.iconName ?? "circle.fill")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.caption.weight(.medium))
                                 .foregroundStyle(isApproved ? color : .secondary)
                                 .frame(width: 18)
 
@@ -260,7 +262,7 @@ struct DietPlansView: View {
                             Spacer()
 
                             Image(systemName: isApproved ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .font(.system(size: 14))
+                                .font(.subheadline)
                                 .foregroundStyle(isApproved ? color.opacity(0.6) : Color.red.opacity(0.4))
                         }
                         .padding(.horizontal, 10)
@@ -303,7 +305,8 @@ struct DietPlansView: View {
     private func planRow(_ plan: DietPlan) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "fork.knife")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption2.weight(.semibold))
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 .foregroundStyle(.secondary)
                 .frame(width: 22, height: 22)
                 .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 5))
@@ -378,7 +381,7 @@ struct ConditionFormSheet: View {
                     Section {
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
-                                .font(.system(size: 13))
+                                .font(.footnote)
                                 .foregroundStyle(.tertiary)
                             TextField("Search conditions...", text: $searchText)
                                 .textFieldStyle(.plain)
@@ -422,7 +425,7 @@ struct ConditionFormSheet: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 13))
+                                    .font(.footnote)
                                     .foregroundStyle(.secondary)
                                 Text("Custom condition")
                                     .font(.subheadline)
@@ -527,7 +530,7 @@ struct DietPlanFormSheet: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: option.iconName)
-                                        .font(.system(size: 11, weight: .semibold))
+                                        .font(.caption2.weight(.semibold))
                                         .foregroundStyle(isSelected ? .white : option.color)
                                     Text(option.rawValue)
                                         .font(.subheadline.weight(isSelected ? .semibold : .regular))

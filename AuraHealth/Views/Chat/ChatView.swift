@@ -389,7 +389,7 @@ struct ChatView: View {
             if let fileURL = attachedFileURL {
                 HStack(spacing: 8) {
                     Image(systemName: fileURL.pathExtension.lowercased() == "pdf" ? "doc.fill" : "photo.fill")
-                        .font(.system(size: 12))
+                        .font(.caption)
                         .foregroundStyle(Color.accentColor)
                     Text(fileURL.lastPathComponent)
                         .font(.caption)
@@ -400,7 +400,7 @@ struct ChatView: View {
                         attachedFileURL = nil
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 14))
+                            .font(.subheadline)
                             .foregroundStyle(.tertiary)
                     }
                     .buttonStyle(.plain)
@@ -425,7 +425,7 @@ struct ChatView: View {
                     }
                 } label: {
                     Image(systemName: "paperclip")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
                 .disabled(!aiService.isReady)
@@ -456,7 +456,7 @@ struct ChatView: View {
 
                 Button { sendMessage() } label: {
                     Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 28))
+                        .font(.title)
                         .foregroundStyle(
                             canSend ? Color.accentColor : Color.secondary.opacity(0.3)
                         )
@@ -594,7 +594,8 @@ struct ChatBubble: View {
 
             if !isUser {
                 Image(systemName: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.caption.weight(.semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                     .foregroundStyle(Color.accentColor)
                     .frame(width: 26, height: 26)
                     .background(Color.accentColor.opacity(0.1), in: Circle())
@@ -760,7 +761,8 @@ struct ConversationRow: View {
         HStack(spacing: 12) {
             // Icon
             Image(systemName: isActive ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
-                .font(.system(size: 14, weight: .medium))
+                .font(.subheadline.weight(.medium))
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 .foregroundStyle(isActive ? Color.accentColor : .secondary)
                 .frame(width: 28, height: 28)
                 .background(

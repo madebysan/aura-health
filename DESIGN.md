@@ -35,6 +35,7 @@ The visual direction is **Notebook**: a personal lab notebook. Ink on paper, num
 - Signal (`Notebook.signal`, burnt orange): outside a range, or clearly outside a lab reference range.
 - Amber (`Notebook.near`): near a limit, or just outside it (within the 10% borderline margin).
 - There is no green. Being in range is the default state, not an achievement.
+- Under review (2026-10-18): a muted status palette with sage green for in range, ochre for near limit and brick red for out of range, applied only to status words, range ticks and the newest trend bar. Compare it with the Ink / Color switch in `design/prototypes/notebook-screens/`. Until san decides, the rule above stands.
 
 Every status also needs a word: "in range", "near limit", "↑ above range", "↓ below range". Color only adds emphasis.
 
@@ -58,6 +59,8 @@ Every status also needs a word: "in range", "near limit", "↑ above range", "�
 - `BarSparkline`: small bars, latest bar solid. Pass `floor` for bounded scores.
 - `NotebookPrimaryButtonStyle` / `NotebookSecondaryButtonStyle`: filled ink and hairline-outlined buttons. Disabled buttons fade to 40%.
 - `NotebookCheckbox`: the Habits tick box (filled with a check, empty, or crossed). Use for selections and approved/avoided lists; the row carries the label.
+- `NotebookForm`: use instead of `Form` for every sheet and settings screen. It gives paper rows, hairline separators and ink tint, so no screen falls back to the default white iOS form. Title sections with `NotebookFormHeader`.
+- `NotebookField`: a form text field whose label stays visible above it, so filled-in edit forms show which field is which. Use instead of a bare `TextField` with a placeholder.
 - `EmptyStateView`: explanation plus one primary action.
 - `InlineErrorBanner`: recoverable errors without modal interruption.
 

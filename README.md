@@ -37,7 +37,7 @@ Lab extraction depends on the document's quality, so every extracted value stays
 
 ## Install
 
-Aura is distributed as source while its first App Store release is prepared. Clone the repo, open `AuraHealth.xcodeproj` and build the iPhone target. Apple Health access is optional and read-only; the assistant is set up under **Settings > AI**.
+Aura is distributed as source while its first App Store release is prepared. Clone the repo, open `AuraHealth.xcodeproj` and build the iPhone target. Apple Health access is optional and read-only; the assistant is set up under **More › Settings › AI**.
 
 ---
 

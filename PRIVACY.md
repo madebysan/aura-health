@@ -10,9 +10,13 @@ Aura stores the health records, habits, medications, conditions, lab values, doc
 
 Aura reads only the Apple Health categories you choose to authorize. Apple Health permissions remain controlled by Apple in Settings and the Health app. Aura does not write data to Apple Health.
 
-## Optional AI processing
+## The assistant
 
-AI features are optional and remain disabled until you select Anthropic or OpenRouter, supply your own API key, and explicitly allow processing by that provider.
+By default, Aura's assistant uses Apple's on-device model (Apple Intelligence on supported iPhones). It reads your Aura records on the device and sends nothing anywhere.
+
+## Optional cloud AI processing
+
+Cloud AI is optional and stays disabled until you select Anthropic or OpenRouter in Settings, supply your own API key, and explicitly allow processing by that provider.
 
 When you send an AI message or attachment, Aura sends the content you selected and health records returned by its read tools for that request to the selected provider. Aura does not send health information automatically or in the background. Provider processing is governed by the provider's own terms and privacy policy:
 

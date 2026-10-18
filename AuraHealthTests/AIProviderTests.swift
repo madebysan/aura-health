@@ -52,13 +52,58 @@ final class AIProviderTests: XCTestCase {
     }
 
     func testCuratedModelsSupportAuraToolsAndAttachments() {
-        for provider in AIProvider.allCases {
+        for provider in AIProvider.allCases where !provider.isOnDevice {
             let models = AIProviderCatalog.models(for: provider)
             XCTAssertFalse(models.isEmpty)
             XCTAssertTrue(models.allSatisfy(\.supportsTools))
             XCTAssertTrue(models.allSatisfy(\.supportsImages))
             XCTAssertTrue(models.allSatisfy(\.supportsPDFs))
         }
+    }
+
+    func testOnDeviceModelUsesToolsButReadsTextOnly() {
+        let model = AIProviderCatalog.model(id: AIProviderCatalog.defaultModelID(for: .appleOnDevice), provider: .appleOnDevice)
+        XCTAssertTrue(model.supportsTools)
+        XCTAssertFalse(model.supportsImages)
+        XCTAssertFalse(model.supportsPDFs)
+        XCTAssertNil(AIKeyStore.value(for: .appleOnDevice))
+    }
+
+    func testNewInstallsDefaultToOnDevice() {
+        let defaults = UserDefaults.standard
+        let saved = defaults.string(forKey: "aiProvider")
+        defer { defaults.set(saved, forKey: "aiProvider") }
+        defaults.removeObject(forKey: "aiProvider")
+        XCTAssertEqual(AIPreferences.provider, .appleOnDevice)
+    }
+
+    func testOnDeviceConfirmationsComeFromWhatWasSaved() {
+        XCTAssertEqual(OnDeviceAssistant.confirmation(for: "Added: Weight = 80.5 kg on Oct 18, 2026"), "Saved: Weight 80.5 kg on Oct 18, 2026.")
+        XCTAssertEqual(OnDeviceAssistant.confirmation(for: "The user did not approve this change. No Aura data was modified."), "Nothing was saved.")
+        XCTAssertEqual(OnDeviceAssistant.confirmation(for: "Error: unknown metric 'mood'."), "Nothing was saved. Unknown metric 'mood'.")
+        XCTAssertEqual(OnDeviceAssistant.checked("Your weight was logged.", savedSomething: false).prefix(18), "Nothing was saved.")
+        XCTAssertEqual(OnDeviceAssistant.checked("Your LDL is 102.", savedSomething: false), "Your LDL is 102.")
+    }
+
+    func testOnDeviceRecognizesLoggingRequests() {
+        XCTAssertTrue(OnDeviceAssistant.asksToLog("Log my weight at 81 kg"))
+        XCTAssertTrue(OnDeviceAssistant.asksToLog("I did my meditation"))
+        XCTAssertFalse(OnDeviceAssistant.asksToLog("What biomarkers are out of range?"))
+        XCTAssertFalse(OnDeviceAssistant.asksToLog("How has my sleep been this week?"))
+        // A cheap first pass: questions with "did" go on to the form reader, which returns none
+        XCTAssertTrue(OnDeviceAssistant.asksToLog("How did I sleep this week?"))
+    }
+
+    func testOnDevicePromptKeepsRecentTurnsAndTheNewMessage() {
+        let history = [
+            ChatMessage(role: .user, content: "How did I sleep?"),
+            ChatMessage(role: .assistant, content: "About 7 hours most nights."),
+            ChatMessage(role: .user, content: "And last night?"),
+        ]
+        let prompt = OnDeviceAssistant.prompt(from: history)
+        XCTAssertTrue(prompt.hasPrefix("Conversation so far:\nUser: How did I sleep?\nAura: About 7 hours most nights."))
+        XCTAssertTrue(prompt.hasSuffix("New message: And last night?"))
+        XCTAssertEqual(OnDeviceAssistant.prompt(from: [ChatMessage(role: .user, content: "Hi")]), "Hi")
     }
 
     func testMutatingToolsRequireExplicitApproval() {

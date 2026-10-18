@@ -1,6 +1,9 @@
 import Foundation
 
 enum AIProvider: String, Codable, CaseIterable, Identifiable {
+    /// Apple's on-device model (Foundation Models). The default since 2026-10-18:
+    /// no key, and nothing leaves the iPhone.
+    case appleOnDevice
     case anthropic
     case openRouter
 
@@ -8,13 +11,18 @@ enum AIProvider: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
+        case .appleOnDevice: "On this iPhone"
         case .anthropic: "Anthropic"
         case .openRouter: "OpenRouter"
         }
     }
 
+    /// Cloud providers need your own key and consent; the on-device model needs neither.
+    var isOnDevice: Bool { self == .appleOnDevice }
+
     var keychainKey: String {
         switch self {
+        case .appleOnDevice: ""
         case .anthropic: "anthropic-api-key"
         case .openRouter: "openrouter-api-key"
         }
@@ -22,6 +30,7 @@ enum AIProvider: String, Codable, CaseIterable, Identifiable {
 
     var privacyPolicyURL: URL {
         switch self {
+        case .appleOnDevice: URL(string: "https://www.apple.com/legal/privacy/")!
         case .anthropic: URL(string: "https://www.anthropic.com/legal/privacy")!
         case .openRouter: URL(string: "https://openrouter.ai/privacy")!
         }
@@ -29,6 +38,7 @@ enum AIProvider: String, Codable, CaseIterable, Identifiable {
 
     var keyPlaceholder: String {
         switch self {
+        case .appleOnDevice: ""
         case .anthropic: "sk-ant-…"
         case .openRouter: "sk-or-…"
         }
@@ -112,6 +122,15 @@ enum AIToolPolicy {
 enum AIProviderCatalog {
     static let models: [AIModelOption] = [
         AIModelOption(
+            id: "apple-on-device",
+            provider: .appleOnDevice,
+            displayName: "Apple on-device model",
+            detail: "Private, runs on this iPhone; reads text only",
+            supportsTools: true,
+            supportsImages: false,
+            supportsPDFs: false
+        ),
+        AIModelOption(
             id: "claude-haiku-4-5-20251001",
             provider: .anthropic,
             displayName: "Claude Haiku",
@@ -173,6 +192,7 @@ enum AIProviderCatalog {
 
     static func defaultModelID(for provider: AIProvider) -> String {
         switch provider {
+        case .appleOnDevice: "apple-on-device"
         case .anthropic: "claude-sonnet-4-6"
         case .openRouter: "openai/gpt-5.6-luna"
         }
@@ -186,6 +206,7 @@ enum AIProviderCatalog {
 
 enum AIKeyStore {
     static func value(for provider: AIProvider) -> String? {
+        guard !provider.isOnDevice else { return nil }
         if let value = KeychainService.getValue(for: provider.keychainKey), !value.isEmpty {
             return value
         }
@@ -240,7 +261,8 @@ struct AIConsentStore {
 
 enum AIPreferences {
     static var provider: AIProvider {
-        AIProvider(rawValue: UserDefaults.standard.string(forKey: "aiProvider") ?? "") ?? .anthropic
+        // New installs start on-device; a provider chosen earlier is kept.
+        AIProvider(rawValue: UserDefaults.standard.string(forKey: "aiProvider") ?? "") ?? .appleOnDevice
     }
 
     static var modelID: String {

@@ -31,6 +31,10 @@
 - Added Acknowledgements under Settings with the Phosphor icon license.
 - Sample data no longer claims to come from WHOOP: sample vitals are labeled Apple Health, and Sleep Score, Recovery and Strain samples are gone because nothing in the release provides them.
 - A Vitals row with one reading this week says "1 reading" instead of leaving the trend blank.
+- The assistant now runs on Apple's on-device model by default: no key, and nothing leaves the iPhone. It answers from your records and saves a reading or habit you ask it to log, after you approve. Anthropic and OpenRouter with your own key remain in Settings for PDF and photo lab reports.
+- Onboarding is three screens: what Aura is and its privacy promise, Apple Health with units, and the assistant. The feature carousel, diet step and API-key form are gone.
+- At the largest text sizes, the Labs summary moves the flag count to its own line and the More list drops its icons so labels fit.
+- Chat says "1 message", not "1 messages".
 - Fixed links and assistant requests that should open a screen under More (such as Settings); they only switched to the More tab.
 
 - Narrowed Aura to an iPhone-only iOS 17+ release.

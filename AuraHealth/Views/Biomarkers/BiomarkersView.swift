@@ -321,6 +321,16 @@ struct BiomarkersView: View {
 
     // MARK: - Status Summary
 
+    @ViewBuilder
+    private func flaggedLabel(_ flagged: Int, separator: Bool) -> some View {
+        if flagged > 0 {
+            Text(separator ? "· \(flagged) flagged" : "\(flagged) flagged")
+                .font(Notebook.mono(.subheadline))
+                .foregroundStyle(Notebook.outOfRange)
+                .fixedSize()
+        }
+    }
+
     /// "15/16 in range · 1 flagged". The words carry it; the strip and legend are gone.
     private var statusSummary: some View {
         let rows = sessionRows
@@ -329,12 +339,15 @@ struct BiomarkersView: View {
 
         return VStack(alignment: .leading, spacing: 8) {
             Text(selectedDate == nil ? "Latest results" : "Results").kicker()
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                BigNumber(value: "\(normal)", suffix: "/\(rows.count) in range")
-                if flagged > 0 {
-                    Text("· \(flagged) flagged")
-                        .font(Notebook.mono(.subheadline))
-                        .foregroundStyle(Notebook.outOfRange)
+            // Side by side when it fits; the flag count gets its own line at large text sizes
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    BigNumber(value: "\(normal)", suffix: "/\(rows.count) in range")
+                    flaggedLabel(flagged, separator: true)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    BigNumber(value: "\(normal)", suffix: "/\(rows.count) in range")
+                    flaggedLabel(flagged, separator: false)
                 }
             }
         }

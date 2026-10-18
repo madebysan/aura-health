@@ -87,9 +87,10 @@ Prefer these primitives before creating another local variant.
 
 ## AI states
 
-- AI is optional and visibly disabled until provider, key, model, and consent are configured.
-- Name the active provider and model where the user configures AI.
-- Show what data may leave the device before consent.
+- The default assistant is Apple's on-device model (decision C, 2026-10-18): no key, no consent step, nothing leaves the iPhone. When it can't run (no Apple Intelligence, model downloading), say why in plain words in Settings, onboarding and Chat.
+- The on-device model reads text only and gets Aura's read tools. A logging request is read into a structured form and saved by Aura after approval; never let a reply claim a save that didn't happen.
+- Cloud providers (Anthropic, OpenRouter) are the advanced option in Settings and stay disabled until key, model, and consent are configured. Name the active provider and model there, and show what data may leave the device before consent.
+- PDF and photo attachments need a cloud provider; hide the paperclip otherwise.
 - Attachments are never sent until the user presses Send.
 - Errors preserve the user's draft and avoid exposing provider response bodies or credentials.
 - Place the medical disclaimer in onboarding, Chat, Privacy, and biomarker education surfaces.

@@ -7,8 +7,8 @@ struct SettingsView: View {
     @Environment(HealthKitService.self) private var healthKitService
     @AppStorage("weightUnit") private var weightUnit: WeightUnit = .kg
     @AppStorage("temperatureUnit") private var temperatureUnit: TemperatureUnit = .celsius
-    @AppStorage("aiProvider") private var aiProvider: AIProvider = .anthropic
-    @AppStorage("aiModel") private var aiModelID = AIProviderCatalog.defaultModelID(for: .anthropic)
+    @AppStorage("aiProvider") private var aiProvider: AIProvider = .appleOnDevice
+    @AppStorage("aiModel") private var aiModelID = AIProviderCatalog.defaultModelID(for: .appleOnDevice)
 
     @State private var showingClearConfirmation = false
     @State private var sampleDataLoaded = false
@@ -63,9 +63,13 @@ struct SettingsView: View {
 
             Section {
                 aiProviderSection
-                apiKeySection
-                modelPickerSection
-                consentSection
+                if aiProvider.isOnDevice {
+                    onDeviceSection
+                } else {
+                    apiKeySection
+                    modelPickerSection
+                    consentSection
+                }
             } header: {
                 sectionHeader("AI")
             }
@@ -314,6 +318,22 @@ struct SettingsView: View {
             }
         } label: {
             Label("Provider", image: "ph.globe")
+        }
+    }
+
+    /// The on-device model needs no key or consent; say whether it can run and why not.
+    private var onDeviceSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Apple on-device model")
+                Spacer()
+                StatusWord(text: OnDeviceAssistant.isAvailable ? "ready" : "not available",
+                           color: OnDeviceAssistant.isAvailable ? Notebook.inRange : Notebook.inkSecondary)
+            }
+            Text(OnDeviceAssistant.unavailableReason
+                 ?? "Runs on this iPhone and reads your Aura data through its tools. Nothing is sent anywhere. It reads text only; for PDF and photo lab reports, add your own Anthropic or OpenRouter key.")
+                .font(.footnote)
+                .foregroundStyle(Notebook.inkSecondary)
         }
     }
 

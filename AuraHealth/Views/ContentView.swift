@@ -135,6 +135,7 @@ struct MoreMenuView: View {
     @Binding var chatPrefill: String?
     @State private var navigationPath = NavigationPath()
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 30
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     // The tab bar covers Vitals, Habits, Biomarkers and Chat. Settings sits apart, below.
     private let sections: [AppSection] = [.conditions, .medications, .vault]
@@ -167,11 +168,14 @@ struct MoreMenuView: View {
     private func moreRow(_ section: AppSection) -> some View {
         NavigationLink(value: section) {
             HStack(spacing: 14) {
-                Image(section.iconName)
-                    .font(.body)
-                    .foregroundStyle(Notebook.ink)
-                    .frame(width: iconSize, height: iconSize)
-                    .accessibilityHidden(true)
+                // At accessibility sizes the label needs the room more than the glyph
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Image(section.iconName)
+                        .font(.body)
+                        .foregroundStyle(Notebook.ink)
+                        .frame(width: iconSize, height: iconSize)
+                        .accessibilityHidden(true)
+                }
                 Text(section.label)
                     .foregroundStyle(Notebook.ink)
                 Spacer()

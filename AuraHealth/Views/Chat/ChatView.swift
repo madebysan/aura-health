@@ -368,7 +368,7 @@ struct ChatView: View {
                         .font(.callout.weight(.medium))
                         .foregroundStyle(Notebook.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("\(conversation.messages.count) messages · \(conversation.updatedAt.formatted(.relative(presentation: .named)))")
+                    Text("\(conversation.messages.count == 1 ? "1 message" : "\(conversation.messages.count) messages") · \(conversation.updatedAt.formatted(.relative(presentation: .named)))")
                         .font(Notebook.mono(.caption))
                         .foregroundStyle(Notebook.inkSecondary)
                 }
@@ -458,27 +458,29 @@ struct ChatView: View {
             }
 
             HStack(alignment: .bottom, spacing: 6) {
-                Menu {
-                    Button {
-                        showingPhotoPicker = true
+                // Attachments need a cloud provider; the on-device model reads text only
+                if aiService.canReadFiles {
+                    Menu {
+                        Button {
+                            showingPhotoPicker = true
+                        } label: {
+                            Label("Photo Library", image: "ph.image")
+                        }
+                        Button {
+                            showingFilePicker = true
+                        } label: {
+                            Label("Files", image: "ph.file-text")
+                        }
                     } label: {
-                        Label("Photo Library", image: "ph.image")
+                        Image("ph.paperclip")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(Notebook.ink)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
-                    Button {
-                        showingFilePicker = true
-                    } label: {
-                        Label("Files", image: "ph.file-text")
-                    }
-                } label: {
-                    Image("ph.paperclip")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(aiService.isReady ? Notebook.ink : Notebook.inkTertiary)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    .accessibilityLabel("Attach File")
                 }
-                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                .disabled(!aiService.isReady)
-                .accessibilityLabel("Attach File")
 
                 Group {
                     if aiService.isReady {

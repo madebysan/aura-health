@@ -11,6 +11,7 @@
 		CD00000000000000000000A1 /* ConditionSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD00000000000000000000B1 /* ConditionSuggestions.swift */; };
 		AF0000000000000000000001 /* PrivacyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0000000000000000000002 /* PrivacyView.swift */; };
 		AE0000000000000000000001 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0000000000000000000002 /* AIProvider.swift */; };
+		0BC62A5FFE588EC5254A90D6 /* OnDeviceAssistant.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6064FB778D2B1FE0CF3518E /* OnDeviceAssistant.swift */; };
 		AE0000000000000000000003 /* AIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0000000000000000000004 /* AIProviderTests.swift */; };
 		AC0000000000000000000001 /* AuraStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000002 /* AuraStorage.swift */; };
 		AC0000000000000000000003 /* StorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000004 /* StorageTests.swift */; };
@@ -66,6 +67,7 @@
 		CD00000000000000000000B1 /* ConditionSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionSuggestions.swift; sourceTree = "<group>"; };
 		AF0000000000000000000002 /* PrivacyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyView.swift; sourceTree = "<group>"; };
 		AE0000000000000000000002 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
+		E6064FB778D2B1FE0CF3518E /* OnDeviceAssistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceAssistant.swift; sourceTree = "<group>"; };
 		AE0000000000000000000004 /* AIProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProviderTests.swift; sourceTree = "<group>"; };
 		AC0000000000000000000002 /* AuraStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuraStorage.swift; sourceTree = "<group>"; };
 		AC0000000000000000000004 /* StorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageTests.swift; sourceTree = "<group>"; };
@@ -208,6 +210,7 @@
 			isa = PBXGroup;
 			children = (
 				AE0000000000000000000002 /* AIProvider.swift */,
+				E6064FB778D2B1FE0CF3518E /* OnDeviceAssistant.swift */,
 				AC0000000000000000000002 /* AuraStorage.swift */,
 				8EDEC4896BAC6346CE028705 /* AIService.swift */,
 				AB0000000000000000000002 /* DataLifecycleService.swift */,
@@ -470,6 +473,7 @@
 			files = (
 				AF0000000000000000000001 /* PrivacyView.swift in Sources */,
 				AE0000000000000000000001 /* AIProvider.swift in Sources */,
+				0BC62A5FFE588EC5254A90D6 /* OnDeviceAssistant.swift in Sources */,
 				AC0000000000000000000001 /* AuraStorage.swift in Sources */,
 				AB0000000000000000000001 /* DataLifecycleService.swift in Sources */,
 				E6BA799428D23DF3709F9227 /* AuraHealthApp.swift in Sources */,

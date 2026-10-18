@@ -21,7 +21,7 @@ I started Aura after the spreadsheet where I tracked biomarkers, habits and heal
 
 - Vitals from Apple Health and manual entries on one timeline, each with its trend and reference range.
 - Labs grouped by body system, with every past session kept as a dated snapshot.
-- An optional assistant that reads lab reports from a PDF or photo for you to review.
+- A private assistant that runs on your iPhone; with your own cloud key it can also read lab reports from a PDF or photo for you to review.
 
 ## How it works
 
@@ -29,7 +29,7 @@ Heart rate, HRV, blood pressure, sleep, steps, weight and more sit on one dashbo
 
 ## Privacy
 
-There's no Aura account, health-data server, analytics or ads; data stays in Aura's local database on your iPhone. The assistant stays off until you add your own Anthropic or OpenRouter key and allow it. Then, only what you send, plus the records its tools read for that request, goes to that provider. See the [privacy policy](PRIVACY.md) and [support guide](SUPPORT.md).
+There's no Aura account, health-data server, analytics or ads; data stays in Aura's local database on your iPhone. The assistant runs on Apple's on-device model, so it sends nothing anywhere. Cloud AI is optional: it stays off until you add your own Anthropic or OpenRouter key and allow it, and then only what you send, plus the records its tools read for that request, goes to that provider. See the [privacy policy](PRIVACY.md) and [support guide](SUPPORT.md).
 
 ## Limits
 
@@ -37,7 +37,7 @@ Lab extraction depends on the document's quality, so every extracted value stays
 
 ## Install
 
-Aura is distributed as source while its first App Store release is prepared. Clone the repo, open `AuraHealth.xcodeproj` and build the iPhone target. Apple Health access is optional and read-only; the assistant is set up under **More › Settings › AI**.
+Aura is distributed as source while its first App Store release is prepared. Clone the repo, open `AuraHealth.xcodeproj` and build the iPhone target. Apple Health access is optional and read-only; the assistant uses Apple Intelligence where available, and cloud providers are set up under **More › Settings › AI**.
 
 ---
 

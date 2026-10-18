@@ -20,12 +20,12 @@ struct PrivacyView: View {
             .listRowBackground(Notebook.paperRaised)
 
             Section {
-                Text("AI is off until you choose Anthropic or OpenRouter, add your own API key, and allow processing. When you explicitly send a message or attachment, Aura shares that content and health records returned by its read tools for that request with the selected provider. Nothing is sent automatically.")
+                Text("The assistant uses Apple's on-device model and sends nothing anywhere. Cloud AI is optional: it stays off until you choose Anthropic or OpenRouter, add your own API key, and allow processing. Then, when you explicitly send a message or attachment, Aura shares that content and health records returned by its read tools for that request with the selected provider. Nothing is sent automatically.")
 
                 Link("Anthropic Privacy Policy", destination: AIProvider.anthropic.privacyPolicyURL)
                 Link("OpenRouter Privacy Policy", destination: AIProvider.openRouter.privacyPolicyURL)
             } header: {
-                Text("Optional AI").kicker()
+                Text("Assistant").kicker()
             }
             .listRowBackground(Notebook.paperRaised)
 

@@ -109,8 +109,8 @@ struct LabImportSheet: View {
             .buttonStyle(NotebookSecondaryButtonStyle())
             #endif
 
-            if !aiService.isReady {
-                Text("Local parsing will be used. Configure an AI provider in Settings for complex reports.")
+            if !aiService.canReadFiles {
+                Text("Aura reads the report on this iPhone. For complex reports, add your own Anthropic or OpenRouter key in Settings.")
                     .font(.caption)
                     .foregroundStyle(Notebook.inkSecondary)
                     .multilineTextAlignment(.center)
@@ -296,7 +296,7 @@ struct LabImportSheet: View {
                     return
                 }
 
-                if aiService.isReady {
+                if aiService.canReadFiles {
                     let apiMarkers = try await aiService.extractBiomarkers(from: tempURL)
                     extractedBiomarkers = apiMarkers
                     selectedMarkers = Set(apiMarkers.map(\.id))
@@ -339,7 +339,7 @@ struct LabImportSheet: View {
                 }
 
                 // Step 2: Fall back to the explicitly configured AI provider if available.
-                if aiService.isReady {
+                if aiService.canReadFiles {
                     do {
                         let apiMarkers = try await aiService.extractBiomarkers(from: url)
                         extractedBiomarkers = apiMarkers

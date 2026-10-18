@@ -1,7 +1,8 @@
 import Foundation
 import SwiftData
 
-/// Provider-neutral health chat facade with Anthropic and OpenRouter transports.
+/// Provider-neutral health chat facade: Apple's on-device model (the default),
+/// plus Anthropic and OpenRouter with the user's own key.
 @Observable
 @MainActor
 final class AIService {
@@ -23,15 +24,22 @@ final class AIService {
     }
 
     var hasAPIKey: Bool {
-        !apiKey.isEmpty
+        provider.isOnDevice || !apiKey.isEmpty
     }
 
+    /// The on-device model sends nothing anywhere, so it needs no consent.
     var hasConsent: Bool {
-        AIConsentStore().hasConsent(for: provider)
+        provider.isOnDevice || AIConsentStore().hasConsent(for: provider)
     }
 
     var isReady: Bool {
-        hasAPIKey && hasConsent
+        if provider.isOnDevice { return OnDeviceAssistant.isAvailable }
+        return hasAPIKey && hasConsent
+    }
+
+    /// Whether the selected provider can read PDFs and photos (lab import, attachments).
+    var canReadFiles: Bool {
+        isReady && selectedModel.supportsPDFs
     }
 
     private static let anthropicAPIURL = "https://api.anthropic.com/v1/messages"
@@ -64,6 +72,19 @@ final class AIService {
     - Use aura://tracking for habit-related updates.
     - Only include a link when you actually added or updated data. Do NOT add links for read-only queries.
     """
+
+    /// A shorter brief for Apple's on-device model, whose context window is small.
+    var onDeviceInstructions: String {
+        let weightUnit = UserDefaults.standard.string(forKey: "weightUnit") ?? "kg"
+        let today = Date().formatted(date: .complete, time: .omitted)
+        return """
+        You are the health assistant inside the Aura app. Today is \(today). Weight unit: \(weightUnit).
+        Use the tools to read the user's data before answering; never guess values.
+        For questions about lab results out of range, call get_lab_flags and list only what it returns.
+        Only use add_measurement or log_habit when the user asks to log something, then say exactly what was saved.
+        Answer in two to four short sentences with the key numbers. You are not a doctor: no diagnoses or treatment advice; suggest asking a clinician for medical decisions.
+        """
+    }
 
     private var systemPrompt: String {
         let weightUnit = UserDefaults.standard.string(forKey: "weightUnit") ?? "kg"
@@ -115,6 +136,10 @@ final class AIService {
                         "type": "string",
                         "enum": ["Heart", "Metabolic", "Liver", "Kidney", "Thyroid", "Blood", "Hormones", "Inflammation", "Vitamins"],
                         "description": "Filter by body system. Use instead of marker for broader queries."
+                    ],
+                    "flaggedOnly": [
+                        "type": "boolean",
+                        "description": "Only results outside or near their reference range. Use for 'what is out of range'."
                     ]
                 ],
                 "required": [] as [String]
@@ -411,6 +436,14 @@ final class AIService {
         defer { activeFileURL = nil }
 
         switch provider {
+        case .appleOnDevice:
+            guard activeFileURL == nil else { throw ClaudeError.unsupportedAttachment }
+            return try await OnDeviceAssistant.respond(
+                to: conversationHistory,
+                instructions: onDeviceInstructions,
+                service: self,
+                container: context.container
+            )
         case .anthropic:
             return try await sendAnthropicMessage(conversationHistory: conversationHistory, context: context)
         case .openRouter:
@@ -709,7 +742,8 @@ final class AIService {
 
     // MARK: - Tool Execution
 
-    private func executeTool(name: String, input: [String: Any], context: ModelContext) async -> String {
+    /// Runs one of Aura's tools; also used by the on-device model's tools.
+    func executeTool(name: String, input: [String: Any], context: ModelContext) async -> String {
         if AIToolPolicy.requiresApproval(name) {
             let approved = await requestApproval(for: name, input: input)
             guard approved else {
@@ -865,8 +899,10 @@ final class AIService {
         var lines: [String] = []
         let sortedMarkers = grouped.sorted { $0.key < $1.key }
 
+        let flaggedOnly = input["flaggedOnly"] as? Bool ?? false
         for (marker, items) in sortedMarkers {
             let latest = items.first!
+            if flaggedOnly && latest.status == .normal { continue }
             let status = latest.statusLabel
             let ref: String
             if let min = latest.refMin, let max = latest.refMax {
@@ -877,6 +913,11 @@ final class AIService {
             lines.append("\(marker): \(String(format: "%.1f", latest.value)) \(latest.unit) \(status)\(ref)")
         }
 
+        if lines.isEmpty && flaggedOnly {
+            return markerFilter == nil && systemFilter == nil
+                ? "All latest results are within their reference ranges."
+                : "No flagged results match that filter."
+        }
         return lines.joined(separator: "\n")
     }
 
@@ -1488,6 +1529,9 @@ final class AIService {
 
         let responseText: String
         switch provider {
+        case .appleOnDevice:
+            // The on-device model reads text only; lab files use the local parser.
+            throw ClaudeError.unsupportedAttachment
         case .anthropic:
             let contentBlocks = buildFileContentBlocks(text: Self.extractionPrompt, fileURL: fileURL)
             let requestBody: [String: Any] = [

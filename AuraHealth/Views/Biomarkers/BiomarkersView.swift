@@ -124,7 +124,7 @@ struct BiomarkersView: View {
                     VStack(spacing: 12) {
                         EmptyStateView(
                             icon: "ph.drop",
-                            title: "No Biomarkers",
+                            title: "No Lab Results",
                             message: "Upload a lab report in Chat to import biomarkers automatically, or add them manually.",
                             actionLabel: "Upload Lab Results in Chat",
                             action: { NotificationCenter.default.post(name: .switchToChat, object: nil) }
@@ -244,7 +244,7 @@ struct BiomarkersView: View {
     }
 
     private var navigationTitle: String {
-        guard let date = selectedDate else { return "Biomarkers" }
+        guard let date = selectedDate else { return "Labs" }
         if let name = currentLabSession?.name, !name.isEmpty { return name }
         return date.formatted(date: .abbreviated, time: .omitted)
     }

@@ -57,7 +57,7 @@ final class AIService {
 
     NAVIGATION LINKS:
     - When you add or update a measurement or biomarker, end your response with a markdown link so the user can tap to view it.
-    - Format: [View in Vitals →](aura://vitals) or [View in Biomarkers →](aura://biomarkers)
+    - Format: [View in Vitals →](aura://vitals) or [View in Labs →](aura://biomarkers)
     - Use aura://vitals for: heart rate, HRV, blood pressure, weight, sleep, steps, SpO2, temperature, recovery, strain, active minutes.
     - Use aura://biomarkers for: glucose, cholesterol, vitamins, minerals, hormones, and other lab values.
     - Use aura://medications for medication-related updates.

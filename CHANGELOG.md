@@ -21,6 +21,8 @@
   - Biomarkers shows "15/16 in range · 1 flagged" without the strip and legend, and past lab reports open from a "lab reports" list instead of tabs (dates now include the year).
   - Chat has one "Set up AI" row that opens Settings, no intro paragraph, and photos attach without asking about the Vault; "Save to Vault" sits on the attachment.
   - Removed the Correlations screen. More is one ruled list. Medications lists Active and Archived without type tabs. Diet and Conditions no longer repeat their titles. Settings shows Apple Health as one row with Connect.
+- Renamed the Biomarkers tab to Labs (test-tube icon) and Medications to Meds and Supplements, which no longer shows or asks for a prescription, supplement or OTC type (existing types stay in your data).
+- Habit days are now done or not: a tap checks a day and another clears it, and missed days are plain empty boxes instead of slashed ones.
 - Fixed links and assistant requests that should open a screen under More (such as Settings); they only switched to the More tab.
 
 - Narrowed Aura to an iPhone-only iOS 17+ release.

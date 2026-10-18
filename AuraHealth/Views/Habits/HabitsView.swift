@@ -16,7 +16,8 @@ extension Habit {
     var currentStreak: Int {
         let cal = Calendar.current
         var day = cal.startOfDay(for: Date())
-        if log(on: day) == nil { day = cal.date(byAdding: .day, value: -1, to: day)! }
+        // Today doesn't break the streak until it's done or over
+        if log(on: day)?.done != true { day = cal.date(byAdding: .day, value: -1, to: day)! }
         var count = 0
         while let entry = log(on: day), entry.done {
             count += 1
@@ -376,13 +377,6 @@ struct DayCell: View {
                                 Image("ph.check")
                                     .font(.caption2.weight(.heavy))
                                     .foregroundStyle(Notebook.paper)
-                            } else if logForDay != nil {
-                                // Explicitly marked as not done: a slash, like a crossed box
-                                Path { p in
-                                    p.move(to: CGPoint(x: boxSize * 0.22, y: boxSize * 0.78))
-                                    p.addLine(to: CGPoint(x: boxSize * 0.78, y: boxSize * 0.22))
-                                }
-                                .stroke(Notebook.inkTertiary, lineWidth: 1.5)
                             }
                         }
                         .frame(width: boxSize, height: boxSize)
@@ -401,15 +395,13 @@ struct DayCell: View {
     }
 
     private var accessibilityState: String {
-        if isDone { return "Done" }
-        if logForDay != nil { return "Not done" }
-        return "No entry"
+        isDone ? "Done" : "Not done"
     }
 
     private func toggleDay() {
         justToggled.toggle()
         onToggle?()
-        let becomesDone = logForDay == nil
+        let becomesDone = !isDone
         if becomesDone && !reduceMotion {
             // Small press-in and spring back when a day is checked off
             withAnimation(.easeOut(duration: 0.1)) { popScale = 0.82 }
@@ -418,18 +410,16 @@ struct DayCell: View {
             }
         }
         withAnimation(AppAnimation.quickToggle) {
+            // Two states: done, or not. Unticking removes the entry, so a missed day
+            // and an untouched day look and count the same (decided 2026-10-18).
             if let log = logForDay {
                 if log.done {
-                    // done -> not done
-                    log.done = false
-                } else {
-                    // not done -> remove log (back to empty)
                     modelContext.delete(log)
+                } else {
+                    log.done = true  // older "not done" entries become done in one tap
                 }
             } else {
-                // no log -> done
-                let log = HabitLog(date: date, habit: habit, done: true)
-                modelContext.insert(log)
+                modelContext.insert(HabitLog(date: date, habit: habit, done: true))
             }
         }
     }
@@ -462,12 +452,12 @@ struct AdherenceRow: View {
                 }
             }
 
-            // One square per day: filled done, outlined missed, faint when not logged
+            // One square per day: filled when done, outlined when not
             HStack(spacing: 2) {
                 ForEach(days, id: \.date) { day in
                     Rectangle()
                         .fill(day.log?.done == true ? Notebook.ink : Color.clear)
-                        .overlay(Rectangle().stroke(day.log == nil ? Notebook.track : (day.log!.done ? Notebook.ink : Notebook.emptyBox), lineWidth: 1))
+                        .overlay(Rectangle().stroke(day.log?.done == true ? Notebook.ink : Notebook.emptyBox, lineWidth: 1))
                         .aspectRatio(1, contentMode: .fit)
                 }
             }

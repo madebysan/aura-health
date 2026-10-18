@@ -15,7 +15,7 @@ Built for people who want to understand their own data, not just collect it.</p>
 
 <p><a href="#install">Build Aura from source</a></p>
 
-![Aura's Vitals, Habits and Biomarkers screens with sample data](assets/screenshot.png)
+![Aura's Vitals, Habits and Labs screens with sample data](assets/screenshot.png)
 
 I started Aura after the spreadsheet where I tracked biomarkers, habits and health notes became harder to read than the data in it. It began as a web app; moving to Swift made a private iPhone app with Apple Health possible.
 

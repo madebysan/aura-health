@@ -20,15 +20,14 @@ struct MedicationsView: View {
                     EmptyStateView(
                         icon: "ph.pill",
                         title: "No Medications",
-                        message: "Add your prescriptions, supplements, and OTC medications.",
+                        message: "Add the medications and supplements you take.",
                         actionLabel: "Add Medication",
                         action: { showingAddSheet = true },
                         chatHint: "Try \"I take 500mg magnesium at night\" in Chat"
                     )
                     .padding(.top, 20)
                 } else {
-                    // Active first; archived ones follow in their own section (no type filter:
-                    // every row already says Prescription, Supplement or OTC).
+                    // Active first; archived ones follow in their own section.
                     if !activeMedications.isEmpty {
                         NotebookSectionHeader(title: "Active", trailing: "\(activeMedications.count)")
                         medicationRows(activeMedications)
@@ -46,9 +45,10 @@ struct MedicationsView: View {
             .padding(.bottom, 24)
         }
         .notebookBackground()
-        .navigationTitle("Medications")
+        .navigationTitle("Meds and Supplements")
         #if os(iOS)
-        .navigationBarTitleDisplayMode(.large)
+        // Inline: the large title truncates on iPhone SE width
+        .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -94,13 +94,12 @@ struct MedicationsView: View {
 
 // MARK: - Medication Row
 
-/// A hairline row: name, then dose and schedule in mono. The type is written
-/// as a word, not a color.
+/// A hairline row: name, then dose and schedule in mono.
 struct MedicationCardView: View {
     let medication: Medication
 
     private var detail: String {
-        var parts = [medication.type.displayName]
+        var parts: [String] = []
         if !medication.dosage.isEmpty { parts.append(medication.dosage) }
         parts.append(medication.frequency.displayName)
         parts.append(medication.timing.displayName)
@@ -158,17 +157,13 @@ struct MedicationFormSheet: View {
     var body: some View {
         NavigationStack {
             NotebookForm {
-                Section(header: NotebookFormHeader("Medication")) {
+                Section(header: NotebookFormHeader("Med or supplement")) {
                     NotebookField("Name", text: $name, prompt: "e.g. Vitamin D3")
                     NotebookField("Dosage", text: $dosage, prompt: "e.g. 500 mg")
                     NotebookField("Taken for", text: $condition, prompt: "e.g. Sleep, blood pressure")
                 }
 
                 Section(header: NotebookFormHeader("Schedule")) {
-                    Picker("Type", selection: $type) {
-                        ForEach(MedicationType.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                    }
-
                     Picker("Frequency", selection: $frequency) {
                         ForEach(MedicationFrequency.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
@@ -191,7 +186,7 @@ struct MedicationFormSheet: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Edit Medication" : "Add Medication")
+            .navigationTitle(isEditing ? "Edit" : "Add Med or Supplement")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif

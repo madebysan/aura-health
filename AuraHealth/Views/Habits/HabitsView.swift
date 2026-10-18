@@ -520,9 +520,9 @@ struct HabitFormSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            NotebookForm {
                 Section {
-                    TextField("Name", text: $name)
+                    NotebookField("Name", text: $name, prompt: "e.g. Morning walk")
                     Picker("Category", selection: $category) {
                         ForEach(HabitCategory.allCases, id: \.self) { c in
                             Text(c.displayName).tag(c)
@@ -541,7 +541,6 @@ struct HabitFormSheet: View {
                     }
                 }
             }
-            .formStyle(.grouped)
             .navigationTitle(isEditing ? "Edit Habit" : "Add Habit")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

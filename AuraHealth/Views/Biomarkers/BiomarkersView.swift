@@ -528,13 +528,13 @@ struct AddBiomarkerSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            NotebookForm {
                 Section {
-                    TextField("Marker Name", text: $marker)
+                    NotebookField("Marker", text: $marker, prompt: "e.g. LDL Cholesterol")
                     DatePicker("Test Date", selection: $testDate, displayedComponents: .date)
-                    TextField("Lab", text: $lab)
+                    NotebookField("Lab", text: $lab, prompt: "e.g. Quest Diagnostics")
                 }
-                Section("Result") {
+                Section(header: NotebookFormHeader("Result")) {
                     HStack {
                         TextField("Value", text: $value)
                             #if os(iOS)
@@ -543,7 +543,7 @@ struct AddBiomarkerSheet: View {
                         TextField("Unit", text: $unit)
                     }
                 }
-                Section("Reference Range") {
+                Section(header: NotebookFormHeader("Reference Range")) {
                     HStack {
                         TextField("Min", text: $refMin)
                             #if os(iOS)
@@ -556,11 +556,10 @@ struct AddBiomarkerSheet: View {
                             #endif
                     }
                 }
-                Section("Notes") {
+                Section(header: NotebookFormHeader("Notes")) {
                     TextField("Optional notes", text: $notes, axis: .vertical).lineLimit(3)
                 }
             }
-            .formStyle(.grouped)
             .navigationTitle("Add Biomarker")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -833,21 +832,20 @@ struct LabNotesSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            NotebookForm {
                 Section {
                     DatePicker("Date", selection: $editedDate, displayedComponents: .date)
                 }
 
-                Section("Lab Name") {
+                Section(header: NotebookFormHeader("Lab Name")) {
                     TextField("e.g. Quest Diagnostics, Annual Checkup", text: $labSession.name)
                 }
 
-                Section("Notes") {
+                Section(header: NotebookFormHeader("Notes")) {
                     TextField("Context, doctor notes, fasting status...", text: $labSession.notes, axis: .vertical)
                         .lineLimit(4...8)
                 }
             }
-            .formStyle(.grouped)
             .navigationTitle("Lab Notes")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

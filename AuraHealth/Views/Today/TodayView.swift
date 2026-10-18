@@ -518,7 +518,7 @@ struct AddMeasurementSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            NotebookForm {
                 Section {
                     HStack {
                         TextField(metricType.hasDualValue ? "Systolic" : "Value", text: $value)
@@ -546,7 +546,6 @@ struct AddMeasurementSheet: View {
                         .lineLimit(3)
                 }
             }
-            .formStyle(.grouped)
             .navigationTitle("Add \(metricType.displayName)")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -596,7 +595,7 @@ struct VitalsCardSettingsSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            NotebookForm {
                 Section {
                     ForEach(MetricType.allCases) { metricType in
                         let isVisible = !hiddenMetrics.contains(metricType.rawValue)
@@ -616,12 +615,15 @@ struct VitalsCardSettingsSheet: View {
                                 Text(metricType.displayName)
                             } icon: {
                                 Image(systemName: metricType.iconName)
-                                    .foregroundStyle(metricType.iconColor)
+                                    .foregroundStyle(Notebook.ink)
                             }
                         }
                     }
                 } header: {
-                    Text("Choose which metric cards appear on the Vitals dashboard.")
+                    Text("Choose which measures appear on Vitals.")
+                        .font(.footnote)
+                        .foregroundStyle(Notebook.inkSecondary)
+                        .textCase(nil)
                 }
             }
             .navigationTitle("Visible Cards")

@@ -391,11 +391,11 @@ struct ConditionFormSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            NotebookForm {
                 if isEditing || isCustom {
                     // Edit mode or custom: show text field
                     Section {
-                        TextField("Condition Name", text: $name)
+                        NotebookField("Condition", text: $name, prompt: "e.g. Hypertension")
                         PillSegmentedPicker(
                             options: ConditionStatus.allCases,
                             selection: $status,
@@ -481,11 +481,10 @@ struct ConditionFormSheet: View {
                     }
                 }
 
-                Section("Notes") {
+                Section(header: NotebookFormHeader("Notes")) {
                     TextField("Optional notes", text: $notes, axis: .vertical).lineLimit(3)
                 }
             }
-            .formStyle(.grouped)
             .navigationTitle(isEditing ? "Edit Condition" : "Add Condition")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -542,12 +541,12 @@ struct DietPlanFormSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            NotebookForm {
                 Section {
-                    TextField("Plan Name", text: $name)
+                    NotebookField("Plan name", text: $name, prompt: "e.g. Mediterranean")
                 }
 
-                Section("Diet Type") {
+                Section(header: NotebookFormHeader("Diet Type")) {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 8) {
                         ForEach(DietTypeOption.allCases) { option in
                             let isSelected = selectedDietType == option
@@ -601,11 +600,10 @@ struct DietPlanFormSheet: View {
                     }
                 }
 
-                Section("Notes") {
+                Section(header: NotebookFormHeader("Notes")) {
                     TextField("Optional notes", text: $notes, axis: .vertical).lineLimit(3)
                 }
             }
-            .formStyle(.grouped)
             .navigationTitle(dietPlan != nil ? "Edit Diet Plan" : "Add Diet Plan")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

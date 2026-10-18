@@ -159,7 +159,7 @@ struct VaultUploadSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            NotebookForm {
                 Section {
                     if let url = selectedFileURL {
                         HStack {
@@ -200,16 +200,15 @@ struct VaultUploadSheet: View {
                 }
 
                 Section {
-                    TextField("Title", text: $title)
-                    TextField("Tags (comma separated)", text: $tags)
+                    NotebookField("Title", text: $title)
+                    NotebookField("Tags", text: $tags, prompt: "Comma separated")
                 }
 
-                Section("Notes") {
+                Section(header: NotebookFormHeader("Notes")) {
                     TextField("Optional notes", text: $notes, axis: .vertical)
                         .lineLimit(3)
                 }
             }
-            .formStyle(.grouped)
             .navigationTitle("Upload Document")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -329,7 +328,7 @@ struct VaultDocumentDetail: View {
 
     var body: some View {
         NavigationStack {
-            Form {
+            NotebookForm {
                 // Image preview
                 if document.fileType == .image, let data = document.fileData {
                     #if os(iOS)
@@ -346,9 +345,9 @@ struct VaultDocumentDetail: View {
                     #endif
                 }
 
-                Section("Details") {
-                    TextField("Title", text: $document.title)
-                    TextField("Tags (comma separated)", text: $tagsText)
+                Section(header: NotebookFormHeader("Details")) {
+                    NotebookField("Title", text: $document.title)
+                    NotebookField("Tags", text: $tagsText, prompt: "Comma separated")
                         .onChange(of: tagsText) {
                             document.tags = tagsText
                                 .split(separator: ",")
@@ -357,12 +356,12 @@ struct VaultDocumentDetail: View {
                         }
                 }
 
-                Section("Notes") {
+                Section(header: NotebookFormHeader("Notes")) {
                     TextField("Optional notes", text: $document.notes, axis: .vertical)
                         .lineLimit(3)
                 }
 
-                Section("Info") {
+                Section(header: NotebookFormHeader("Info")) {
                     LabeledContent("File", value: document.fileName)
                     LabeledContent("Size") {
                         Text(formattedSize)
@@ -371,7 +370,6 @@ struct VaultDocumentDetail: View {
                     LabeledContent("Added", value: document.uploadedAt, format: .dateTime.month(.abbreviated).day().year())
                 }
             }
-            .formStyle(.grouped)
             .navigationTitle(document.title.isEmpty ? "Document" : document.title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

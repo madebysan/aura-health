@@ -258,7 +258,8 @@ struct MetricDetailSheet: View {
                 if metricType == .bloodPressure {
                     LineMark(
                         x: .value("Date", measurement.timestamp),
-                        y: .value("Systolic", measurement.value)
+                        y: .value("Systolic", measurement.value),
+                        series: .value("Reading", "Systolic")
                     )
                     .foregroundStyle(Notebook.ink)
                     .lineStyle(StrokeStyle(lineWidth: 1.5))
@@ -267,7 +268,8 @@ struct MetricDetailSheet: View {
                     if let diastolic = measurement.value2 {
                         LineMark(
                             x: .value("Date", measurement.timestamp),
-                            y: .value("Diastolic", diastolic)
+                            y: .value("Diastolic", diastolic),
+                            series: .value("Reading", "Diastolic")
                         )
                         .foregroundStyle(Notebook.inkSecondary)
                         .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [3, 2]))

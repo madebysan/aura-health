@@ -397,3 +397,62 @@ struct NotebookCheckbox: View {
             .accessibilityHidden(true)
     }
 }
+
+// MARK: - Notebook Form
+
+/// A grouped form in the Notebook look: paper rows on a raised-paper sheet,
+/// hairline separators, ink tint. Use in place of `Form` for every sheet so
+/// no screen falls back to the default white iOS form.
+struct NotebookForm<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        Form {
+            // Group applies the row styling to every section inside
+            Group { content }
+                .listRowBackground(Notebook.paper)
+                .listRowSeparatorTint(Notebook.rule)
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Notebook.paperRaised.ignoresSafeArea())
+        .foregroundStyle(Notebook.ink)
+        .tint(Notebook.ink)
+    }
+}
+
+/// A form section title in the Notebook kicker style.
+struct NotebookFormHeader: View {
+    let title: String
+    init(_ title: String) { self.title = title }
+
+    var body: some View {
+        Text(title).kicker()
+    }
+}
+
+/// A form text field with its label always visible above it, so filled-in
+/// fields stay identifiable (a placeholder disappears once there is text).
+struct NotebookField: View {
+    let label: String
+    @Binding var text: String
+    var prompt: String = ""
+    var axis: Axis = .horizontal
+
+    init(_ label: String, text: Binding<String>, prompt: String = "", axis: Axis = .horizontal) {
+        self.label = label
+        self._text = text
+        self.prompt = prompt
+        self.axis = axis
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).kicker()
+            TextField(label, text: $text, prompt: Text(prompt.isEmpty ? label : prompt).foregroundStyle(Notebook.inkTertiary), axis: axis)
+                .font(.body)
+                .foregroundStyle(Notebook.ink)
+        }
+        .padding(.vertical, 2)
+    }
+}

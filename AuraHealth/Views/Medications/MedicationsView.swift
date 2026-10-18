@@ -181,14 +181,14 @@ struct MedicationFormSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    TextField("Name", text: $name)
-                    TextField("Dosage (e.g. 500mg)", text: $dosage)
-                    TextField("Condition", text: $condition)
+            NotebookForm {
+                Section(header: NotebookFormHeader("Medication")) {
+                    NotebookField("Name", text: $name, prompt: "e.g. Vitamin D3")
+                    NotebookField("Dosage", text: $dosage, prompt: "e.g. 500 mg")
+                    NotebookField("Taken for", text: $condition, prompt: "e.g. Sleep, blood pressure")
                 }
 
-                Section {
+                Section(header: NotebookFormHeader("Schedule")) {
                     Picker("Type", selection: $type) {
                         ForEach(MedicationType.allCases, id: \.self) { Text($0.displayName).tag($0) }
                     }
@@ -201,7 +201,7 @@ struct MedicationFormSheet: View {
                     }
                 }
 
-                Section {
+                Section(header: NotebookFormHeader("Dates")) {
                     DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
                     Toggle("Has End Date", isOn: $hasEndDate)
                     if hasEndDate {
@@ -210,12 +210,11 @@ struct MedicationFormSheet: View {
                 }
 
                 if isEditing {
-                    Section {
+                    Section(header: NotebookFormHeader("Status")) {
                         Toggle("Active", isOn: $active)
                     }
                 }
             }
-            .formStyle(.grouped)
             .navigationTitle(isEditing ? "Edit Medication" : "Add Medication")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

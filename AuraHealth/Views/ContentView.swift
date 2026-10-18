@@ -147,13 +147,13 @@ struct MoreMenuView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             List {
-                Section("Health") {
+                Section(header: NotebookFormHeader("Health")) {
                     ForEach(healthSections, content: moreRow)
                 }
-                Section("Tools") {
+                Section(header: NotebookFormHeader("Tools")) {
                     ForEach(toolSections, content: moreRow)
                 }
-                Section("App") {
+                Section(header: NotebookFormHeader("App")) {
                     ForEach(appSections, content: moreRow)
                 }
             }

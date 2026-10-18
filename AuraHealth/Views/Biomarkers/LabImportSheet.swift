@@ -37,6 +37,9 @@ struct LabImportSheet: View {
                     pickFileView
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Notebook.paperRaised.ignoresSafeArea())
+            .tint(Notebook.ink)
             .navigationTitle("Import Lab Report")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -81,11 +84,11 @@ struct LabImportSheet: View {
 
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Notebook.inkSecondary)
 
             Text("Upload a lab report to extract biomarkers automatically.")
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Notebook.inkSecondary)
                 .frame(maxWidth: 350)
 
             // Primary action: file picker (PDF or text)
@@ -93,11 +96,8 @@ struct LabImportSheet: View {
                 showingFilePicker = true
             } label: {
                 Label("Choose File (PDF or Text)", systemImage: "folder")
-                    .font(.body.weight(.medium))
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(NotebookPrimaryButtonStyle())
 
             #if os(iOS)
             // iOS bonus: pick a photo of a lab report from the camera roll
@@ -105,17 +105,14 @@ struct LabImportSheet: View {
                 showingPhotoPicker = true
             } label: {
                 Label("Choose Photo of Lab Report", systemImage: "photo.on.rectangle")
-                    .font(.body.weight(.medium))
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
+            .buttonStyle(NotebookSecondaryButtonStyle())
             #endif
 
             if !aiService.isReady {
                 Text("Local parsing will be used. Configure an AI provider in Settings for complex reports.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Notebook.inkSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 350)
             }
@@ -141,7 +138,7 @@ struct LabImportSheet: View {
                 .font(.headline)
             Text("Extracting biomarker values from the report.")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Notebook.inkSecondary)
                 .multilineTextAlignment(.center)
             Spacer()
         }
@@ -156,7 +153,7 @@ struct LabImportSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(extractedBiomarkers.count) biomarkers found")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Notebook.inkSecondary)
                     if let method = extractionMethod {
                         Text("via \(method)")
                             .font(.caption2)
@@ -176,9 +173,9 @@ struct LabImportSheet: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
 
-            List {
+            NotebookForm {
                 ForEach(groupedBySystem, id: \.system) { group in
-                    Section(group.system.rawValue) {
+                    Section(header: NotebookFormHeader(group.system.rawValue)) {
                         ForEach(group.markers) { marker in
                             HStack {
                                 Toggle(isOn: Binding(
@@ -196,7 +193,7 @@ struct LabImportSheet: View {
                                                 .font(.caption.monospacedDigit().bold())
                                             Text(marker.unit)
                                                 .font(.caption2)
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(Notebook.inkSecondary)
                                             if let min = marker.refMin, let max = marker.refMax {
                                                 Text("(\(formatValue(min))-\(formatValue(max)))")
                                                     .font(.caption2)
@@ -217,18 +214,22 @@ struct LabImportSheet: View {
                 HStack {
                     Text("\(selectedMarkers.count) selected")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Notebook.inkSecondary)
                     Spacer()
                     Button {
                         saveSelected()
                     } label: {
                         Text("Import \(selectedMarkers.count) Biomarkers")
+                            .padding(.horizontal, 16)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(NotebookPrimaryButtonStyle())
+                    .fixedSize()
                     .disabled(selectedMarkers.isEmpty)
+                    .opacity(selectedMarkers.isEmpty ? 0.4 : 1)
                 }
                 .padding()
-                .background(.bar)
+                .background(Notebook.paperRaised)
+                .ruled(.top)
             }
         }
     }
@@ -240,11 +241,12 @@ struct LabImportSheet: View {
             Spacer()
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.green)
+                .foregroundStyle(Notebook.ink)
             Text("Imported \(count) biomarkers")
                 .font(.headline)
             Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(NotebookPrimaryButtonStyle())
+                .padding(.horizontal, 40)
             Spacer()
         }
     }

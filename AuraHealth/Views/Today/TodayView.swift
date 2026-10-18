@@ -128,6 +128,20 @@ struct VitalsView: View {
         dismissedInsightsRaw = dismissed.joined(separator: "|")
     }
 
+    @State private var showAllNotes = false
+
+    private func noteTag(_ step: SuggestedStep) -> String {
+        switch step.type {
+        case .warning: "Flag"
+        case .suggestion: "Tip"
+        case .info: "Note"
+        }
+    }
+
+    private func noteColor(_ step: SuggestedStep) -> Color {
+        step.type == .warning ? Notebook.signal : Notebook.inkSecondary
+    }
+
     private var activeInsights: [SuggestedStep] {
         generateSuggestedSteps().filter { !dismissedInsights.contains($0.message) }
     }
@@ -142,17 +156,31 @@ struct VitalsView: View {
             )
             .staggeredAppearance(index: 0)
 
-            // 2. Insights: one note at a time, dismiss to see the next
+            // 2. Notes: every note is visible as its own line with its own Dismiss.
+            // With several, a "Notes" header shows the count; beyond three they fold.
             let insights = activeInsights
-            if let first = insights.first {
-                NoteLine(text: first.message, tag: insights.count > 1 ? "Note 1/\(insights.count)" : "Note") {
-                    withAnimation(AppAnimation.appear) {
-                        dismissInsight(first.message)
+            if insights.count > 1 {
+                NotebookSectionHeader(title: "Notes", trailing: "\(insights.count)")
+                    .staggeredAppearance(index: 1)
+            }
+            let shown = showAllNotes ? insights : Array(insights.prefix(3))
+            ForEach(shown, id: \.message) { step in
+                NoteLine(text: step.message, tag: noteTag(step), tagColor: noteColor(step)) {
+                    withAnimation(AppAnimation.collapse) {
+                        dismissInsight(step.message)
                     }
                 }
-                .id(first.message)
-                .transition(.opacity)
-                .staggeredAppearance(index: 1)
+                .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .move(edge: .leading))))
+            }
+            if insights.count > 3 {
+                Button(showAllNotes ? "Show fewer notes" : "Show \(insights.count - 3) more") {
+                    withAnimation(AppAnimation.expand) { showAllNotes.toggle() }
+                }
+                .font(Notebook.mono(.caption))
+                .underline()
+                .foregroundStyle(Notebook.inkSecondary)
+                .buttonStyle(.plain)
+                .frame(minHeight: 44)
             }
 
             // 3. Vitals table

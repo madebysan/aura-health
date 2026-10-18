@@ -12,6 +12,7 @@ struct SettingsView: View {
 
     @State private var showingClearConfirmation = false
     @State private var sampleDataLoaded = false
+    @State private var showingSampleConfirmation = false
 
     // Import/Export
     @State private var showingImporter = false
@@ -119,12 +120,21 @@ struct SettingsView: View {
             #if DEBUG
             Section {
                 Button {
-                    SampleDataService.loadSampleData(into: modelContext)
-                    sampleDataLoaded = true
+                    showingSampleConfirmation = true
                 } label: {
-                    Label("Load Sample Data", systemImage: "tray.and.arrow.down")
+                    Label(sampleDataLoaded ? "Sample Data Added" : "Load Sample Data",
+                          systemImage: sampleDataLoaded ? "checkmark" : "tray.and.arrow.down")
                 }
                 .disabled(sampleDataLoaded)
+                .confirmationDialog("Load sample data?", isPresented: $showingSampleConfirmation, titleVisibility: .visible) {
+                    Button("Load Sample Data") {
+                        SampleDataService.loadSampleData(into: modelContext)
+                        sampleDataLoaded = true
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Adds example vitals, habits, lab results, medications, conditions, a diet plan and chat threads. Areas that already have your data are left as they are, so nothing is replaced.")
+                }
             } header: {
                 sectionHeader("Developer")
             }

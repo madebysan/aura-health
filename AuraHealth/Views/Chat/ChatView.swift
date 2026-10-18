@@ -329,6 +329,15 @@ struct ChatView: View {
             }
             .padding(.top, 12)
 
+            // Recent threads, so past conversations are one tap away
+            let recent = conversations.filter { !$0.messages.isEmpty }.prefix(3)
+            if !recent.isEmpty {
+                NotebookSectionHeader(title: "Recent", trailing: "\(conversations.filter { !$0.messages.isEmpty }.count)")
+                ForEach(Array(recent)) { conversation in
+                    recentRow(conversation)
+                }
+            }
+
             NotebookSectionHeader(title: "Try asking")
 
             suggestionRow("What biomarkers are out of range?")
@@ -342,6 +351,35 @@ struct ChatView: View {
                 .padding(.top, 16)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func recentRow(_ conversation: Conversation) -> some View {
+        Button {
+            currentConversation = conversation
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(conversation.title)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(Notebook.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("\(conversation.messages.count) messages · \(conversation.updatedAt.formatted(.relative(presentation: .named)))")
+                        .font(Notebook.mono(.caption))
+                        .foregroundStyle(Notebook.inkSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Notebook.inkTertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, 12)
+            .frame(minHeight: 44)
+            .ruled()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens this conversation")
     }
 
     private func suggestionRow(_ text: String) -> some View {

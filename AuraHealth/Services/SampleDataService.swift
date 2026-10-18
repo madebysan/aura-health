@@ -5,20 +5,60 @@ import SwiftData
 /// Temporary — remove before shipping.
 struct SampleDataService {
 
+    /// Fills each empty area with examples. Each category is checked on its
+    /// own, so vitals already synced from Apple Health don't stop habits, labs
+    /// and the rest from loading, and nothing is duplicated on a second tap.
     static func loadSampleData(into context: ModelContext) {
-        // Guard against double-loading
-        let existingMeasurements = (try? context.fetchCount(FetchDescriptor<Measurement>())) ?? 0
-        if existingMeasurements > 0 { return }
+        func isEmpty<T: PersistentModel>(_ type: T.Type) -> Bool {
+            ((try? context.fetchCount(FetchDescriptor<T>())) ?? 0) == 0
+        }
 
-        loadMeasurements(into: context)
-        loadMedications(into: context)
-        loadHabits(into: context)
-        loadBiomarkers(into: context)
-        loadConditions(into: context)
-        loadDietPlans(into: context)
-        loadMetricRanges(into: context)
+        // Skip sample vitals when real ones exist, to avoid mixing them with Apple Health data
+        if isEmpty(Measurement.self) { loadMeasurements(into: context) }
+        if isEmpty(Medication.self) { loadMedications(into: context) }
+        if isEmpty(Habit.self) { loadHabits(into: context) }
+        if isEmpty(Biomarker.self) { loadBiomarkers(into: context) }
+        if isEmpty(Condition.self) { loadConditions(into: context) }
+        if isEmpty(DietPlan.self) { loadDietPlans(into: context) }
+        if isEmpty(MetricRange.self) { loadMetricRanges(into: context) }
+        if isEmpty(Conversation.self) { loadConversations(into: context) }
 
         try? context.save()
+    }
+
+    // MARK: - Conversations (example chat threads)
+
+    private static func loadConversations(into context: ModelContext) {
+        let cal = Calendar.current
+        let threads: [(title: String, hoursAgo: Int, messages: [(ChatRole, String)])] = [
+            ("What changed in my labs since April?", 3, [
+                (.user, "What changed in my labs since April?"),
+                (.assistant, "Comparing your three sessions (April, July and October), most markers moved toward their reference ranges. LDL went from 138 to 118 to 102 mg/dL, now just above the under-100 range. HbA1c went from 5.9% to 5.4%, and vitamin D rose from 22 to 48 ng/mL, back inside its range. CRP dropped from 4.2 to 1.5 mg/L.\n\nThis is educational context, not a diagnosis. If you'd like, I can list questions to bring to your clinician about LDL."),
+                (.user, "Yes, what should I ask about LDL?"),
+                (.assistant, "A few questions people often bring: how this result fits your overall cardiovascular risk, whether a repeat test or other markers such as ApoB would help, and whether diet, activity or medication changes are worth discussing. Your clinician can weigh these against your full history."),
+            ]),
+            ("How has my sleep been this week?", 26, [
+                (.user, "How has my sleep been this week?"),
+                (.assistant, "Over the last 7 nights you slept a little over 7 hours on most nights, with a couple of shorter nights. Your sleep score followed the same pattern, dipping after the short nights and recovering after longer ones."),
+                (.user, "Did my habits make a difference?"),
+                (.assistant, "I can compare nights after you logged habits like Read 30 min or No Alcohol with nights you didn't. A week is too short to say much, so after a few more weeks of logging the comparison will be more useful. Any pattern would be a correlation in your own data, not proof of cause."),
+            ]),
+            ("Log my weight", 74, [
+                (.user, "Log my weight at 82.4 kg"),
+                (.assistant, "Done. I added 82.4 kg for today. That's 0.3 kg above your previous entry and within your usual range over the last month."),
+            ]),
+        ]
+
+        for thread in threads {
+            let conversation = Conversation(title: thread.title)
+            let start = cal.date(byAdding: .hour, value: -thread.hoursAgo, to: Date()) ?? Date()
+            conversation.messages = thread.messages.enumerated().map { index, message in
+                ChatMessage(role: message.0, content: message.1, timestamp: start.addingTimeInterval(Double(index) * 40))
+            }
+            conversation.createdAt = start
+            conversation.updatedAt = start.addingTimeInterval(Double(thread.messages.count) * 40)
+            context.insert(conversation)
+        }
     }
 
     // MARK: - Measurements (90 days of vitals)

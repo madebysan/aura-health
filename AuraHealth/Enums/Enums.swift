@@ -58,19 +58,19 @@ enum MetricType: String, Codable, CaseIterable, Identifiable {
 
     var iconName: String {
         switch self {
-        case .weight: "scalemass"
-        case .bloodPressure: "heart.fill"
-        case .heartRate: "waveform.path.ecg"
-        case .sleepScore: "moon.fill"
-        case .sleepDuration: "bed.double.fill"
-        case .steps: "figure.walk"
-        case .activeMinutes: "flame.fill"
-        case .hrv: "waveform.path.ecg.rectangle"
-        case .recovery: "arrow.2.circlepath"
-        case .strain: "bolt.heart.fill"
-        case .spo2: "lungs.fill"
-        case .skinTemp: "thermometer.medium"
-        case .calories: "flame"
+        case .weight: "ph.scales"
+        case .bloodPressure: "ph.heart"
+        case .heartRate: "ph.pulse"
+        case .sleepScore: "ph.moon"
+        case .sleepDuration: "ph.bed"
+        case .steps: "ph.footprints"
+        case .activeMinutes: "ph.fire"
+        case .hrv: "ph.wave-sine"
+        case .recovery: "ph.battery-charging"
+        case .strain: "ph.lightning"
+        case .spo2: "ph.wind"
+        case .skinTemp: "ph.thermometer"
+        case .calories: "ph.flame"
         }
     }
 
@@ -424,10 +424,10 @@ enum VaultFileType: String, Codable, CaseIterable {
 
     var iconName: String {
         switch self {
-        case .pdf: "doc.fill"
-        case .image: "photo.fill"
-        case .text: "doc.text.fill"
-        case .video: "video.fill"
+        case .pdf: "ph.file-pdf"
+        case .image: "ph.image"
+        case .text: "ph.file-text"
+        case .video: "ph.video-camera"
         }
     }
 }
@@ -455,21 +455,21 @@ enum DietTypeOption: String, CaseIterable, Identifiable {
 
     var iconName: String {
         switch self {
-        case .mediterranean: "leaf.fill"
-        case .keto: "drop.fill"
-        case .paleo: "flame.fill"
-        case .vegan: "leaf.circle.fill"
-        case .vegetarian: "carrot.fill"
-        case .wholeFoods: "basket.fill"
-        case .lowCarb: "chart.bar.fill"
-        case .highProtein: "bolt.fill"
-        case .dash: "heart.fill"
-        case .intermittentFasting: "clock.fill"
-        case .glutenFree: "xmark.circle.fill"
-        case .dairyFree: "drop.triangle.fill"
-        case .antiInflammatory: "shield.fill"
-        case .carnivore: "hare.fill"
-        case .custom: "pencil"
+        case .mediterranean: "ph.leaf"
+        case .keto: "ph.drop"
+        case .paleo: "ph.bone"
+        case .vegan: "ph.plant"
+        case .vegetarian: "ph.carrot"
+        case .wholeFoods: "ph.basket"
+        case .lowCarb: "ph.chart-bar"
+        case .highProtein: "ph.barbell"
+        case .dash: "ph.heart"
+        case .intermittentFasting: "ph.clock"
+        case .glutenFree: "ph.grains-slash"
+        case .dairyFree: "ph.drop-slash"
+        case .antiInflammatory: "ph.shield"
+        case .carnivore: "ph.cow"
+        case .custom: "ph.pencil-simple"
         }
     }
 
@@ -568,24 +568,24 @@ enum FoodCategory: String, Codable, CaseIterable, Identifiable, Comparable {
 
     var iconName: String {
         switch self {
-        case .redMeat: "flame.fill"
-        case .poultry: "bird.fill"
-        case .fish: "fish.fill"
-        case .eggs: "oval.fill"
-        case .dairy: "cup.and.saucer.fill"
-        case .butter: "rectangle.fill"
-        case .vegetables: "leaf.fill"
-        case .fruits: "apple.logo"
-        case .legumes: "circle.grid.3x3.fill"
-        case .nuts: "tree.fill"
-        case .wholeGrains: "wheat.bundle.fill"
-        case .refinedGrains: "square.stack.fill"
-        case .oliveOil: "drop.fill"
-        case .tofu: "square.fill"
-        case .sugar: "cube.fill"
-        case .processedFoods: "shippingbox.fill"
-        case .alcohol: "wineglass.fill"
-        case .herbs: "leaf.arrow.circlepath"
+        case .redMeat: "ph.cow"
+        case .poultry: "ph.bird"
+        case .fish: "ph.fish"
+        case .eggs: "ph.egg"
+        case .dairy: "ph.coffee"
+        case .butter: "ph.rectangle"
+        case .vegetables: "ph.carrot"
+        case .fruits: "ph.orange-slice"
+        case .legumes: "ph.grains"
+        case .nuts: "ph.tree"
+        case .wholeGrains: "ph.grains"
+        case .refinedGrains: "ph.bread"
+        case .oliveOil: "ph.drop"
+        case .tofu: "ph.square"
+        case .sugar: "ph.cookie"
+        case .processedFoods: "ph.package"
+        case .alcohol: "ph.wine"
+        case .herbs: "ph.plant"
         }
     }
 

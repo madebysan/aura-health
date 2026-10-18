@@ -150,17 +150,17 @@ struct OnboardingView: View {
 
     private let features: [(icon: String, title: String, description: String)] = [
         (
-            "heart.text.square",
+            "ph.heartbeat",
             "Track Your Vitals",
             "Monitor heart rate, HRV, sleep, recovery, and more — all in one place. See trends over time with clear charts."
         ),
         (
-            "cross.vial",
+            "ph.test-tube",
             "Lab Results & Biomarkers",
             "Import your blood work and review biomarker changes across tests."
         ),
         (
-            "bubble.left.and.bubble.right",
+            "ph.chats",
             "AI Health Chat",
             "Ask questions about your health data. Get personalized insights powered by Claude."
         ),
@@ -224,7 +224,7 @@ struct OnboardingView: View {
                 .kicker()
                 .accessibilityLabel("Page \(index + 1) of \(features.count)")
 
-            Image(systemName: feature.icon)
+            Image(feature.icon)
                 .font(.system(.largeTitle, weight: .light))
                 .foregroundStyle(Notebook.ink)
                 .accessibilityHidden(true)
@@ -250,7 +250,7 @@ struct OnboardingView: View {
 
             #if os(iOS)
             integrationButton(
-                icon: "heart.text.square",
+                icon: "ph.heartbeat",
                 title: "Connect Apple Health",
                 subtitle: healthKitService.hasRequestedAccess ? "Access requested" : "Import activity, sleep, heart rate, and more",
                 connected: healthKitService.hasRequestedAccess
@@ -376,7 +376,7 @@ struct OnboardingView: View {
             }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: diet.iconName)
+                Image(diet.iconName)
                     .font(.body)
                     .foregroundStyle(Notebook.ink)
                     .frame(width: 24)
@@ -423,9 +423,9 @@ struct OnboardingView: View {
             }
 
             VStack(alignment: .leading, spacing: 0) {
-                chatCapability(icon: "doc.text.magnifyingglass", text: "Review PDF and image lab reports before saving")
-                chatCapability(icon: "chart.line.uptrend.xyaxis", text: "Ask about vitals, trends, and summaries")
-                chatCapability(icon: "square.and.pencil", text: "Log measurements, medications, and habits")
+                chatCapability(icon: "ph.file-magnifying-glass", text: "Review PDF and image lab reports before saving")
+                chatCapability(icon: "ph.trend-up", text: "Ask about vitals, trends, and summaries")
+                chatCapability(icon: "ph.note-pencil", text: "Log measurements, medications, and habits")
             }
             .ruled(.top)
 
@@ -515,7 +515,7 @@ struct OnboardingView: View {
 
     private func chatCapability(icon: String, text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Image(systemName: icon)
+            Image(icon)
                 .font(.body)
                 .foregroundStyle(Notebook.ink)
                 .frame(width: 28)
@@ -536,7 +536,7 @@ struct OnboardingView: View {
     private func integrationButton(icon: String, title: String, subtitle: String, connected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                Image(systemName: icon)
+                Image(icon)
                     .font(.title2)
                     .foregroundStyle(Notebook.ink)
                     .frame(width: 32)
@@ -556,7 +556,7 @@ struct OnboardingView: View {
                 if connected {
                     StatusWord(text: "requested")
                 } else {
-                    Image(systemName: "chevron.right")
+                    Image("ph.caret-right")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Notebook.inkTertiary)
                         .accessibilityHidden(true)

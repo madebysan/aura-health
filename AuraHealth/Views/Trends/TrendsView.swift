@@ -32,7 +32,7 @@ struct CorrelationsView: View {
 
                 if availablePairs.isEmpty {
                     EmptyStateView(
-                        icon: "chart.xyaxis.line",
+                        icon: "ph.chart-line",
                         title: "No Correlations Yet",
                         message: "Log measurements for multiple metrics to see how they relate to each other."
                     )

@@ -136,7 +136,7 @@ struct ChatView: View {
                 Button {
                     startNewChat()
                 } label: {
-                    Image(systemName: "plus.bubble")
+                    Image("ph.chat-centered-dots")
                 }
                 .accessibilityLabel("New Conversation")
             }
@@ -144,7 +144,7 @@ struct ChatView: View {
                 Button {
                     showingHistory = true
                 } label: {
-                    Image(systemName: "clock.arrow.circlepath")
+                    Image("ph.clock-counter-clockwise")
                 }
                 .accessibilityLabel("Conversation History")
             }
@@ -368,7 +368,7 @@ struct ChatView: View {
                         .foregroundStyle(Notebook.inkSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "chevron.right")
+                Image("ph.caret-right")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(Notebook.inkTertiary)
                     .accessibilityHidden(true)
@@ -392,7 +392,7 @@ struct ChatView: View {
                     .foregroundStyle(Notebook.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
-                Image(systemName: "arrow.down.left")
+                Image("ph.arrow-down-left")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Notebook.inkSecondary)
                     .accessibilityHidden(true)
@@ -423,7 +423,7 @@ struct ChatView: View {
                     Button {
                         attachedFileURL = nil
                     } label: {
-                        Image(systemName: "xmark")
+                        Image("ph.x")
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(Notebook.inkSecondary)
                             .frame(width: 44, height: 44)
@@ -442,15 +442,15 @@ struct ChatView: View {
                     Button {
                         showingPhotoPicker = true
                     } label: {
-                        Label("Photo Library", systemImage: "photo")
+                        Label("Photo Library", image: "ph.image")
                     }
                     Button {
                         showingFilePicker = true
                     } label: {
-                        Label("Files", systemImage: "doc")
+                        Label("Files", image: "ph.file-text")
                     }
                 } label: {
-                    Image(systemName: "paperclip")
+                    Image("ph.paperclip")
                         .font(.body.weight(.medium))
                         .foregroundStyle(aiService.isReady ? Notebook.ink : Notebook.inkTertiary)
                         .frame(width: 44, height: 44)
@@ -490,7 +490,7 @@ struct ChatView: View {
                 .overlay(RoundedRectangle(cornerRadius: 22).stroke(Notebook.rule, lineWidth: 1))
 
                 Button { sendMessage() } label: {
-                    Image(systemName: "arrow.up")
+                    Image("ph.arrow-up")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(Notebook.paper)
                         .frame(width: 36, height: 36)
@@ -724,7 +724,7 @@ struct ConversationHistorySheet: View {
             Group {
                 if nonEmptyConversations.isEmpty {
                     VStack(spacing: 12) {
-                        Image(systemName: "bubble.left.and.bubble.right")
+                        Image("ph.chats")
                             .font(.system(size: 36, weight: .thin))
                             .foregroundStyle(Notebook.inkTertiary)
                             .accessibilityHidden(true)
@@ -750,7 +750,7 @@ struct ConversationHistorySheet: View {
                                         Button(role: .destructive) {
                                             onDelete(conversation)
                                         } label: {
-                                            Label("Delete", systemImage: "trash")
+                                            Label("Delete", image: "ph.trash")
                                         }
                                     }
                                     .listRowBackground(Color.clear)
@@ -778,7 +778,7 @@ struct ConversationHistorySheet: View {
                     Button {
                         onNewChat()
                     } label: {
-                        Image(systemName: "plus.bubble")
+                        Image("ph.chat-centered-dots")
                     }
                     .accessibilityLabel("New Conversation")
                 }

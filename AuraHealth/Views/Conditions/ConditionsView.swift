@@ -20,7 +20,7 @@ struct ConditionsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if conditions.isEmpty {
                     EmptyStateView(
-                        icon: "stethoscope",
+                        icon: "ph.stethoscope",
                         title: "No Conditions",
                         message: "Track your health conditions and their status.",
                         actionLabel: "Add Condition",
@@ -41,7 +41,7 @@ struct ConditionsView: View {
                             Button(role: .destructive) {
                                 modelContext.delete(condition)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("Delete", image: "ph.trash")
                             }
                         }
                         .staggeredAppearance(index: index)
@@ -61,7 +61,7 @@ struct ConditionsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAddCondition = true } label: {
-                    Image(systemName: "plus")
+                    Image("ph.plus")
                 }
                 .accessibilityLabel("Add Condition")
             }
@@ -95,7 +95,7 @@ struct ConditionsView: View {
 
             if !dynamicTypeSize.isAccessibilitySize { status }
 
-            Image(systemName: "chevron.right")
+            Image("ph.caret-right")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Notebook.inkTertiary)
                 .accessibilityHidden(true)
@@ -132,7 +132,7 @@ struct DietPlansView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if dietPlans.isEmpty {
                     EmptyStateView(
-                        icon: "fork.knife",
+                        icon: "ph.fork-knife",
                         title: "No Diet Plans",
                         message: "Set up your diet to track which food categories you eat. This context helps when looking at correlations with your health data.",
                         actionLabel: "Set Up Diet",
@@ -183,7 +183,7 @@ struct DietPlansView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAddDiet = true } label: {
-                    Image(systemName: "plus")
+                    Image("ph.plus")
                 }
                 .accessibilityLabel("Add Diet Plan")
             }
@@ -237,7 +237,7 @@ struct DietPlansView: View {
             Button {
                 editingDiet = plan
             } label: {
-                Image(systemName: "pencil")
+                Image("ph.pencil-simple")
                     .font(.body.weight(.medium))
                     .foregroundStyle(Notebook.inkSecondary)
                     .frame(width: 44, height: 44)
@@ -249,7 +249,7 @@ struct DietPlansView: View {
             Button {
                 planPendingDelete = plan
             } label: {
-                Image(systemName: "trash")
+                Image("ph.trash")
                     .font(.body.weight(.medium))
                     .foregroundStyle(Notebook.inkSecondary)
                     .frame(width: 44, height: 44)
@@ -339,7 +339,7 @@ struct DietPlansView: View {
 
                 if !dynamicTypeSize.isAccessibilitySize { StatusWord(text: "archived") }
 
-                Image(systemName: "chevron.right")
+                Image("ph.caret-right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Notebook.inkTertiary)
                     .accessibilityHidden(true)
@@ -356,12 +356,12 @@ struct DietPlansView: View {
             Button {
                 plan.active = true
             } label: {
-                Label("Set as Active", systemImage: "checkmark.circle")
+                Label("Set as Active", image: "ph.check-circle")
             }
             Button(role: .destructive) {
                 planPendingDelete = plan
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label("Delete", image: "ph.trash")
             }
         }
     }
@@ -406,7 +406,7 @@ struct ConditionFormSheet: View {
                     // New condition: searchable picker
                     Section {
                         HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
+                            Image("ph.magnifying-glass")
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
                             TextField("Search conditions...", text: $searchText)
@@ -452,7 +452,7 @@ struct ConditionFormSheet: View {
                             }
                         } label: {
                             HStack(spacing: 6) {
-                                Image(systemName: "plus")
+                                Image("ph.plus")
                                     .font(.footnote.weight(.semibold))
                                     .foregroundStyle(Notebook.ink)
                                 Text("Custom condition")
@@ -556,7 +556,7 @@ struct DietPlanFormSheet: View {
                                 }
                             } label: {
                                 HStack(spacing: 6) {
-                                    Image(systemName: option.iconName)
+                                    Image(option.iconName)
                                         .font(.caption2.weight(.semibold))
                                         .accessibilityHidden(true)
                                     Text(option.rawValue)

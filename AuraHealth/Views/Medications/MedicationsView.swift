@@ -51,7 +51,7 @@ struct MedicationsView: View {
 
                 if filteredMedications.isEmpty {
                     EmptyStateView(
-                        icon: "pills",
+                        icon: "ph.pill",
                         title: "No Medications",
                         message: "Add your prescriptions, supplements, and OTC medications.",
                         actionLabel: "Add Medication",
@@ -74,12 +74,12 @@ struct MedicationsView: View {
                                 medication.active.toggle()
                             } label: {
                                 Label(medication.active ? "Archive" : "Unarchive",
-                                      systemImage: medication.active ? "archivebox" : "archivebox.fill")
+                                      image: medication.active ? "ph.archive" : "ph.box-arrow-up")
                             }
                             Button(role: .destructive) {
                                 modelContext.delete(medication)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("Delete", image: "ph.trash")
                             }
                         }
                         .staggeredAppearance(index: index)
@@ -99,7 +99,7 @@ struct MedicationsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAddSheet = true } label: {
-                    Image(systemName: "plus")
+                    Image("ph.plus")
                 }
                 .accessibilityLabel("Add Medication")
             }
@@ -144,7 +144,7 @@ struct MedicationCardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
 
-            Image(systemName: "chevron.right")
+            Image("ph.caret-right")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Notebook.inkTertiary)
                 .accessibilityHidden(true)

@@ -41,6 +41,6 @@ Aura is distributed as source while its first App Store release is prepared. Clo
 
 ---
 
-[MIT](LICENSE)
+[MIT](LICENSE). Icons by [Phosphor](https://phosphoricons.com) ([MIT](assets/icons/phosphor-light/LICENSE)).
 
 Made by [santiagoalonso.com](https://santiagoalonso.com)

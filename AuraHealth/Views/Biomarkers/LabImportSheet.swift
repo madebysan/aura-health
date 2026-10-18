@@ -82,7 +82,7 @@ struct LabImportSheet: View {
         VStack(spacing: 20) {
             Spacer()
 
-            Image(systemName: "doc.text.magnifyingglass")
+            Image("ph.file-magnifying-glass")
                 .font(.system(size: 48))
                 .foregroundStyle(Notebook.inkSecondary)
 
@@ -95,7 +95,7 @@ struct LabImportSheet: View {
             Button {
                 showingFilePicker = true
             } label: {
-                Label("Choose File (PDF or Text)", systemImage: "folder")
+                Label("Choose File (PDF or Text)", image: "ph.folder")
             }
             .buttonStyle(NotebookPrimaryButtonStyle())
 
@@ -104,7 +104,7 @@ struct LabImportSheet: View {
             Button {
                 showingPhotoPicker = true
             } label: {
-                Label("Choose Photo of Lab Report", systemImage: "photo.on.rectangle")
+                Label("Choose Photo of Lab Report", image: "ph.images")
             }
             .buttonStyle(NotebookSecondaryButtonStyle())
             #endif
@@ -239,7 +239,7 @@ struct LabImportSheet: View {
     private func doneView(count: Int) -> some View {
         VStack(spacing: 16) {
             Spacer()
-            Image(systemName: "checkmark.circle.fill")
+            Image("ph.check-circle")
                 .font(.system(size: 48))
                 .foregroundStyle(Notebook.ink)
             Text("Imported \(count) biomarkers")

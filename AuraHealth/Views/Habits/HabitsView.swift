@@ -99,7 +99,7 @@ struct HabitsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAddSheet = true } label: {
-                    Image(systemName: "plus")
+                    Image("ph.plus")
                 }
                 .accessibilityLabel("Add Habit")
             }
@@ -120,7 +120,7 @@ struct HabitsView: View {
         VStack(spacing: 0) {
             if activeHabits.isEmpty {
                 EmptyStateView(
-                    icon: "repeat",
+                    icon: "ph.repeat",
                     title: "No Habits",
                     message: "Create habits to start tracking your daily routines.",
                     actionLabel: "Add Habit",
@@ -322,7 +322,7 @@ struct HabitsView: View {
         VStack(alignment: .leading, spacing: 0) {
             if activeHabits.isEmpty {
                 EmptyStateView(
-                    icon: "checkmark.circle",
+                    icon: "ph.check-circle",
                     title: "No Habits to Track",
                     message: "Add habits to see your adherence stats."
                 )
@@ -392,7 +392,7 @@ struct DayCell: View {
                         .overlay(Rectangle().stroke(isDone ? Notebook.ink : Notebook.emptyBox, lineWidth: 1.5))
                         .overlay {
                             if isDone {
-                                Image(systemName: "checkmark")
+                                Image("ph.check")
                                     .font(.caption2.weight(.heavy))
                                     .foregroundStyle(Notebook.paper)
                             } else if logForDay != nil {

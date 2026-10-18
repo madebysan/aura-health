@@ -200,7 +200,7 @@ struct RangeStatusIcon: View {
     var color: Color = .secondary
 
     var body: some View {
-        Image(systemName: symbolName)
+        Image(symbolName)
             .font(.caption.weight(.semibold))
             .foregroundStyle(color)
             .accessibilityLabel(position.label)
@@ -208,10 +208,10 @@ struct RangeStatusIcon: View {
 
     private var symbolName: String {
         switch position {
-        case .below: "arrow.down.circle.fill"
-        case .within: "checkmark.circle.fill"
-        case .above: "arrow.up.circle.fill"
-        case .unknown: "circle.dashed"
+        case .below: "ph.arrow-circle-down"
+        case .within: "ph.check-circle"
+        case .above: "ph.arrow-circle-up"
+        case .unknown: "ph.circle-dashed"
         }
     }
 }
@@ -526,7 +526,7 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: icon)
+            Image(icon)
                 .font(.system(size: 48, weight: .thin))
                 .foregroundStyle(Notebook.inkTertiary)
                 .accessibilityHidden(true)
@@ -549,7 +549,7 @@ struct EmptyStateView: View {
             }
 
             if let chatHint {
-                Label(chatHint, systemImage: "bubble.left.fill")
+                Label(chatHint, image: "ph.chat-circle")
                     .font(Notebook.mono(.caption))
                     .foregroundStyle(Notebook.inkSecondary)
                     .padding(.top, 6)

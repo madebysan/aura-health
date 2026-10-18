@@ -13,6 +13,7 @@
 - Sample data fills each empty area on its own, so an Apple Health sync no longer blocks habits, labs and the rest. It now includes example chat threads, and Settings asks before loading it.
 - Blood pressure charts draw systolic and diastolic as separate lines.
 - Deleting a diet plan asks for confirmation.
+- Replaced SF Symbols with Phosphor Light icons throughout the app. Fruits no longer uses the Apple logo.
 
 - Narrowed Aura to an iPhone-only iOS 17+ release.
 - Replaced CloudKit-backed storage with a non-destructive local SwiftData container.

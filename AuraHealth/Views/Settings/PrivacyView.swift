@@ -4,9 +4,9 @@ struct PrivacyView: View {
     var body: some View {
         Form {
             Section {
-                Label("Health records stay in Aura's local database.", systemImage: "iphone")
-                Label("Aura does not use analytics, advertising, or tracking SDKs.", systemImage: "hand.raised")
-                Label("Backups are created only when you explicitly export one.", systemImage: "square.and.arrow.up")
+                Label("Health records stay in Aura's local database.", image: "ph.device-mobile")
+                Label("Aura does not use analytics, advertising, or tracking SDKs.", image: "ph.hand")
+                Label("Backups are created only when you explicitly export one.", image: "ph.export")
             } header: {
                 Text("On Your iPhone").kicker()
             }

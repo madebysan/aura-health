@@ -121,7 +121,7 @@ struct BiomarkersView: View {
                 if biomarkers.isEmpty {
                     VStack(spacing: 12) {
                         EmptyStateView(
-                            icon: "drop",
+                            icon: "ph.drop",
                             title: "No Biomarkers",
                             message: "Upload a lab report in Chat to import biomarkers automatically, or add them manually.",
                             actionLabel: "Upload Lab Results in Chat",
@@ -213,15 +213,15 @@ struct BiomarkersView: View {
                     Button {
                         showingAddSheet = true
                     } label: {
-                        Label("Add Manually", systemImage: "plus")
+                        Label("Add Manually", image: "ph.plus")
                     }
                     Button {
                         showingLabImport = true
                     } label: {
-                        Label("Import from Lab Report", systemImage: "doc.text.magnifyingglass")
+                        Label("Import from Lab Report", image: "ph.file-magnifying-glass")
                     }
                 } label: {
-                    Image(systemName: "plus")
+                    Image("ph.plus")
                 }
                 .accessibilityLabel("Add or Import Biomarker")
             }
@@ -270,7 +270,7 @@ struct BiomarkersView: View {
                             modelContext.delete(bio)
                         }
                     } label: {
-                        Label("Delete All \(row.marker) Records", systemImage: "trash")
+                        Label("Delete All \(row.marker) Records", image: "ph.trash")
                     }
                 }
             }
@@ -361,7 +361,7 @@ struct BiomarkersView: View {
 
     private var searchField: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
+            Image("ph.magnifying-glass")
                 .font(.footnote)
                 .foregroundStyle(Notebook.inkTertiary)
                 .accessibilityHidden(true)
@@ -416,7 +416,7 @@ struct BiomarkersView: View {
                     }
                 }
                 Spacer()
-                Image(systemName: "chevron.right")
+                Image("ph.caret-right")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(Notebook.inkTertiary)
             }
@@ -729,7 +729,7 @@ struct BiomarkerDetailSheet: View {
                             NotificationCenter.default.post(name: .switchToChat, object: context)
                             dismiss()
                         } label: {
-                            Label("Chat about this", systemImage: "bubble.left")
+                            Label("Chat about this", image: "ph.chat-circle")
                         }
                         .buttonStyle(NotebookSecondaryButtonStyle())
                         .padding(.top, 20)

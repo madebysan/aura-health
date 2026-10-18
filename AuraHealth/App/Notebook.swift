@@ -382,7 +382,7 @@ struct NotebookCheckbox: View {
             .overlay(Rectangle().stroke(isOn ? Notebook.ink : Notebook.emptyBox, lineWidth: 1.5))
             .overlay {
                 if isOn {
-                    Image(systemName: "checkmark")
+                    Image("ph.check")
                         .font(.system(size: size * 0.5, weight: .heavy))
                         .foregroundStyle(Notebook.paper)
                 } else if isCrossed {

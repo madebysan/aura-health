@@ -17,7 +17,7 @@ struct VaultView: View {
             VStack(alignment: .leading, spacing: 0) {
                 if documents.isEmpty {
                     EmptyStateView(
-                        icon: "doc",
+                        icon: "ph.file-text",
                         title: "No Documents",
                         message: "Upload PDFs, images, or text files to your secure vault.",
                         actionLabel: "Upload",
@@ -38,7 +38,7 @@ struct VaultView: View {
                             Button(role: .destructive) {
                                 modelContext.delete(doc)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("Delete", image: "ph.trash")
                             }
                         }
                         .staggeredAppearance(index: index)
@@ -58,7 +58,7 @@ struct VaultView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingUpload = true } label: {
-                    Image(systemName: "plus")
+                    Image("ph.plus")
                 }
                 .accessibilityLabel("Add Document")
             }
@@ -79,7 +79,7 @@ struct DocumentCard: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Image(systemName: document.fileType.iconName)
+            Image(document.fileType.iconName)
                 .font(.body)
                 .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 .foregroundStyle(Notebook.ink)
@@ -105,7 +105,7 @@ struct DocumentCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
 
-            Image(systemName: "chevron.right")
+            Image("ph.caret-right")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Notebook.inkTertiary)
                 .accessibilityHidden(true)
@@ -163,7 +163,7 @@ struct VaultUploadSheet: View {
                 Section {
                     if let url = selectedFileURL {
                         HStack {
-                            Image(systemName: fileType(for: url).iconName)
+                            Image(fileType(for: url).iconName)
                                 .foregroundStyle(.secondary)
                             Text(url.lastPathComponent)
                                 .font(.subheadline)
@@ -173,7 +173,7 @@ struct VaultUploadSheet: View {
                         }
                     } else if selectedPhotoData != nil {
                         HStack {
-                            Image(systemName: "photo")
+                            Image("ph.image")
                                 .foregroundStyle(.secondary)
                             Text(selectedPhotoName ?? "Photo")
                                 .font(.subheadline)
@@ -187,13 +187,13 @@ struct VaultUploadSheet: View {
                             Button {
                                 showingFilePicker = true
                             } label: {
-                                Label("Select File", systemImage: "doc.badge.plus")
+                                Label("Select File", image: "ph.file-plus")
                             }
 
                             Divider().frame(height: 20)
 
                             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                                Label("Photo Library", systemImage: "photo.on.rectangle")
+                                Label("Photo Library", image: "ph.images")
                             }
                         }
                     }
@@ -380,7 +380,7 @@ struct VaultDocumentDetail: View {
                     ToolbarItem(placement: .topBarLeading) {
                         ShareLink(
                             item: data,
-                            preview: SharePreview(document.title, image: Image(systemName: document.fileType.iconName))
+                            preview: SharePreview(document.title, image: Image(document.fileType.iconName))
                         )
                     }
                 }

@@ -86,7 +86,7 @@ struct VitalsView: View {
                 Button {
                     showCardSettings = true
                 } label: {
-                    Image(systemName: "slider.horizontal.3")
+                    Image("ph.sliders-horizontal")
                 }
                 .help("Choose which cards to show")
                 .accessibilityLabel("Choose Visible Vital Cards")
@@ -216,7 +216,7 @@ struct VitalsView: View {
                     Button {
                         selectedMetricType = metricType
                     } label: {
-                        Label("Add Measurement", systemImage: "plus")
+                        Label("Add Measurement", image: "ph.plus")
                     }
                 }
                 .staggeredAppearance(index: index + 2)
@@ -231,7 +231,7 @@ struct VitalsView: View {
             let filtered = filteredMeasurements()
             if filtered.isEmpty {
                 EmptyStateView(
-                    icon: "chart.xyaxis.line",
+                    icon: "ph.chart-line",
                     title: "No Data Yet",
                     message: "Start logging measurements from the Today view to see trends here.",
                     chatHint: "Try \"Log my weight as 75kg\" in Chat"
@@ -614,7 +614,7 @@ struct VitalsCardSettingsSheet: View {
                             Label {
                                 Text(metricType.displayName)
                             } icon: {
-                                Image(systemName: metricType.iconName)
+                                Image(metricType.iconName)
                                     .foregroundStyle(Notebook.ink)
                             }
                         }

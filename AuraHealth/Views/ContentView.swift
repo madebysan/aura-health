@@ -31,16 +31,16 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var iconName: String {
         switch self {
-        case .tracking: "checkmark.rectangle.stack.fill"
-        case .vitals: "heart.text.square.fill"
-        case .correlations: "chart.xyaxis.line"
-        case .conditions: "stethoscope"
-        case .medications: "pills.fill"
-        case .biomarkers: "drop.fill"
-        case .diet: "fork.knife"
-        case .vault: "lock.doc.fill"
-        case .chat: "bubble.left.and.bubble.right.fill"
-        case .settings: "gearshape.fill"
+        case .tracking: "ph.list-checks"
+        case .vitals: "ph.heartbeat"
+        case .correlations: "ph.chart-line"
+        case .conditions: "ph.stethoscope"
+        case .medications: "ph.pill"
+        case .biomarkers: "ph.drop"
+        case .diet: "ph.fork-knife"
+        case .vault: "ph.vault"
+        case .chat: "ph.chats"
+        case .settings: "ph.gear"
         }
     }
 
@@ -89,13 +89,13 @@ struct ContentView: View {
                     }
                 }
                 .tabItem {
-                    Label(section.label, systemImage: section.iconName)
+                    Label(section.label, image: section.iconName)
                 }
                 .tag(section)
             }
             MoreMenuView(selectedSection: $selectedSection, chatPrefill: $chatPrefill)
                 .tabItem {
-                    Label("More", systemImage: "ellipsis")
+                    Label("More", image: "ph.dots-three")
                 }
                 .tag(AppSection.settings)
         }
@@ -173,7 +173,7 @@ struct MoreMenuView: View {
         NavigationLink(value: section) {
             HStack(spacing: 14) {
                 // Monochrome ink glyph, notebook style
-                Image(systemName: section.iconName)
+                Image(section.iconName)
                     .font(.body)
                     .foregroundStyle(Notebook.ink)
                     .frame(width: iconSize, height: iconSize)

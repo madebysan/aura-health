@@ -81,7 +81,7 @@ struct MetricDetailSheet: View {
                     Button {
                         showingAddSheet = true
                     } label: {
-                        Label("Add Measurement", systemImage: "plus")
+                        Label("Add Measurement", image: "ph.plus")
                     }
                     .buttonStyle(NotebookPrimaryButtonStyle())
                     .padding(.top, 24)
@@ -93,7 +93,7 @@ struct MetricDetailSheet: View {
                             NotificationCenter.default.post(name: .switchToChat, object: context)
                             dismiss()
                         } label: {
-                            Label("Chat about this", systemImage: "bubble.left")
+                            Label("Chat about this", image: "ph.chat-circle")
                         }
                         .buttonStyle(NotebookSecondaryButtonStyle())
                         .padding(.top, 10)
@@ -137,7 +137,7 @@ struct MetricDetailSheet: View {
                     Text("About \(metricType.displayName)")
                         .kicker()
                     Spacer()
-                    Image(systemName: "chevron.down")
+                    Image("ph.caret-down")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.tertiary)
                         .rotationEffect(.degrees(contextExpanded ? 180 : 0))
@@ -201,14 +201,14 @@ struct MetricDetailSheet: View {
             color = .secondary
         }
 
-        let iconName = diff > 0 ? "arrow.up.right" : (diff < 0 ? "arrow.down.right" : "arrow.right")
+        let iconName = diff > 0 ? "ph.arrow-up-right" : (diff < 0 ? "ph.arrow-down-right" : "ph.arrow-right")
 
         return HStack {
             Text("Since last reading")
                 .kicker()
             Spacer()
             HStack(spacing: 4) {
-                Image(systemName: iconName)
+                Image(iconName)
                     .font(.caption.weight(.bold))
                     .accessibilityHidden(true)
                 Text(formatted)
@@ -334,7 +334,7 @@ struct MetricDetailSheet: View {
                         .font(Notebook.mono(.subheadline))
 
                     if !measurement.notes.isEmpty {
-                        Image(systemName: "note.text")
+                        Image("ph.note")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -356,7 +356,7 @@ struct MetricDetailSheet: View {
                     Button(role: .destructive) {
                         measurementToDelete = measurement
                     } label: {
-                        Label("Delete", systemImage: "trash")
+                        Label("Delete", image: "ph.trash")
                     }
                 }
 

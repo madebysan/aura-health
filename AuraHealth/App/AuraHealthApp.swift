@@ -38,7 +38,7 @@ private struct StorageRecoveryView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("Your data is protected", systemImage: "externaldrive.badge.exclamationmark")
+            Label("Your data is protected", image: "ph.hard-drive")
         } description: {
             Text(message)
         }

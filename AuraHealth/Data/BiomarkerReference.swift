@@ -18,16 +18,16 @@ enum BodySystem: String, CaseIterable, Identifiable {
 
     var iconName: String {
         switch self {
-        case .heart: "heart.fill"
-        case .metabolic: "flame.fill"
-        case .liver: "cross.vial.fill"
-        case .kidney: "drop.fill"
-        case .thyroid: "waveform.path.ecg"
-        case .blood: "drop.triangle.fill"
-        case .hormones: "bolt.heart.fill"
-        case .inflammation: "exclamationmark.shield.fill"
-        case .vitamins: "leaf.fill"
-        case .other: "ellipsis.circle.fill"
+        case .heart: "ph.heart"
+        case .metabolic: "ph.gauge"
+        case .liver: "ph.test-tube"
+        case .kidney: "ph.drop-half"
+        case .thyroid: "ph.waves"
+        case .blood: "ph.drop-half-bottom"
+        case .hormones: "ph.dna"
+        case .inflammation: "ph.shield-warning"
+        case .vitamins: "ph.leaf"
+        case .other: "ph.dots-three-circle"
         }
     }
 

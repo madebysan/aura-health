@@ -39,6 +39,13 @@ The visual direction is **Notebook**: a personal lab notebook. Ink on paper, num
 
 Every status also needs a word: "in range", "near limit", "↑ above range", "↓ below range". Color only adds emphasis.
 
+## Icons
+
+- Aura uses [Phosphor](https://phosphoricons.com) Light (MIT) instead of SF Symbols; san chose it on 2026-10-18 over Lucide and Material Symbols Sharp. Its thin, even stroke matches the hairline rules.
+- Each icon is a custom symbol named `ph.<phosphor-name>` in `Assets.xcassets/Icons`. Use `Image("ph.heart")` and `Label(title, image: "ph.heart")`; they size with the font like SF Symbols. Do not use `systemName:` or `systemImage:` in new code.
+- To add an icon, copy its `-light.svg` from `@phosphor-icons/core` into `assets/icons/phosphor-light/<name>.svg` (without the `-light` suffix), then run `python3 -I scripts/phosphor_symbols.py assets/icons/phosphor-light AuraHealth/Resources/Assets.xcassets/Icons`. The script fills all 27 weight and scale slots with the same outline, because toolbars ask for heavier weights and show nothing if they are missing.
+- Apple Health must keep Apple's own Health icon wherever Aura refers to it.
+
 ## Typography
 
 - Screen titles use native large-title navigation styling (SF Pro).

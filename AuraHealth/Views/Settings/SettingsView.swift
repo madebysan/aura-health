@@ -75,19 +75,19 @@ struct SettingsView: View {
                 Button {
                     exportData()
                 } label: {
-                    Label("Create Complete Backup", systemImage: "arrow.up.doc")
+                    Label("Create Complete Backup", image: "ph.file-arrow-up")
                 }
 
                 Button {
                     showingImporter = true
                 } label: {
-                    Label("Import Aura Data", systemImage: "arrow.down.doc")
+                    Label("Import Aura Data", image: "ph.file-arrow-down")
                 }
 
                 Button(role: .destructive) {
                     showingClearConfirmation = true
                 } label: {
-                    Label("Clear All Data", systemImage: "trash")
+                    Label("Clear All Data", image: "ph.trash")
                         .foregroundStyle(Notebook.signal)
                 }
                 .confirmationDialog("Clear all data?", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
@@ -106,11 +106,11 @@ struct SettingsView: View {
                 NavigationLink {
                     PrivacyView()
                 } label: {
-                    Label("Privacy", systemImage: "hand.raised")
+                    Label("Privacy", image: "ph.hand")
                 }
 
                 Link(destination: URL(string: "mailto:hi@santiagoalonso.com?subject=Aura%20Health%20Support")!) {
-                    Label("Contact Support", systemImage: "envelope")
+                    Label("Contact Support", image: "ph.envelope")
                 }
             } header: {
                 sectionHeader("Privacy & Support")
@@ -123,7 +123,7 @@ struct SettingsView: View {
                     showingSampleConfirmation = true
                 } label: {
                     Label(sampleDataLoaded ? "Sample Data Added" : "Load Sample Data",
-                          systemImage: sampleDataLoaded ? "checkmark" : "tray.and.arrow.down")
+                          image: sampleDataLoaded ? "ph.check" : "ph.download-simple")
                 }
                 .disabled(sampleDataLoaded)
                 .confirmationDialog("Load sample data?", isPresented: $showingSampleConfirmation, titleVisibility: .visible) {
@@ -233,7 +233,7 @@ struct SettingsView: View {
                     Text("Apple Health")
                         .font(.body)
                 } icon: {
-                    Image(systemName: "heart.text.square")
+                    Image("ph.heartbeat")
                         .foregroundStyle(Notebook.ink)
                 }
 
@@ -263,7 +263,7 @@ struct SettingsView: View {
                             }
                         }
                     } else {
-                        Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                        Label("Sync Now", image: "ph.arrows-clockwise")
                     }
                 }
                 .disabled(healthKitService.isSyncing)
@@ -275,7 +275,7 @@ struct SettingsView: View {
                         Text("Stop Syncing Apple Health")
                             .foregroundStyle(Notebook.signal)
                     } icon: {
-                        Image(systemName: "xmark.circle")
+                        Image("ph.x-circle")
                             .foregroundStyle(Notebook.signal)
                     }
                 }
@@ -293,7 +293,7 @@ struct SettingsView: View {
                 Button {
                     Task { await healthKitService.requestAuthorization() }
                 } label: {
-                    Label("Connect Apple Health", systemImage: "link")
+                    Label("Connect Apple Health", image: "ph.link")
                 }
             }
 
@@ -311,14 +311,14 @@ struct SettingsView: View {
                 Text(provider.displayName).tag(provider)
             }
         } label: {
-            Label("Provider", systemImage: "network")
+            Label("Provider", image: "ph.globe")
         }
     }
 
     private var apiKeySection: some View {
         Group {
             HStack {
-                Label("\(aiProvider.displayName) API Key", systemImage: "key")
+                Label("\(aiProvider.displayName) API Key", image: "ph.key")
                 Spacer()
 
                 if providerHasKey {
@@ -360,7 +360,7 @@ struct SettingsView: View {
                 Text("Model")
                     .font(.body)
             } icon: {
-                Image(systemName: "cpu")
+                Image("ph.cpu")
                     .foregroundStyle(Notebook.ink)
             }
 

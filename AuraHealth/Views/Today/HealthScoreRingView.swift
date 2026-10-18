@@ -54,6 +54,9 @@ struct HealthScoreRingView: View {
             }
         }
         .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label) score")
+        .accessibilityValue("\(Int(score)) out of 100")
         .onAppear {
             withAnimation(AppAnimation.scoreRing) {
                 animatedProgress = normalizedScore

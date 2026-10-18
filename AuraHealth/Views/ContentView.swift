@@ -135,6 +135,7 @@ struct MoreMenuView: View {
     @Binding var selectedSection: AppSection
     @Binding var chatPrefill: String?
     @State private var navigationPath = NavigationPath()
+    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 30
 
     // Grouped sections for the "More" list.
     // The tab bar covers: Vitals, Habits, Biomarkers, Chat.
@@ -170,9 +171,10 @@ struct MoreMenuView: View {
             HStack(spacing: 14) {
                 // Colored icon badge (matches iOS Settings style)
                 Image(systemName: section.iconName)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 30, height: 30)
+                    .frame(width: iconSize, height: iconSize)
+                    .accessibilityHidden(true)
                     .background(section.iconColor, in: RoundedRectangle(cornerRadius: 7))
 
                 Text(section.label)

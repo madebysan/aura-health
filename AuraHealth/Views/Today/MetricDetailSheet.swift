@@ -12,6 +12,7 @@ struct MetricDetailSheet: View {
     private var allMeasurements: [Measurement]
 
     @State private var showingAddSheet = false
+    @ScaledMetric(relativeTo: .largeTitle) private var heroValueSize: CGFloat = 52
 
     private var history: [Measurement] {
         allMeasurements.filter { $0.metricType == metricType }
@@ -33,7 +34,7 @@ struct MetricDetailSheet: View {
                         // Large current value
                         VStack(spacing: 6) {
                             Text(latest.displayValue)
-                                .font(.system(size: 52, weight: .bold, design: .rounded))
+                                .font(.system(size: heroValueSize, weight: .bold, design: .rounded))
                                 .monospacedDigit()
                                 .minimumScaleFactor(0.7)
                                 .lineLimit(1)
@@ -44,12 +45,8 @@ struct MetricDetailSheet: View {
                                 .foregroundStyle(.secondary)
 
                             // Status
-                            let range = metricType.defaultRange
-                            let inRange = latest.value >= range.low && latest.value <= range.high
-                            StatusBadge(
-                                label: inRange ? "In Range" : "Out of Range",
-                                color: inRange ? AppColors.statusGreen : AppColors.statusOrange
-                            )
+                            let position = metricType.rangePosition(of: latest.value)
+                            StatusBadge(label: position.label, color: position.color)
 
                             // Timestamp
                             Text(latest.timestamp, format: .relative(presentation: .named))
@@ -148,7 +145,7 @@ struct MetricDetailSheet: View {
                         .foregroundStyle(.primary)
                     Spacer()
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.tertiary)
                         .rotationEffect(.degrees(contextExpanded ? 180 : 0))
                 }
@@ -220,7 +217,8 @@ struct MetricDetailSheet: View {
             Spacer()
             HStack(spacing: 4) {
                 Image(systemName: iconName)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.caption.weight(.bold))
+                    .accessibilityHidden(true)
                 Text(formatted)
                     .font(.subheadline.weight(.semibold).monospacedDigit())
             }
@@ -232,49 +230,14 @@ struct MetricDetailSheet: View {
 
     private func rangeBar(value: Double) -> some View {
         let range = metricType.defaultRange
-        let low = range.low
-        let high = range.high
-        let span = high - low
-        let extendedMin = low - span * 0.3
-        let extendedMax = high + span * 0.3
-
-        return VStack(spacing: 8) {
-            GeometryReader { geo in
-                let width = geo.size.width
-                let fullRange = extendedMax - extendedMin
-                let normalStart = CGFloat((low - extendedMin) / fullRange) * width
-                let normalWidth = CGFloat(span / fullRange) * width
-                let valueX = CGFloat((value - extendedMin) / fullRange) * width
-
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(AppColors.statusRed.opacity(0.15))
-
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(AppColors.statusGreen.opacity(0.2))
-                        .frame(width: normalWidth)
-                        .offset(x: normalStart)
-
-                    Circle()
-                        .fill(value >= low && value <= high ? AppColors.statusGreen : AppColors.statusOrange)
-                        .shadow(color: (value >= low && value <= high ? AppColors.statusGreen : AppColors.statusOrange).opacity(0.4), radius: 4)
-                        .frame(width: 14, height: 14)
-                        .offset(x: Swift.max(0, Swift.min(valueX - 7, width - 14)))
-                }
-            }
-            .frame(height: 14)
-
-            HStack {
-                Text(low == low.rounded() ? "\(Int(low))" : String(format: "%.1f", low))
-                    .font(.caption2).foregroundStyle(.tertiary)
-                Spacer()
-                Text("Reference Range")
-                    .font(.caption2).foregroundStyle(.quaternary)
-                Spacer()
-                Text(high == high.rounded() ? "\(Int(high))" : String(format: "%.1f", high))
-                    .font(.caption2).foregroundStyle(.tertiary)
-            }
-        }
+        return ReferenceRangeBar(
+            value: value,
+            low: range.low == 0 ? nil : range.low,
+            high: range.high,
+            valueColor: metricType.rangePosition(of: value).color,
+            unit: metricType.unit,
+            title: "Typical range"
+        )
     }
 
     // MARK: - Trend Chart
@@ -355,6 +318,8 @@ struct MetricDetailSheet: View {
             .chartYScale(domain: yDomain)
             .frame(height: 160)
             .clipped()
+            .accessibilityLabel("\(metricType.displayName), last 30 days")
+            .accessibilityValue(ChartSummary.trend(points: last30Days.map { ($0.timestamp, $0.value) }, unit: metricType.unit))
         }
     }
 
@@ -387,12 +352,8 @@ struct MetricDetailSheet: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    // Status dot
-                    let range = metricType.defaultRange
-                    let inRange = measurement.value >= range.low && measurement.value <= range.high
-                    Circle()
-                        .fill(inRange ? AppColors.statusGreen : AppColors.statusOrange)
-                        .frame(width: 7, height: 7)
+                    let position = metricType.rangePosition(of: measurement.value)
+                    RangeStatusIcon(position: position, color: position.color)
                 }
                 .contextMenu {
                     Button(role: .destructive) {

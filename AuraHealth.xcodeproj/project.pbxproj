@@ -12,6 +12,7 @@
 		AE0000000000000000000003 /* AIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0000000000000000000004 /* AIProviderTests.swift */; };
 		AC0000000000000000000001 /* AuraStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000002 /* AuraStorage.swift */; };
 		AC0000000000000000000003 /* StorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000004 /* StorageTests.swift */; };
+		AC0000000000000000000005 /* BiomarkerStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0000000000000000000006 /* BiomarkerStatusTests.swift */; };
 		AB0000000000000000000001 /* DataLifecycleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000002 /* DataLifecycleService.swift */; };
 		AA0000000000000000000001 /* BackupServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000002 /* BackupServiceTests.swift */; };
 		00F354E4ADD5D31F13B20709 /* Measurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ED219E4F68896E7AC38FF52 /* Measurement.swift */; };
@@ -65,6 +66,7 @@
 		AE0000000000000000000004 /* AIProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProviderTests.swift; sourceTree = "<group>"; };
 		AC0000000000000000000002 /* AuraStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuraStorage.swift; sourceTree = "<group>"; };
 		AC0000000000000000000004 /* StorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageTests.swift; sourceTree = "<group>"; };
+		AC0000000000000000000006 /* BiomarkerStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiomarkerStatusTests.swift; sourceTree = "<group>"; };
 		AB0000000000000000000002 /* DataLifecycleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataLifecycleService.swift; sourceTree = "<group>"; };
 		AA0000000000000000000002 /* BackupServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupServiceTests.swift; sourceTree = "<group>"; };
 		AA0000000000000000000003 /* AuraHealthTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AuraHealthTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -351,6 +353,7 @@
 				AE0000000000000000000004 /* AIProviderTests.swift */,
 				AA0000000000000000000002 /* BackupServiceTests.swift */,
 				AC0000000000000000000004 /* StorageTests.swift */,
+				AC0000000000000000000006 /* BiomarkerStatusTests.swift */,
 			);
 			path = AuraHealthTests;
 			sourceTree = "<group>";
@@ -469,6 +472,7 @@
 				AE0000000000000000000003 /* AIProviderTests.swift in Sources */,
 				AA0000000000000000000001 /* BackupServiceTests.swift in Sources */,
 				AC0000000000000000000003 /* StorageTests.swift in Sources */,
+				AC0000000000000000000005 /* BiomarkerStatusTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

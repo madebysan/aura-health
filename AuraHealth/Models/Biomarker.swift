@@ -40,16 +40,62 @@ final class Biomarker {
         self.notes = notes
     }
 
+    /// Lower reference limit. Labs write upper-only ranges ("under 100") as a
+    /// minimum of 0, so a minimum of 0 or less means there is no lower limit.
+    var lowerLimit: Double? {
+        guard let refMin, refMin > 0 else { return nil }
+        return refMin
+    }
+
+    /// Upper reference limit, if the lab gave one.
+    var upperLimit: Double? { refMax }
+
     /// Status based on reference range
     var status: BiomarkerStatus {
-        guard let min = refMin, let max = refMax else { return .unknown }
-        if value < min || value > max { return .abnormal }
-        let range = max - min
-        let lowerBorder = min + range * 0.1
-        let upperBorder = max - range * 0.1
-        if value < lowerBorder || value > upperBorder { return .borderline }
+        let low = lowerLimit
+        let high = upperLimit
+        guard low != nil || high != nil else { return .unknown }
+        if let low, value < low { return .abnormal }
+        if let high, value > high { return .abnormal }
+        if let low, value < low + borderlineMargin { return .borderline }
+        if let high, value > high - borderlineMargin { return .borderline }
         return .normal
     }
+
+    /// Where the value sits against the reference range.
+    var rangePosition: RangePosition {
+        if let low = lowerLimit, value < low { return .below }
+        if let high = upperLimit, value > high { return .above }
+        return lowerLimit == nil && upperLimit == nil ? .unknown : .within
+    }
+
+    /// Short, direction-aware label: "In range", "Near limit", "Above range"...
+    var statusLabel: String {
+        switch status {
+        case .normal: "In range"
+        case .borderline: "Near limit"
+        case .abnormal: rangePosition == .below ? "Below range" : "Above range"
+        case .unknown: "No range"
+        }
+    }
+
+    /// True when the value is outside the range by no more than the borderline
+    /// margin, such as LDL 102 against "under 100". Shown with a softer color.
+    var isMarginallyOutOfRange: Bool {
+        if let low = lowerLimit, value < low { return low - value <= borderlineMargin }
+        if let high = upperLimit, value > high { return value - high <= borderlineMargin }
+        return false
+    }
+
+    /// 10% of the range width, or of the single limit for one-sided ranges.
+    private var borderlineMargin: Double {
+        if let low = lowerLimit, let high = upperLimit { return (high - low) * 0.1 }
+        return abs(lowerLimit ?? upperLimit ?? 0) * 0.1
+    }
+}
+
+enum RangePosition {
+    case below, within, above, unknown
 }
 
 enum BiomarkerStatus: String {
@@ -60,10 +106,10 @@ enum BiomarkerStatus: String {
 
     var displayName: String {
         switch self {
-        case .normal: "Normal"
-        case .borderline: "Borderline"
-        case .abnormal: "Abnormal"
-        case .unknown: "Unknown"
+        case .normal: "In range"
+        case .borderline: "Near limit"
+        case .abnormal: "Out of range"
+        case .unknown: "No range"
         }
     }
 

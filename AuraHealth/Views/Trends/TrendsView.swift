@@ -86,6 +86,7 @@ struct TrendChartCard: View {
     let measurements: [Measurement]
 
     @State private var selectedDate: Date?
+    @ScaledMetric(relativeTo: .caption) private var iconSize: CGFloat = 22
 
     private var selectedMeasurement: Measurement? {
         guard let selectedDate else { return nil }
@@ -118,9 +119,10 @@ struct TrendChartCard: View {
             // Header
             HStack(spacing: 8) {
                 Image(systemName: metricType.iconName)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(metricType.iconColor)
-                    .frame(width: 22, height: 22)
+                    .frame(width: iconSize, height: iconSize)
+                    .accessibilityHidden(true)
                     .background(metricType.iconColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 5))
 
                 Text(metricType.displayName)
@@ -222,6 +224,8 @@ struct TrendChartCard: View {
             .chartYScale(domain: yDomain)
             .frame(height: 160)
             .clipped()
+            .accessibilityLabel("\(metricType.displayName) trend")
+            .accessibilityValue(ChartSummary.trend(points: sortedData.map { ($0.timestamp, $0.value) }, unit: metricType.unit))
 
             // Stats
             HStack(spacing: 0) {
@@ -302,6 +306,7 @@ struct CorrelationCard: View {
                     Text("r = \(String(format: "%.2f", r))")
                         .font(.caption.monospacedDigit().bold())
                         .foregroundStyle(abs(r) > 0.5 ? Color.accentColor : .secondary)
+                        .accessibilityLabel(ChartSummary.correlation(r))
                 }
 
                 Chart(pairedData.indices, id: \.self) { i in
@@ -314,6 +319,8 @@ struct CorrelationCard: View {
                 }
                 .chartXAxisLabel(typeA.displayName)
                 .chartYAxisLabel(typeB.displayName)
+                .accessibilityLabel("\(typeA.displayName) against \(typeB.displayName)")
+                .accessibilityValue("\(pairedData.count) days with both readings. \(ChartSummary.correlation(correlationCoefficient)).")
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))

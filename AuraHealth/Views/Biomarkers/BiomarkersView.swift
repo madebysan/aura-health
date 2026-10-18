@@ -3,6 +3,10 @@ import SwiftData
 import Charts
 
 struct BiomarkersView: View {
+    @ScaledMetric(relativeTo: .caption2) private var scaledSummaryBarHeight: CGFloat = 16
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var summaryBarHeight: CGFloat { min(scaledSummaryBarHeight, 28) }
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: \Biomarker.testDate, order: .reverse)
@@ -152,7 +156,8 @@ struct BiomarkersView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(.secondary)
-                            .font(.system(size: 14))
+                            .font(.subheadline)
+                            .accessibilityHidden(true)
                         TextField("Search biomarkers", text: $searchText)
                             .textFieldStyle(.plain)
                     }
@@ -170,13 +175,13 @@ struct BiomarkersView: View {
                             FilterPill(label: "All", isActive: statusFilter == nil) {
                                 withAnimation(AppAnimation.viewSwitch) { statusFilter = nil }
                             }
-                            FilterPill(label: "Normal", isActive: statusFilter == .normal) {
+                            FilterPill(label: "In range", isActive: statusFilter == .normal) {
                                 withAnimation(AppAnimation.viewSwitch) { statusFilter = .normal }
                             }
-                            FilterPill(label: "Borderline", isActive: statusFilter == .borderline) {
+                            FilterPill(label: "Near limit", isActive: statusFilter == .borderline) {
                                 withAnimation(AppAnimation.viewSwitch) { statusFilter = .borderline }
                             }
-                            FilterPill(label: "Abnormal", isActive: statusFilter == .abnormal) {
+                            FilterPill(label: "Out of range", isActive: statusFilter == .abnormal) {
                                 withAnimation(AppAnimation.viewSwitch) { statusFilter = .abnormal }
                             }
                         }
@@ -228,7 +233,7 @@ struct BiomarkersView: View {
                                 } label: {
                                     HStack(spacing: 8) {
                                         Image(systemName: "clock.arrow.circlepath")
-                                            .font(.system(size: 14))
+                                            .font(.subheadline)
                                         Text("Show \(olderCount) older biomarkers")
                                             .font(.subheadline.weight(.medium))
                                         Spacer()
@@ -296,7 +301,7 @@ struct BiomarkersView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: systemGroup.system.iconName)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(systemGroup.system.swiftColor)
                 Text(systemGroup.system.rawValue)
                     .font(.subheadline.weight(.semibold))
@@ -334,7 +339,7 @@ struct BiomarkersView: View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-                .font(.system(size: 16))
+                .font(.callout)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Labs may be outdated")
                     .font(.subheadline.weight(.medium))
@@ -388,7 +393,7 @@ struct BiomarkersView: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: hasContent ? "note.text" : "square.and.pencil")
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundStyle(hasContent ? .primary : .tertiary)
                     .frame(width: 20)
 
@@ -439,35 +444,42 @@ struct BiomarkersView: View {
                     let width = geo.size.width
                     HStack(spacing: 2) {
                         if counts.normal > 0 {
-                            statusSegment(count: counts.normal, total: total, width: width, color: AppColors.statusGreen, label: "Normal")
+                            statusSegment(count: counts.normal, total: total, width: width, color: AppColors.statusGreen, label: "In range")
                         }
                         if counts.borderline > 0 {
-                            statusSegment(count: counts.borderline, total: total, width: width, color: AppColors.statusOrange, label: "Borderline")
+                            statusSegment(count: counts.borderline, total: total, width: width, color: AppColors.statusOrange, label: "Near limit")
                         }
                         if counts.abnormal > 0 {
-                            statusSegment(count: counts.abnormal, total: total, width: width, color: AppColors.statusRed, label: "Abnormal")
+                            statusSegment(count: counts.abnormal, total: total, width: width, color: AppColors.statusRed, label: "Out of range")
                         }
                     }
                 }
-                .frame(height: 14)
-                .clipShape(RoundedRectangle(cornerRadius: 7))
+                .frame(height: summaryBarHeight)
+                .clipShape(RoundedRectangle(cornerRadius: summaryBarHeight / 2))
+                .accessibilityHidden(true)
 
-                HStack(spacing: 12) {
+                (dynamicTypeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+                    : AnyLayout(HStackLayout(spacing: 12))) {
                     if counts.normal > 0 {
-                        statusLegendItem(count: counts.normal, label: "Normal", color: AppColors.statusGreen)
+                        statusLegendItem(count: counts.normal, label: "In range", color: AppColors.statusGreen)
                     }
                     if counts.borderline > 0 {
-                        statusLegendItem(count: counts.borderline, label: "Borderline", color: AppColors.statusOrange)
+                        statusLegendItem(count: counts.borderline, label: "Near limit", color: AppColors.statusOrange)
                     }
                     if counts.abnormal > 0 {
-                        statusLegendItem(count: counts.abnormal, label: "Abnormal", color: AppColors.statusRed)
+                        statusLegendItem(count: counts.abnormal, label: "Out of range", color: AppColors.statusRed)
                     }
-                    Spacer()
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        Spacer()
+                    }
                     Text("\(total) markers")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .accessibilityElement(children: .combine)
         )
     }
 
@@ -488,9 +500,10 @@ struct BiomarkersView: View {
         let segmentWidth = max(40, (width - spacing) * CGFloat(count) / CGFloat(total))
 
         return Text("\(count)")
-            .font(.system(size: 10, weight: .bold))
+            .font(.caption2.weight(.bold))
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             .foregroundStyle(.white)
-            .frame(width: segmentWidth, height: 14)
+            .frame(width: segmentWidth, height: summaryBarHeight)
             .background(color.opacity(0.7))
     }
 
@@ -511,37 +524,52 @@ struct BiomarkerCardView: View {
     let historyCount: Int
     var isFaded: Bool = false
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         HStack(spacing: 12) {
             // Status indicator
             RoundedRectangle(cornerRadius: 2)
-                .fill(AppColors.biomarkerColor(biomarker.status))
-                .frame(width: 4, height: 36)
+                .fill(AppColors.biomarkerColor(biomarker))
+                .frame(width: 4)
+                .frame(minHeight: 36)
+                .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(biomarker.marker)
-                    .font(.subheadline.weight(.medium))
-                Text(biomarker.testDate, format: .dateTime.month(.abbreviated).day().year())
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+            // Name, status and value stack at accessibility sizes so names never break mid-word
+            let layout = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(spacing: 12))
+
+            layout {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(biomarker.marker)
+                        .font(.subheadline.weight(.medium))
+                    Text(biomarker.testDate, format: .dateTime.month(.abbreviated).day().year())
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Spacer()
+                }
+
+                StatusBadge(label: biomarker.statusLabel, color: AppColors.biomarkerColor(biomarker))
+
+                VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
+                    Text(AppFormat.number(biomarker.value))
+                        .font(.body.monospacedDigit().bold())
+                    Text(biomarker.unit)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
-
-            Spacer()
-
-            StatusBadge(label: biomarker.status.displayName, color: AppColors.biomarkerColor(biomarker.status))
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(String(format: biomarker.value == biomarker.value.rounded() ? "%.0f" : "%.1f", biomarker.value))
-                    .font(.body.monospacedDigit().bold())
-                Text(biomarker.unit)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .cardStyle(padding: 12, cornerRadius: 10)
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .hoverCard()
         .opacity(isFaded ? 0.4 : 1.0)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -628,6 +656,7 @@ struct BiomarkerDetailSheet: View {
     let biomarkers: [Biomarker]
 
     @State private var selectedDate: Date?
+    @ScaledMetric(relativeTo: .largeTitle) private var heroValueSize: CGFloat = 52
 
     private var history: [Biomarker] {
         biomarkers.filter { $0.marker == marker }.sorted { $0.testDate > $1.testDate }
@@ -642,8 +671,8 @@ struct BiomarkerDetailSheet: View {
                     if let latest {
                         // Value + status
                         VStack(spacing: 6) {
-                            Text(String(format: "%.1f", latest.value))
-                                .font(.system(size: 52, weight: .bold, design: .rounded))
+                            Text(AppFormat.number(latest.value))
+                                .font(.system(size: heroValueSize, weight: .bold, design: .rounded))
                                 .monospacedDigit()
                                 .minimumScaleFactor(0.7)
                                 .lineLimit(1)
@@ -653,12 +682,12 @@ struct BiomarkerDetailSheet: View {
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.secondary)
 
-                            StatusBadge(label: latest.status.displayName, color: AppColors.biomarkerColor(latest.status))
+                            StatusBadge(label: latest.statusLabel, color: AppColors.biomarkerColor(latest))
                         }
                         .padding(.vertical, 8)
 
                         // Range bar
-                        if latest.refMin != nil && latest.refMax != nil {
+                        if latest.lowerLimit != nil || latest.upperLimit != nil {
                             rangeBar(for: latest)
                                 .cardStyle()
                         }
@@ -682,7 +711,7 @@ struct BiomarkerDetailSheet: View {
                                         x: .value("Date", bio.testDate),
                                         y: .value("Value", bio.value)
                                     )
-                                    .foregroundStyle(AppColors.biomarkerColor(bio.status))
+                                    .foregroundStyle(AppColors.biomarkerColor(bio))
                                     .symbolSize(40)
 
                                     if let selectedDate,
@@ -707,6 +736,8 @@ struct BiomarkerDetailSheet: View {
                                 }
                                 .chartXSelection(value: $selectedDate)
                                 .frame(height: 160)
+                                .accessibilityLabel("\(marker) trend")
+                                .accessibilityValue(ChartSummary.trend(points: history.map { ($0.testDate, $0.value) }, unit: latest.unit))
                             }
                             .cardStyle()
                         }
@@ -753,7 +784,7 @@ struct BiomarkerDetailSheet: View {
                         // Chat about this marker
                         Button {
                             // Post notification with marker context so chat can pre-fill
-                            let context = "Tell me about my \(marker) level of \(String(format: "%.1f", latest.value)) \(latest.unit). Is this good? What should I know?"
+                            let context = "Tell me about my \(marker) level of \(AppFormat.number(latest.value)) \(latest.unit). Is this good? What should I know?"
                             NotificationCenter.default.post(name: .switchToChat, object: context)
                             dismiss()
                         } label: {
@@ -774,14 +805,12 @@ struct BiomarkerDetailSheet: View {
                                     Text(bio.testDate, format: .dateTime.month(.abbreviated).day().year())
                                         .font(.subheadline)
                                     Spacer()
-                                    Text(String(format: "%.1f", bio.value))
+                                    Text(AppFormat.number(bio.value))
                                         .font(.subheadline.monospacedDigit().bold())
                                     Text(bio.unit)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
-                                    Circle()
-                                        .fill(AppColors.biomarkerColor(bio.status))
-                                        .frame(width: 7, height: 7)
+                                    RangeStatusIcon(position: bio.rangePosition, color: AppColors.biomarkerColor(bio))
                                 }
                                 if bio.id != history.last?.id {
                                     Divider()
@@ -807,48 +836,13 @@ struct BiomarkerDetailSheet: View {
     }
 
     private func rangeBar(for biomarker: Biomarker) -> some View {
-        VStack(spacing: 8) {
-            GeometryReader { geo in
-                let width = geo.size.width
-                let min = biomarker.refMin!
-                let max = biomarker.refMax!
-                let range = max - min
-                let extendedMin = min - range * 0.3
-                let extendedMax = max + range * 0.3
-                let fullRange = extendedMax - extendedMin
-                let normalStart = CGFloat((min - extendedMin) / fullRange) * width
-                let normalWidth = CGFloat(range / fullRange) * width
-                let valueX = CGFloat((biomarker.value - extendedMin) / fullRange) * width
-
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(AppColors.statusRed.opacity(0.5))
-
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(AppColors.statusGreen.opacity(0.55))
-                        .frame(width: normalWidth)
-                        .offset(x: normalStart)
-
-                    Circle()
-                        .fill(AppColors.biomarkerColor(biomarker.status))
-                        .shadow(color: AppColors.biomarkerColor(biomarker.status).opacity(0.4), radius: 4)
-                        .frame(width: 14, height: 14)
-                        .offset(x: Swift.max(0, Swift.min(valueX - 7, width - 14)))
-                }
-            }
-            .frame(height: 14)
-
-            HStack {
-                Text(String(format: "%.1f", biomarker.refMin!))
-                    .font(.caption2).foregroundStyle(.tertiary)
-                Spacer()
-                Text("Ref Range")
-                    .font(.caption2).foregroundStyle(.quaternary)
-                Spacer()
-                Text(String(format: "%.1f", biomarker.refMax!))
-                    .font(.caption2).foregroundStyle(.tertiary)
-            }
-        }
+        ReferenceRangeBar(
+            value: biomarker.value,
+            low: biomarker.lowerLimit,
+            high: biomarker.upperLimit,
+            valueColor: AppColors.biomarkerColor(biomarker),
+            unit: biomarker.unit
+        )
     }
 }
 

@@ -867,7 +867,7 @@ final class AIService {
 
         for (marker, items) in sortedMarkers {
             let latest = items.first!
-            let status = latest.status.displayName
+            let status = latest.statusLabel
             let ref: String
             if let min = latest.refMin, let max = latest.refMax {
                 ref = " [\(String(format: "%.0f", min))-\(String(format: "%.0f", max))]"
@@ -1096,8 +1096,8 @@ final class AIService {
         ))
         guard saveChanges(in: context) else { return "Error: Aura could not save this change." }
 
-        let status = Biomarker(testDate: testDate, marker: marker, value: value, unit: unit, refMin: finalRefMin, refMax: finalRefMax).status
-        return "Added: \(marker) = \(String(format: "%.1f", value)) \(unit) (\(status.displayName)) on \(formatDate(testDate))"
+        let status = Biomarker(testDate: testDate, marker: marker, value: value, unit: unit, refMin: finalRefMin, refMax: finalRefMax).statusLabel
+        return "Added: \(marker) = \(String(format: "%.1f", value)) \(unit) (\(status)) on \(formatDate(testDate))"
     }
 
     private func executeAddMeasurement(input: [String: Any], context: ModelContext) -> String {

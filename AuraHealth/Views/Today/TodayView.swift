@@ -50,6 +50,7 @@ struct VitalsView: View {
     @State private var detailMetricType: MetricType?
     @State private var showCardSettings = false
     @AppStorage("hiddenMetrics") private var hiddenMetricsRaw: String = ""
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var hiddenMetrics: Set<String> {
         Set(hiddenMetricsRaw.split(separator: ",").map(String.init))
@@ -244,7 +245,10 @@ struct VitalsView: View {
         #if os(macOS)
         [GridItem(.adaptive(minimum: 300, maximum: 520), spacing: 14)]
         #else
-        [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+        // One column at accessibility text sizes so values and labels never clip
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
         #endif
     }
 
@@ -425,14 +429,22 @@ struct HealthScoreHeroCard: View {
     let recentScores: [Double]
     var contributors: String = "No data yet"
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .title) private var ringSize: CGFloat = 96
+
     private var scoreColor: Color {
         AppColors.scoreColor(for: score)
     }
 
     var body: some View {
-        HStack(spacing: 16) {
+        // Ring above the text at accessibility sizes, beside it otherwise
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
+            : AnyLayout(HStackLayout(spacing: 16))
+
+        layout {
             // Ring
-            HealthScoreRingView(score: score, label: "Health", size: 96)
+            HealthScoreRingView(score: score, label: "Health", size: min(ringSize, 160))
 
             // Details
             VStack(alignment: .leading, spacing: 6) {
@@ -449,6 +461,8 @@ struct HealthScoreHeroCard: View {
                         SparklineView(values: recentScores, color: scoreColor)
                             .frame(height: 28)
                             .clipped()
+                            .accessibilityLabel("Daily Health, last 7 days")
+                            .accessibilityValue(ChartSummary.direction(from: recentScores.first ?? 0, to: recentScores.last ?? 0))
                     }
 
                     Text(contributors)
@@ -463,9 +477,8 @@ struct HealthScoreHeroCard: View {
                         .foregroundStyle(.tertiary)
                 }
             }
-
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle(padding: 16, cornerRadius: 14)
         .hoverCard()
     }
@@ -527,6 +540,7 @@ struct InsightCard: View {
     let onDismiss: () -> Void
 
     @State private var dragOffset: CGFloat = 0
+    @ScaledMetric(relativeTo: .footnote) private var iconSize: CGFloat = 26
 
     private func animateDismiss() {
         withAnimation(.easeIn(duration: 0.2)) {
@@ -540,10 +554,11 @@ struct InsightCard: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: iconName)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(.white)
-                .frame(width: 26, height: 26)
+                .frame(width: iconSize, height: iconSize)
                 .background(iconColor, in: RoundedRectangle(cornerRadius: 6))
+                .accessibilityHidden(true)
 
             Text(step.message)
                 .font(.subheadline)
@@ -554,10 +569,12 @@ struct InsightCard: View {
                     animateDismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(.tertiary)
                         .frame(width: 22, height: 22)
                         .background(Color.primary.opacity(0.06), in: Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Dismiss Insight")

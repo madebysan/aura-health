@@ -18,6 +18,11 @@ struct HabitsView: View {
     /// Tracks the last habit toggled so sensory feedback fires on each new tap (iOS only).
     @State private var lastToggledHabitID: UUID?
     @State private var draggingHabit: Habit?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .subheadline) private var scaledDayColumnWidth: CGFloat = 36
+
+    /// Day columns grow with text size up to a cap so five days always fit.
+    private var dayColumnWidth: CGFloat { min(scaledDayColumnWidth, 50) }
 
     private var activeHabits: [Habit] {
         allHabits.filter(\.active)
@@ -174,6 +179,7 @@ struct HabitsView: View {
             // Habit name column
             Text("")
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityHidden(true)
 
             // Day columns
             ForEach(dayDates, id: \.self) { date in
@@ -181,19 +187,22 @@ struct HabitsView: View {
                 let isToday = cal.isDateInToday(date)
                 VStack(spacing: 2) {
                     Text(date, format: .dateTime.weekday(.abbreviated))
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(isToday ? Color.accentColor : Color.secondary.opacity(0.6))
                         .textCase(.uppercase)
                     Text("\(cal.component(.day, from: date))")
-                        .font(.system(size: 12, weight: isToday ? .bold : .medium))
+                        .font(.caption.weight(isToday ? .bold : .medium))
                         .foregroundStyle(isToday ? Color.accentColor : .secondary)
                 }
                 #if os(macOS)
                 .frame(width: 32)
                 #else
-                .frame(width: 36)
+                .frame(width: dayColumnWidth)
                 #endif
                 .opacity(isToday ? 1.0 : 0.5)
+                .accessibilityElement(children: .combine)
+                // Grid chrome stops growing at the largest standard size
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
         }
         .padding(.vertical, 10)
@@ -225,7 +234,7 @@ struct HabitsView: View {
         HStack(spacing: 6) {
             // Section icon gives a quick visual cue of the time of day.
             Image(systemName: iconName(for: section))
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(iconColor(for: section))
             Text(section.displayName.uppercased())
                 .font(.caption.weight(.semibold))
@@ -239,19 +248,24 @@ struct HabitsView: View {
     }
 
     private func habitRow(_ habit: Habit) -> some View {
-        HStack(spacing: 0) {
+        // At accessibility text sizes the name gets its own line instead of truncating
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .trailing, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 0))
+
+        return layout {
             // Habit name + edit affordance
             Button {
                 editingHabit = habit
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "pencil")
-                        .font(.system(size: 10))
+                        .font(.caption2)
                         .foregroundStyle(.quaternary)
                     Text(habit.name)
                         .font(.subheadline)
                         .foregroundStyle(.primary)
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -259,25 +273,28 @@ struct HabitsView: View {
             .accessibilityLabel("Edit \(habit.name)")
 
             // Day cells
-            ForEach(dayDates, id: \.self) { date in
-                let isToday = Calendar.current.isDateInToday(date)
-                DayCell(
-                    habit: habit,
-                    date: date,
-                    allLogs: allLogs,
-                    onToggle: {
-                        #if os(iOS)
-                        lastToggledHabitID = habit.id
-                        #endif
-                    }
-                )
-                #if os(macOS)
-                .frame(width: 32, height: 32)
-                #else
-                .frame(width: 36, height: 36)
-                #endif
-                .opacity(isToday ? 1.0 : 0.5)
+            HStack(spacing: 0) {
+                ForEach(dayDates, id: \.self) { date in
+                    let isToday = Calendar.current.isDateInToday(date)
+                    DayCell(
+                        habit: habit,
+                        date: date,
+                        allLogs: allLogs,
+                        onToggle: {
+                            #if os(iOS)
+                            lastToggledHabitID = habit.id
+                            #endif
+                        }
+                    )
+                    #if os(macOS)
+                    .frame(width: 32, height: 32)
+                    #else
+                    .frame(width: dayColumnWidth, height: dayColumnWidth)
+                    #endif
+                    .opacity(isToday ? 1.0 : 0.5)
+                }
             }
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -319,6 +336,7 @@ struct DayCell: View {
     var onToggle: (() -> Void)? = nil
 
     @State private var justToggled = false
+    @ScaledMetric(relativeTo: .subheadline) private var squareSize: CGFloat = 28
 
     private var logForDay: HabitLog? {
         let cal = Calendar.current
@@ -346,33 +364,42 @@ struct DayCell: View {
                 } else if isDone {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(AppColors.statusGreen)
-                        .frame(width: 28, height: 28)
+                        .frame(width: squareSize, height: squareSize)
                         .overlay(
                             Image(systemName: "checkmark")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.caption2.weight(.bold))
                                 .foregroundStyle(.white)
                         )
                 } else if logForDay != nil {
                     // Explicitly marked as not done
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.secondary.opacity(0.15))
-                        .frame(width: 28, height: 28)
+                        .frame(width: squareSize, height: squareSize)
                         .overlay(
                             Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .medium))
+                                .font(.caption2.weight(.medium))
                                 .foregroundStyle(.secondary.opacity(0.5))
                         )
                 } else {
                     // No log — empty cell
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.primary.opacity(0.04))
-                        .frame(width: 28, height: 28)
+                        .frame(width: squareSize, height: squareSize)
                 }
             }
             .symbolEffect(.bounce, value: justToggled)
         }
         .buttonStyle(.plain)
         .disabled(isFuture)
+        .accessibilityLabel("\(habit.name), \(date.formatted(.dateTime.weekday(.wide).month(.wide).day()))")
+        .accessibilityValue(accessibilityState)
+        .accessibilityHint(isFuture ? "" : "Changes this day's entry")
+    }
+
+    private var accessibilityState: String {
+        if isDone { return "Done" }
+        if logForDay != nil { return "Not done" }
+        return "No entry"
     }
 
     private func toggleDay() {
@@ -452,7 +479,7 @@ struct AdherenceRow: View {
                 HStack(spacing: 12) {
                     HStack(spacing: 4) {
                         Image(systemName: "flame.fill")
-                            .font(.system(size: 10))
+                            .font(.caption2)
                             .foregroundStyle(.orange)
                         Text("\(streak)d")
                             .font(.caption.weight(.medium).monospacedDigit())

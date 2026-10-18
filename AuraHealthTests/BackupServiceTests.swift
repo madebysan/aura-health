@@ -88,6 +88,55 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<ProtocolMeta>()), 0)
     }
 
+    func testConditionLinksSurviveRoundTrip() throws {
+        let source = try makeContainer()
+        let context = source.mainContext
+        let med = Medication(name: "Metformin", dosage: "500 mg")
+        let habit = Habit(name: "Walk 10k Steps")
+        let condition = Condition(name: "Pre-diabetes", status: .managed)
+        condition.trackedMarkers = ["HbA1c"]
+        condition.trackedMetrics = [MetricType.weight.rawValue]
+        context.insert(med)
+        context.insert(habit)
+        context.insert(condition)
+        condition.medications = [med]
+        condition.habits = [habit]
+        try context.save()
+
+        let backup = try ImportExportService.exportAllData(from: context)
+        let destination = try makeContainer()
+        _ = try ImportExportService.importData(backup, into: destination.mainContext)
+
+        let restored = try XCTUnwrap(try destination.mainContext.fetch(FetchDescriptor<Condition>()).first)
+        XCTAssertEqual(restored.trackedMarkers, ["HbA1c"])
+        XCTAssertEqual(restored.trackedMetrics, [MetricType.weight.rawValue])
+        XCTAssertEqual(restored.medications?.map(\.id), [med.id])
+        XCTAssertEqual(restored.habits?.map(\.id), [habit.id])
+        XCTAssertEqual(restored.linkSummary, "1 lab · 1 vital · 1 med · 1 habit")
+    }
+
+    func testBackupFromBeforeConditionLinksStillImports() throws {
+        let source = try makeContainer()
+        source.mainContext.insert(Condition(name: "Asthma"))
+        try source.mainContext.save()
+
+        // Remove the link fields, as in a backup made by an older version
+        let backup = try ImportExportService.exportAllData(from: source.mainContext)
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: backup) as? [String: Any])
+        var conditions = try XCTUnwrap(json["conditions"] as? [[String: Any]])
+        for key in ["trackedMarkers", "trackedMetrics", "medicationIDs", "habitIDs"] {
+            conditions = conditions.map { var c = $0; c.removeValue(forKey: key); return c }
+        }
+        json["conditions"] = conditions
+        let oldBackup = try JSONSerialization.data(withJSONObject: json)
+
+        let destination = try makeContainer()
+        _ = try ImportExportService.importData(oldBackup, into: destination.mainContext)
+        let restored = try destination.mainContext.fetch(FetchDescriptor<Condition>())
+        XCTAssertEqual(restored.map(\.name), ["Asthma"])
+        XCTAssertNil(restored.first?.linkSummary)
+    }
+
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([
             Measurement.self,
@@ -108,5 +157,20 @@ final class BackupServiceTests: XCTestCase {
         ])
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         return try ModelContainer(for: schema, configurations: [configuration])
+    }
+}
+
+final class ConditionSuggestionsTests: XCTestCase {
+    func testSuggestionsMatchCommonConditionNames() {
+        XCTAssertEqual(ConditionSuggestions.suggestion(for: "Pre-diabetes")?.markers.first, "HbA1c")
+        XCTAssertEqual(ConditionSuggestions.suggestion(for: "Mild Hypercholesterolemia")?.markers.first, "LDL Cholesterol")
+        XCTAssertEqual(ConditionSuggestions.suggestion(for: "Hypertension")?.metrics, [.bloodPressure, .heartRate])
+        XCTAssertNil(ConditionSuggestions.suggestion(for: "Seasonal allergies"))
+    }
+
+    func testMarkerAliasesCountAsTheSameTest() {
+        XCTAssertTrue(ConditionSuggestions.sameMarker("Fasting Glucose", "Glucose"))
+        XCTAssertTrue(ConditionSuggestions.sameMarker("ldl", "LDL Cholesterol"))
+        XCTAssertFalse(ConditionSuggestions.sameMarker("HDL Cholesterol", "LDL Cholesterol"))
     }
 }

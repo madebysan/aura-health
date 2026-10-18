@@ -386,8 +386,8 @@ final class AIService {
                 "properties": [
                     "section": [
                         "type": "string",
-                        "enum": ["vitals", "tracking", "biomarkers", "chat", "medications", "conditions", "diet", "vault", "settings"],
-                        "description": "App section to navigate to (tracking is Habits)"
+                        "enum": ["vitals", "tracking", "biomarkers", "chat", "medications", "conditions", "vault", "settings"],
+                        "description": "App section to navigate to (tracking is Habits; conditions is the Health profile, which also holds the diet)"
                     ]
                 ],
                 "required": ["section"]
@@ -887,7 +887,13 @@ final class AIService {
         guard let meds = try? context.fetch(descriptor), !meds.isEmpty else {
             return "No active medications."
         }
-        return meds.map { "\($0.name) \($0.dosage) — \($0.frequency.displayName)" }.joined(separator: "\n")
+        return meds.map { med in
+            var line = "\(med.name) \(med.dosage) — \(med.frequency.displayName)"
+            let purposes = [med.condition] + (med.conditions ?? []).map(\.name)
+            let forText = purposes.filter { !$0.isEmpty }.joined(separator: ", ")
+            if !forText.isEmpty { line += " (for \(forText))" }
+            return line
+        }.joined(separator: "\n")
     }
 
     private func executeGetConditions(context: ModelContext) -> String {
@@ -895,7 +901,19 @@ final class AIService {
         guard let conditions = try? context.fetch(descriptor), !conditions.isEmpty else {
             return "No health conditions recorded."
         }
-        return conditions.map { "\($0.name) — \($0.status.displayName)" }.joined(separator: "\n")
+        return conditions.map { condition in
+            var parts = ["\(condition.name) — \(condition.status.displayName)"]
+            if let date = condition.diagnosedDate { parts.append("Diagnosed: \(formatDate(date))") }
+            if !condition.notes.isEmpty { parts.append("Notes: \(condition.notes)") }
+            if !condition.trackedMarkers.isEmpty { parts.append("Labs watched: \(condition.trackedMarkers.joined(separator: ", "))") }
+            let metrics = condition.linkedMetrics.map(\.displayName)
+            if !metrics.isEmpty { parts.append("Vitals watched: \(metrics.joined(separator: ", "))") }
+            let meds = condition.linkedMedications.map(\.name)
+            if !meds.isEmpty { parts.append("Meds and supplements: \(meds.joined(separator: ", "))") }
+            let habits = condition.linkedHabits.map(\.name)
+            if !habits.isEmpty { parts.append("Habits: \(habits.joined(separator: ", "))") }
+            return parts.joined(separator: "\n  ")
+        }.joined(separator: "\n\n")
     }
 
     private func executeGetHabits(context: ModelContext) -> String {
@@ -1186,7 +1204,6 @@ final class AIService {
         }
         return plans.map { plan in
             var parts = ["\(plan.name) (\(plan.dietType.isEmpty ? "custom" : plan.dietType))"]
-            if !plan.allowedFoods.isEmpty { parts.append("Allowed: \(plan.allowedFoods.joined(separator: ", "))") }
             if !plan.avoidFoods.isEmpty { parts.append("Avoid: \(plan.avoidFoods.joined(separator: ", "))") }
             if !plan.notes.isEmpty { parts.append("Notes: \(plan.notes)") }
             return parts.joined(separator: "\n  ")
@@ -1200,7 +1217,7 @@ final class AIService {
         let vitals = executeGetVitals(input: ["days": 7], context: context)
         if !vitals.contains("No vitals") { sections.append("VITALS (7d):\n\(vitals)") }
 
-        // Active conditions
+        // Conditions, with their status, notes and linked records
         let conditions = executeGetConditions(context: context)
         if !conditions.contains("No health") { sections.append("CONDITIONS:\n\(conditions)") }
 
@@ -1450,7 +1467,7 @@ final class AIService {
 
     private func executeNavigate(input: [String: Any]) -> String {
         guard let sectionStr = input["section"] as? String,
-              let section = AppSection(rawValue: sectionStr) else {
+              let section = AppSection.named(sectionStr) else {
             return "Error: valid section name is required."
         }
 

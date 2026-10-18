@@ -230,12 +230,30 @@ struct SampleDataService {
 
     private static func loadConditions(into context: ModelContext) {
         let cal = Calendar.current
-        context.insert(Condition(name: "Pre-diabetes", status: .managed,
-            diagnosedDate: cal.date(byAdding: .year, value: -1, to: Date()), notes: "Managing with Metformin + diet"))
-        context.insert(Condition(name: "Vitamin D Deficiency", status: .managed,
-            diagnosedDate: cal.date(byAdding: .month, value: -6, to: Date()), notes: "Supplementing 5000 IU daily"))
-        context.insert(Condition(name: "Mild Hypercholesterolemia", status: .active,
-            diagnosedDate: cal.date(byAdding: .month, value: -6, to: Date()), notes: "Diet-controlled, monitoring"))
+        let meds = (try? context.fetch(FetchDescriptor<Medication>())) ?? []
+        let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
+        func med(_ name: String) -> [Medication] { meds.filter { $0.name == name } }
+        func habit(_ name: String) -> [Habit] { habits.filter { $0.name == name } }
+
+        let prediabetes = Condition(name: "Pre-diabetes", status: .managed,
+            diagnosedDate: cal.date(byAdding: .year, value: -1, to: Date()), notes: "Managing with Metformin + diet")
+        prediabetes.trackedMarkers = ["HbA1c", "Fasting Glucose"]
+        prediabetes.trackedMetrics = [MetricType.weight.rawValue]
+
+        let vitaminD = Condition(name: "Vitamin D Deficiency", status: .managed,
+            diagnosedDate: cal.date(byAdding: .month, value: -6, to: Date()), notes: "Supplementing 5000 IU daily")
+        vitaminD.trackedMarkers = ["Vitamin D"]
+
+        let cholesterol = Condition(name: "Mild Hypercholesterolemia", status: .active,
+            diagnosedDate: cal.date(byAdding: .month, value: -6, to: Date()), notes: "Diet-controlled, monitoring")
+        cholesterol.trackedMarkers = ["LDL Cholesterol", "HDL Cholesterol", "Triglycerides"]
+
+        for condition in [prediabetes, vitaminD, cholesterol] { context.insert(condition) }
+        prediabetes.medications = med("Metformin")
+        prediabetes.habits = habit("Walk 10k Steps") + habit("No Alcohol")
+        vitaminD.medications = med("Vitamin D3")
+        cholesterol.medications = med("Omega-3 Fish Oil")
+        cholesterol.habits = habit("Walk 10k Steps")
     }
 
     // MARK: - Diet Plans

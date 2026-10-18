@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CD00000000000000000000A2 /* ConditionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD00000000000000000000B2 /* ConditionDetailView.swift */; };
+		CD00000000000000000000A1 /* ConditionSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD00000000000000000000B1 /* ConditionSuggestions.swift */; };
 		AF0000000000000000000001 /* PrivacyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0000000000000000000002 /* PrivacyView.swift */; };
 		AE0000000000000000000001 /* AIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0000000000000000000002 /* AIProvider.swift */; };
 		AE0000000000000000000003 /* AIProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0000000000000000000004 /* AIProviderTests.swift */; };
@@ -60,6 +62,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CD00000000000000000000B2 /* ConditionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionDetailView.swift; sourceTree = "<group>"; };
+		CD00000000000000000000B1 /* ConditionSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionSuggestions.swift; sourceTree = "<group>"; };
 		AF0000000000000000000002 /* PrivacyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyView.swift; sourceTree = "<group>"; };
 		AE0000000000000000000002 /* AIProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProvider.swift; sourceTree = "<group>"; };
 		AE0000000000000000000004 /* AIProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProviderTests.swift; sourceTree = "<group>"; };
@@ -148,6 +152,7 @@
 			isa = PBXGroup;
 			children = (
 				32DE251EBE2D7C7FA076BC2C /* BiomarkerReference.swift */,
+				CD00000000000000000000B1 /* ConditionSuggestions.swift */,
 			);
 			path = Data;
 			sourceTree = "<group>";
@@ -306,6 +311,7 @@
 			isa = PBXGroup;
 			children = (
 				C3616850CABA161116DF7FB2 /* ConditionsView.swift */,
+				CD00000000000000000000B2 /* ConditionDetailView.swift */,
 			);
 			path = Conditions;
 			sourceTree = "<group>";
@@ -469,6 +475,8 @@
 				E6BA799428D23DF3709F9227 /* AuraHealthApp.swift in Sources */,
 				2F68990EC1600875D09E7E43 /* Biomarker.swift in Sources */,
 				464E57AE0268E94DEB26A80C /* BiomarkerReference.swift in Sources */,
+				CD00000000000000000000A2 /* ConditionDetailView.swift in Sources */,
+				CD00000000000000000000A1 /* ConditionSuggestions.swift in Sources */,
 				88FFEBD62150E819517DB807 /* BiomarkersView.swift in Sources */,
 				9CAEEF42DC6A07AB244E181E /* ChatView.swift in Sources */,
 				CD6A178AD61659B1D557465E /* AIService.swift in Sources */,

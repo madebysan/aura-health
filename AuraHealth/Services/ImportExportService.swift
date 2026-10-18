@@ -108,7 +108,11 @@ enum ImportExportService {
         }
 
         for item in imported.conditions where !existingConditionIDs.contains(item.id) {
-            context.insert(item.toModel())
+            let model = item.toModel()
+            context.insert(model)
+            // Links point at meds and habits by ID; backups made before links had none
+            model.medications = (item.medicationIDs ?? []).compactMap { medicationMap[$0] }
+            model.habits = (item.habitIDs ?? []).compactMap { habitMap[$0] }
             result.conditions += 1
         }
         for item in imported.dietPlans where !existingDietPlanIDs.contains(item.id) {
@@ -415,16 +419,24 @@ struct HabitLogExport: Codable {
 
 struct ConditionExport: Codable {
     let id: UUID; let name: String; let status: String; let diagnosedDate: Date?; let notes: String
+    // Optional so backups made before condition links still decode
+    let trackedMarkers: [String]?; let trackedMetrics: [String]?
+    let medicationIDs: [UUID]?; let habitIDs: [UUID]?
 
     init(_ model: Condition) {
         id = model.id; name = model.name; status = model.status.rawValue
         diagnosedDate = model.diagnosedDate; notes = model.notes
+        trackedMarkers = model.trackedMarkers; trackedMetrics = model.trackedMetrics
+        medicationIDs = (model.medications ?? []).map(\.id)
+        habitIDs = (model.habits ?? []).map(\.id)
     }
 
     func toModel() -> Condition {
         let model = Condition(name: name, status: ConditionStatus(rawValue: status) ?? .active,
             diagnosedDate: diagnosedDate, notes: notes)
         model.id = id
+        model.trackedMarkers = trackedMarkers ?? []
+        model.trackedMetrics = trackedMetrics ?? []
         return model
     }
 }

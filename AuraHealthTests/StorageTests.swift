@@ -35,4 +35,18 @@ final class StorageTests: XCTestCase {
         SampleDataService.loadSampleData(into: context)
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<Habit>()), habits)
     }
+
+    /// Sample conditions come linked, so the condition page has something to show.
+    func testSampleConditionsAreLinkedToTheirRecords() throws {
+        let container = try AuraStorage.makeContainer(isStoredInMemoryOnly: true)
+        let context = container.mainContext
+        SampleDataService.loadSampleData(into: context)
+
+        let conditions = try context.fetch(FetchDescriptor<Condition>())
+        let prediabetes = try XCTUnwrap(conditions.first { $0.name == "Pre-diabetes" })
+        XCTAssertEqual(prediabetes.trackedMarkers, ["HbA1c", "Fasting Glucose"])
+        XCTAssertEqual(prediabetes.linkedMedications.map(\.name), ["Metformin"])
+        XCTAssertEqual(prediabetes.linkedHabits.map(\.name), ["No Alcohol", "Walk 10k Steps"])
+        XCTAssertNotNil(try context.fetch(FetchDescriptor<Biomarker>()).first { ConditionSuggestions.sameMarker($0.marker, "Fasting Glucose") })
+    }
 }

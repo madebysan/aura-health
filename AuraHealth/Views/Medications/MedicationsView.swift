@@ -151,6 +151,7 @@ struct MedicationFormSheet: View {
     @State private var hasEndDate = false
     @State private var endDate = Date()
     @State private var active = true
+    @State private var conditionIDs: Set<UUID> = []
 
     var isEditing: Bool { medication != nil }
 
@@ -162,6 +163,8 @@ struct MedicationFormSheet: View {
                     NotebookField("Dosage", text: $dosage, prompt: "e.g. 500 mg")
                     NotebookField("Taken for", text: $condition, prompt: "e.g. Sleep, blood pressure")
                 }
+
+                ConditionPickerSection(selectedIDs: $conditionIDs)
 
                 Section(header: NotebookFormHeader("Schedule")) {
                     Picker("Frequency", selection: $frequency) {
@@ -201,6 +204,7 @@ struct MedicationFormSheet: View {
                 name = m.name; dosage = m.dosage; frequency = m.frequency
                 condition = m.condition; type = m.type; timing = m.timing
                 startDate = m.startDate ?? Date(); active = m.active
+                conditionIDs = Set((m.conditions ?? []).map(\.id))
                 if let end = m.endDate { hasEndDate = true; endDate = end }
             }
         }
@@ -217,10 +221,13 @@ struct MedicationFormSheet: View {
             medication.startDate = startDate
             medication.endDate = hasEndDate ? endDate : nil
             medication.active = active
+            medication.conditions = ConditionPickerSection.conditions(conditionIDs, in: modelContext)
         } else {
-            modelContext.insert(Medication(name: name, dosage: dosage, frequency: frequency,
+            let medication = Medication(name: name, dosage: dosage, frequency: frequency,
                 condition: condition, type: type, timing: timing,
-                startDate: startDate, endDate: hasEndDate ? endDate : nil))
+                startDate: startDate, endDate: hasEndDate ? endDate : nil)
+            modelContext.insert(medication)
+            medication.conditions = ConditionPickerSection.conditions(conditionIDs, in: modelContext)
         }
         dismiss()
     }

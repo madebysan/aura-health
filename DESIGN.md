@@ -76,7 +76,8 @@ Prefer these primitives before creating another local variant.
 ## Navigation
 
 - Main tabs: Vitals, Habits, Labs, Chat, More.
-- Keep Settings, Privacy, Conditions, Meds and Supplements, Diet, and Vault under More or a contextual drill-in. More is one ruled list with Settings set apart by space.
+- Keep Settings, Privacy, Health Profile, Meds and Supplements, and Vault under More or a contextual drill-in. More is one ruled list with Settings set apart by space.
+- Health Profile holds conditions and "How I eat" (the current diet plan). Each condition opens a page that shows its linked labs, vitals, meds and habits with the same rows those screens use. The page shows records only: it never says a condition is improving or that a med works, and suggestions of what to link are labeled "often tracked with" and are never ticked for the user.
 - Vitals is one list: a one-sentence summary, a Flagged group, then everything else. Time ranges live in each metric's sheet. Past lab reports open from "N lab reports" on Labs.
 - A habit day is done or not: one tap checks it, another clears it. A missed day is an empty box, the same as an untouched one.
 - Use sheets for focused creation/editing and navigation stacks for durable destinations.

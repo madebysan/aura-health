@@ -19,6 +19,10 @@ struct AuraHealthApp: App {
                         .environment(healthKitService)
                 }
             }
+            .task {
+                guard auraStorage.startupError == nil else { return }
+                ConditionLinkMigration.linkMedicationsByName(in: auraStorage.container.mainContext)
+            }
             #if DEBUG
             .task {
                 guard UserDefaults.standard.bool(forKey: "ScreenshotData") else { return }

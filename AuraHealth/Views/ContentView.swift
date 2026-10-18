@@ -6,7 +6,6 @@ enum AppSection: String, CaseIterable, Identifiable {
     case conditions
     case medications
     case biomarkers
-    case diet
     case vault
     case chat
     case settings
@@ -17,10 +16,9 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .tracking: "Habits"
         case .vitals: "Vitals"
-        case .conditions: "Conditions"
+        case .conditions: "Health Profile"
         case .medications: "Meds and Supplements"
         case .biomarkers: "Labs"
-        case .diet: "Diet"
         case .vault: "Vault"
         case .chat: "Chat"
         case .settings: "Settings"
@@ -34,7 +32,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .conditions: "ph.stethoscope"
         case .medications: "ph.pill"
         case .biomarkers: "ph.test-tube"
-        case .diet: "ph.fork-knife"
         case .vault: "ph.vault"
         case .chat: "ph.chats"
         case .settings: "ph.gear"
@@ -48,7 +45,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .conditions: .purple
         case .medications: .blue
         case .biomarkers: .green
-        case .diet: .orange
         case .vault: .gray
         case .chat: .cyan
         case .settings: .gray
@@ -56,6 +52,11 @@ enum AppSection: String, CaseIterable, Identifiable {
     }
 
     static let tabBarSections: [AppSection] = [.vitals, .tracking, .biomarkers, .chat]
+
+    /// A section from a link or tool name. Diet now lives on the Health profile.
+    static func named(_ name: String) -> AppSection? {
+        name == "diet" ? .conditions : AppSection(rawValue: name)
+    }
 }
 
 struct ContentView: View {
@@ -136,7 +137,7 @@ struct MoreMenuView: View {
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 30
 
     // The tab bar covers Vitals, Habits, Biomarkers and Chat. Settings sits apart, below.
-    private let sections: [AppSection] = [.medications, .conditions, .diet, .vault]
+    private let sections: [AppSection] = [.conditions, .medications, .vault]
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -211,7 +212,6 @@ struct DetailView: View {
         case .conditions:   ConditionsView()
         case .medications:  MedicationsView()
         case .biomarkers:   BiomarkersView()
-        case .diet:         DietPlansView()
         case .vault:        VaultView()
         case .chat:         ChatView(prefillMessage: $chatPrefill)
         case .settings:     SettingsView()

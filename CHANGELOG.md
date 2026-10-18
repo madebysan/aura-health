@@ -23,6 +23,9 @@
   - Removed the Correlations screen. More is one ruled list. Medications lists Active and Archived without type tabs. Diet and Conditions no longer repeat their titles. Settings shows Apple Health as one row with Connect.
 - Renamed the Biomarkers tab to Labs (test-tube icon) and Medications to Meds and Supplements, which no longer shows or asks for a prescription, supplement or OTC type (existing types stay in your data).
 - Habit days are now done or not: a tap checks a day and another clears it, and missed days are plain empty boxes instead of slashed ones.
+- Conditions and Diet are one Health Profile page under More. Each condition opens its own page showing the lab markers, vitals, meds and supplements, and habits you link to it, side by side with your notes. Common conditions list records that are often tracked with them, and you choose what to link. Meds and habits can be linked to a condition from their own forms. Existing records keep working and start unlinked; a med whose "Taken for" text matches a condition's name exactly is linked once automatically.
+- Diet is now "How I eat" on the Health Profile: the current plan, the foods you avoid and your notes. The approved-foods list is gone, the avoided foods can be edited, only one plan is current at a time, and older plans are listed under Past plans. Onboarding now fills in the avoided foods for the diet you pick.
+- The AI assistant now sees each condition's notes, diagnosis date and linked records, and what each med is taken for.
 - Fixed links and assistant requests that should open a screen under More (such as Settings); they only switched to the More tab.
 
 - Narrowed Aura to an iPhone-only iOS 17+ release.

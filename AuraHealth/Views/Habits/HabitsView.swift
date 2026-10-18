@@ -480,6 +480,7 @@ struct HabitFormSheet: View {
     @State private var name = ""
     @State private var gridSection: GridSection = .morning
     @State private var active = true
+    @State private var conditionIDs: Set<UUID> = []
 
     var isEditing: Bool { habit != nil }
 
@@ -494,6 +495,8 @@ struct HabitFormSheet: View {
                         }
                     }
                 }
+
+                ConditionPickerSection(selectedIDs: $conditionIDs)
 
                 if let habit {
                     Section(header: NotebookFormHeader("Last 30 days")) {
@@ -519,6 +522,7 @@ struct HabitFormSheet: View {
                 name = habit.name
                 gridSection = habit.gridSection
                 active = habit.active
+                conditionIDs = Set((habit.conditions ?? []).map(\.id))
             }
         }
         #if os(macOS)
@@ -531,11 +535,11 @@ struct HabitFormSheet: View {
             habit.name = name
             habit.gridSection = gridSection
             habit.active = active
+            habit.conditions = ConditionPickerSection.conditions(conditionIDs, in: modelContext)
         } else {
-            modelContext.insert(Habit(
-                name: name,
-                gridSection: gridSection
-            ))
+            let habit = Habit(name: name, gridSection: gridSection)
+            modelContext.insert(habit)
+            habit.conditions = ConditionPickerSection.conditions(conditionIDs, in: modelContext)
         }
         dismiss()
     }

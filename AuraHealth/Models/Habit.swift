@@ -16,6 +16,9 @@ final class Habit {
     @Relationship(deleteRule: .cascade, inverse: \HabitLog.habit)
     var logs: [HabitLog]?
 
+    /// Conditions this habit is kept for; the inverse of `Condition.habits`.
+    var conditions: [Condition]?
+
     init(
         name: String,
         category: HabitCategory = .lifestyle,

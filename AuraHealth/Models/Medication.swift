@@ -19,6 +19,9 @@ final class Medication {
     @Relationship(deleteRule: .cascade, inverse: \MedicationLog.medication)
     var logs: [MedicationLog]?
 
+    /// Conditions this is taken for; the inverse of `Condition.medications`.
+    var conditions: [Condition]?
+
     init(
         name: String,
         dosage: String = "",

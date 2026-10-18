@@ -343,7 +343,7 @@ struct OnboardingView: View {
                 }
                 .ruled(.top)
 
-                Text("And more options available in Settings")
+                Text("More options, and the foods you avoid, are in More › Health Profile")
                     .font(.footnote)
                     .foregroundStyle(Notebook.inkSecondary)
                     .padding(.top, 12)
@@ -354,7 +354,9 @@ struct OnboardingView: View {
                     let plan = DietPlan(
                         name: diet.rawValue,
                         dietType: diet.rawValue,
-                        startDate: Date()
+                        startDate: Date(),
+                        allowedFoods: diet.defaultApproved.map(\.rawValue),
+                        avoidFoods: diet.defaultAvoided.map(\.rawValue)
                     )
                     modelContext.insert(plan)
                 }

@@ -112,7 +112,7 @@ struct ChatView: View {
         #endif
         .environment(\.openURL, OpenURLAction { url in
             guard url.scheme == "aura", let host = url.host,
-                  let section = AppSection(rawValue: host) else { return .systemAction }
+                  let section = AppSection.named(host) else { return .systemAction }
             NotificationCenter.default.post(name: .navigateTo, object: section)
             // Deep-link to a specific metric: aura://vitals/hrv
             if let metricRaw = url.pathComponents.first(where: { $0 != "/" }),

@@ -128,8 +128,7 @@ struct HabitsView: View {
                     title: "No Habits",
                     message: "Create habits to start tracking your daily routines.",
                     actionLabel: "Add Habit",
-                    action: { showingAddSheet = true },
-                    chatHint: "Try \"Add a morning meditation habit\" in Chat"
+                    action: { showingAddSheet = true }
                 )
             } else {
                 // Day columns header

@@ -38,19 +38,6 @@ enum AppSection: String, CaseIterable, Identifiable {
         }
     }
 
-    var iconColor: Color {
-        switch self {
-        case .tracking: .orange
-        case .vitals: .pink
-        case .conditions: .purple
-        case .medications: .blue
-        case .biomarkers: .green
-        case .vault: .gray
-        case .chat: .cyan
-        case .settings: .gray
-        }
-    }
-
     static let tabBarSections: [AppSection] = [.vitals, .tracking, .biomarkers, .chat]
 
     /// A section from a link or tool name. Diet now lives on the Health profile.

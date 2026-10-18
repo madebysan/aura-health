@@ -43,10 +43,6 @@ enum AppColors {
     static let cardBorder = Color.primary.opacity(0.06)
     static let cardBorderHover = Color.primary.opacity(0.12)
 
-    // Interactive states
-    static let selectionFill = Color.primary.opacity(0.08)
-    static let hoverBackground = Color.primary.opacity(0.04)
-
     // Biomarker status
     static func biomarkerColor(_ status: BiomarkerStatus) -> Color {
         switch status {
@@ -167,30 +163,6 @@ enum ChartSummary {
         if change > 0.02 { return "Trending up" }
         if change < -0.02 { return "Trending down" }
         return "Steady"
-    }
-}
-
-// MARK: - Range Status Icon
-
-/// Shape-coded status so in-range and out-of-range never rely on color alone.
-struct RangeStatusIcon: View {
-    let position: RangePosition
-    var color: Color = .secondary
-
-    var body: some View {
-        Image(symbolName)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(color)
-            .accessibilityLabel(position.label)
-    }
-
-    private var symbolName: String {
-        switch position {
-        case .below: "ph.arrow-circle-down"
-        case .within: "ph.check-circle"
-        case .above: "ph.arrow-circle-up"
-        case .unknown: "ph.circle-dashed"
-        }
     }
 }
 
@@ -466,7 +438,6 @@ struct EmptyStateView: View {
     let message: String
     var actionLabel: String?
     var action: (() -> Void)?
-    var chatHint: String?
 
     @State private var appeared = false
 
@@ -494,12 +465,6 @@ struct EmptyStateView: View {
                     .padding(.top, 4)
             }
 
-            if let chatHint {
-                Label(chatHint, image: "ph.chat-circle")
-                    .font(Notebook.mono(.caption))
-                    .foregroundStyle(Notebook.inkSecondary)
-                    .padding(.top, 6)
-            }
         }
         .padding(.vertical, 40)
         .frame(maxWidth: .infinity)

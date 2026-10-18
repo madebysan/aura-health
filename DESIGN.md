@@ -67,7 +67,7 @@ Every flag needs a word: "near limit", "↑ above range", "↓ below range". Col
 - `ReferenceRangeBar` and `MiniRangeBar`: the band is the range, a tick marks the value, labels sit at the band edges. Pass `nil` for a missing limit.
 - `BarSparkline`: small bars, latest bar solid. Pass `floor` for bounded scores.
 - `NotebookPrimaryButtonStyle` / `NotebookSecondaryButtonStyle`: filled ink and hairline-outlined buttons. Disabled buttons fade to 40%.
-- `NotebookCheckbox`: the Habits tick box (filled with a check, empty, or crossed). Use for selections and approved/avoided lists; the row carries the label.
+- `NotebookCheckbox`: the tick box (filled with a check, or empty). The crossed state is only for foods you avoid in "How I eat"; habit days are done or not. Use for selections and approved/avoided lists; the row carries the label.
 - `NotebookForm`: use instead of `Form` for every sheet and settings screen. It gives paper rows, hairline separators and ink tint, so no screen falls back to the default white iOS form. Title sections with `NotebookFormHeader`.
 - `NotebookField`: a form text field whose label stays visible above it, so filled-in edit forms show which field is which. Use instead of a bare `TextField` with a placeholder.
 - `EmptyStateView`: explanation plus one primary action.

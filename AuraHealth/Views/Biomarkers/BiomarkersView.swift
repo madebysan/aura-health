@@ -123,11 +123,11 @@ struct BiomarkersView: View {
                 if biomarkers.isEmpty && isShowingAll {
                     VStack(spacing: 12) {
                         EmptyStateView(
-                            icon: "ph.drop",
+                            icon: "ph.test-tube",
                             title: "No Lab Results",
-                            message: "Upload a lab report in Chat to import biomarkers automatically, or add them manually.",
-                            actionLabel: "Upload Lab Results in Chat",
-                            action: { NotificationCenter.default.post(name: .switchToChat, object: nil) }
+                            message: "Import a lab report as a PDF or photo and review the values before saving, or add them by hand.",
+                            actionLabel: "Import a Lab Report",
+                            action: { showingLabImport = true }
                         )
                         Button("Add Manually") { showingAddSheet = true }
                             .font(Notebook.mono(.footnote))

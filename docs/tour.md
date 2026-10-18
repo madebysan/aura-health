@@ -6,20 +6,18 @@ What Aura tracks, the health assistant, and the tech stack. The short version is
 
 The main dashboard brings heart rate, HRV, blood pressure, sleep, steps, weight, SpO2, skin temperature, calories, and other measurements into one timeline. A one-line summary on top says what is outside your typical range, and flagged metrics come first. Each metric opens a chart (7 days to a year), its typical range, and a short explanation.
 
-![Aura vitals dashboard](https://github.com/user-attachments/assets/461e9c5c-3aeb-475f-992c-851c2ba307ef)
+![Aura's Vitals, Habits and Labs screens with sample data](../assets/screenshot.png)
 
 Habits, medications, supplements, conditions, diet notes, and lab sessions live beside the measurements they may affect. Biomarkers are grouped by body system, and each past lab report opens from the lab reports list with its own values and notes.
 
-The optional health assistant can read and update vitals, biomarkers, medications, and habits. Attach a lab report as a PDF or photo and it can extract values for review before saving them. You choose Anthropic or OpenRouter and use your own API key.
+The health assistant runs on Apple's on-device model, so nothing leaves the iPhone. It answers questions from your vitals, labs, medications, conditions and habits, and logs a reading or habit when you ask, after you approve the change. Lab reports import from a PDF or photo on the Labs screen. For harder reports, you can add your own Anthropic or OpenRouter key in Settings; the assistant can then also read attachments, and nothing is sent until you allow processing.
 
-![Aura health assistant chat](https://github.com/user-attachments/assets/97c3587f-c2d9-4356-8d3c-1284d5e3e762)
-
-https://github.com/user-attachments/assets/d81e0380-41ab-45e5-b22e-92e15c38edad
+<img src="../fastlane/screenshots/en-US/04-chat.png" width="320" alt="Aura's assistant answering what changed in the labs, with sample data">
 
 ## Tech stack
 
 - Swift and SwiftUI for iPhone
 - SwiftData for local storage
 - read-only HealthKit integration
-- Anthropic and OpenRouter for optional AI chat
-- Keychain storage for provider API keys
+- Apple's Foundation Models for the on-device assistant
+- Anthropic and OpenRouter for optional cloud AI, with provider API keys in the Keychain

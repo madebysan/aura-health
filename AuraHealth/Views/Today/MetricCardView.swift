@@ -111,28 +111,6 @@ struct MetricCardView: View {
     }
 }
 
-// MARK: - MetricType icon colors
-
-extension MetricType {
-    var iconColor: Color {
-        switch self {
-        case .weight: .indigo
-        case .bloodPressure: .red
-        case .heartRate: .pink
-        case .sleepScore: .purple
-        case .sleepDuration: .purple.opacity(0.8)
-        case .steps: .teal
-        case .activeMinutes: .orange
-        case .hrv: .cyan
-        case .recovery: .green
-        case .strain: .red.opacity(0.8)
-        case .spo2: .blue
-        case .skinTemp: .orange.opacity(0.8)
-        case .calories: .orange
-        }
-    }
-}
-
 #Preview {
     VStack(spacing: 0) {
         MetricCardView(

@@ -22,8 +22,7 @@ struct MedicationsView: View {
                         title: "No Medications",
                         message: "Add the medications and supplements you take.",
                         actionLabel: "Add Medication",
-                        action: { showingAddSheet = true },
-                        chatHint: "Try \"I take 500mg magnesium at night\" in Chat"
+                        action: { showingAddSheet = true }
                     )
                     .padding(.top, 20)
                 } else {

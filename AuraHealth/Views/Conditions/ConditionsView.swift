@@ -35,8 +35,7 @@ struct ConditionsView: View {
                         title: "No Health Profile Yet",
                         message: "Add the conditions you live with and how you eat. Link labs, vitals, meds and habits to a condition to see them together.",
                         actionLabel: "Add Condition",
-                        action: { showingAddCondition = true },
-                        chatHint: "Try \"I have seasonal allergies, managed\" in Chat"
+                        action: { showingAddCondition = true }
                     )
                     Button("Add How You Eat") { showingAddDiet = true }
                         .buttonStyle(NotebookSecondaryButtonStyle())

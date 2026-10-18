@@ -47,34 +47,18 @@ enum AppColors {
     static let selectionFill = Color.primary.opacity(0.08)
     static let hoverBackground = Color.primary.opacity(0.04)
 
-    // Status
-    static let statusGreen = Color.green
-    static let statusOrange = Color.orange
-    static let statusRed = Color.red
-
-    // Score bands
-    static func scoreColor(for score: Double) -> Color {
-        switch score {
-        case 80...100: .green
-        case 70..<80: Color(red: 0.45, green: 0.75, blue: 0.15) // lime green
-        case 60..<70: .yellow
-        case 40..<60: .orange
-        default: .red
-        }
-    }
-
     // Biomarker status
     static func biomarkerColor(_ status: BiomarkerStatus) -> Color {
         switch status {
-        case .normal: Notebook.ink
+        case .normal: Notebook.inRange
         case .borderline: Notebook.near
-        case .abnormal: Notebook.signal
+        case .abnormal: Notebook.outOfRange
         case .unknown: Notebook.inkTertiary
         }
     }
 
-    /// Color for one result: values just outside the range use amber, so the
-    /// signal color is kept for results clearly outside it.
+    /// Color for one result: values just outside the range use ochre, so brick
+    /// is kept for results clearly outside it.
     static func biomarkerColor(_ biomarker: Biomarker) -> Color {
         if biomarker.status == .abnormal && biomarker.isMarginallyOutOfRange {
             return Notebook.near
@@ -82,9 +66,9 @@ enum AppColors {
         return biomarkerColor(biomarker.status)
     }
 
-    /// Color for a status word: in range reads quietly, flags stand out.
+    /// Color for a status word: sage, ochre or brick.
     static func biomarkerWordColor(_ biomarker: Biomarker) -> Color {
-        biomarker.status == .normal ? Notebook.inkSecondary : biomarkerColor(biomarker)
+        biomarkerColor(biomarker)
     }
 }
 
@@ -111,19 +95,17 @@ enum AppFormat {
 // MARK: - Range Position
 
 extension RangePosition {
-    /// Ink when in range, the signal color when outside.
+    /// Sage when in range, brick when outside.
     var color: Color {
         switch self {
-        case .within: Notebook.ink
-        case .below, .above: Notebook.signal
+        case .within: Notebook.inRange
+        case .below, .above: Notebook.outOfRange
         case .unknown: Notebook.inkTertiary
         }
     }
 
     /// Color for the status word next to a value.
-    var wordColor: Color {
-        self == .within ? Notebook.inkSecondary : color
-    }
+    var wordColor: Color { color }
 
     var label: String {
         switch self {

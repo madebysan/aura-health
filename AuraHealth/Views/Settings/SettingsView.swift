@@ -128,6 +128,12 @@ struct SettingsView: View {
                     Label("Privacy", image: "ph.hand")
                 }
 
+                NavigationLink {
+                    AcknowledgementsView()
+                } label: {
+                    Label("Acknowledgements", image: "ph.file-text")
+                }
+
                 Link(destination: URL(string: "mailto:hi@santiagoalonso.com?subject=Aura%20Health%20Support")!) {
                     Label("Contact Support", image: "ph.envelope")
                 }

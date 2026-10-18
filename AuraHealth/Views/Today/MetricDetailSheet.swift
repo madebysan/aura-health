@@ -200,9 +200,9 @@ struct MetricDetailSheet: View {
         let color: Color
         switch metricType {
         case .recovery, .sleepScore, .hrv, .spo2, .sleepDuration, .steps, .activeMinutes:
-            color = diff > 0 ? AppColors.statusGreen : (diff < 0 ? AppColors.statusOrange : .secondary)
+            color = diff > 0 ? Notebook.inRange : (diff < 0 ? Notebook.near : Notebook.inkSecondary)
         case .heartRate, .strain:
-            color = diff < 0 ? AppColors.statusGreen : (diff > 0 ? AppColors.statusOrange : .secondary)
+            color = diff < 0 ? Notebook.inRange : (diff > 0 ? Notebook.near : Notebook.inkSecondary)
         default:
             color = .secondary
         }

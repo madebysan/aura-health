@@ -232,9 +232,9 @@ struct ConditionDetailView: View {
             return habit.log(on: day)?.done == true
         }.count
 
-        let days = (Text("\(done)").font(Notebook.mono(.body, weight: .medium)).foregroundStyle(Notebook.ink)
-            + Text("/7 days").font(Notebook.mono(.caption)).foregroundStyle(Notebook.inkSecondary))
-            .monospacedDigit()
+        let count = Text("\(done)").font(Notebook.mono(.body, weight: .medium)).foregroundStyle(Notebook.ink)
+        let suffix = Text("/7 days").font(Notebook.mono(.caption)).foregroundStyle(Notebook.inkSecondary)
+        let days = Text("\(count)\(suffix)").monospacedDigit()
 
         return HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {

@@ -40,7 +40,7 @@ struct SampleDataService {
             ]),
             ("How has my sleep been this week?", 26, [
                 (.user, "How has my sleep been this week?"),
-                (.assistant, "Over the last 7 nights you slept a little over 7 hours on most nights, with a couple of shorter nights. Your sleep score followed the same pattern, dipping after the short nights and recovering after longer ones."),
+                (.assistant, "Over the last 7 nights you slept a little over 7 hours on most nights, with a couple of shorter nights. Your HRV followed the same pattern, dipping after the short nights and recovering after longer ones."),
                 (.user, "Did my habits make a difference?"),
                 (.assistant, "I can compare nights after you logged habits like Read 30 min or No Alcohol with nights you didn't. A week is too short to say much, so after a few more weeks of logging the comparison will be more useful. Any pattern would be a correlation in your own data, not proof of cause."),
             ]),
@@ -84,32 +84,25 @@ struct SampleDataService {
             context.insert(Measurement(timestamp: morning, metricType: .bloodPressure, value: sysBasis, value2: diaBasis, source: .manual))
 
             // Heart Rate — twice daily
-            context.insert(Measurement(timestamp: morning, metricType: .heartRate, value: Double(Int.random(in: 55...72)), source: .whoop))
-            context.insert(Measurement(timestamp: evening, metricType: .heartRate, value: Double(Int.random(in: 62...85)), source: .whoop))
-
-            // Sleep Score — daily
-            context.insert(Measurement(timestamp: morning, metricType: .sleepScore, value: Double(Int.random(in: 65...98)), source: .whoop))
+            context.insert(Measurement(timestamp: morning, metricType: .heartRate, value: Double(Int.random(in: 55...72)), source: .appleHealth))
+            context.insert(Measurement(timestamp: evening, metricType: .heartRate, value: Double(Int.random(in: 62...85)), source: .appleHealth))
 
             // Sleep Duration — daily
-            context.insert(Measurement(timestamp: morning, metricType: .sleepDuration, value: Double.random(in: 5.5...9.0), source: .whoop))
+            context.insert(Measurement(timestamp: morning, metricType: .sleepDuration, value: Double.random(in: 5.5...9.0), source: .appleHealth))
 
             // Steps — daily
             context.insert(Measurement(timestamp: evening, metricType: .steps, value: Double(Int.random(in: 4000...14000)), source: .appleHealth))
 
             // HRV — daily
-            context.insert(Measurement(timestamp: morning, metricType: .hrv, value: Double(Int.random(in: 25...85)), source: .whoop))
+            context.insert(Measurement(timestamp: morning, metricType: .hrv, value: Double(Int.random(in: 25...85)), source: .appleHealth))
 
-            // Recovery — daily
-            context.insert(Measurement(timestamp: morning, metricType: .recovery, value: Double(Int.random(in: 30...99)), source: .whoop))
-
-            // Strain — daily
-            context.insert(Measurement(timestamp: evening, metricType: .strain, value: Double.random(in: 4.0...18.0), source: .whoop))
+            // No Sleep Score, Recovery or Strain: nothing in the release build provides them.
 
             // SpO2 — daily
-            context.insert(Measurement(timestamp: morning, metricType: .spo2, value: Double(Int.random(in: 95...99)), source: .whoop))
+            context.insert(Measurement(timestamp: morning, metricType: .spo2, value: Double(Int.random(in: 95...99)), source: .appleHealth))
 
             // Skin Temp — daily
-            context.insert(Measurement(timestamp: morning, metricType: .skinTemp, value: Double.random(in: 36.2...37.1), source: .whoop))
+            context.insert(Measurement(timestamp: morning, metricType: .skinTemp, value: Double.random(in: 36.2...37.1), source: .appleHealth))
 
             // Calories — daily
             context.insert(Measurement(timestamp: evening, metricType: .calories, value: Double(Int.random(in: 1800...2800)), source: .appleHealth))

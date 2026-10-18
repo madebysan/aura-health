@@ -297,7 +297,7 @@ struct BiomarkersView: View {
             NotebookSectionHeader(
                 title: group.system.rawValue,
                 trailing: flagged > 0 ? "\(flagged) flagged" : "\(group.rows.count)",
-                trailingColor: flagged > 0 ? Notebook.signal : Notebook.inkSecondary
+                trailingColor: flagged > 0 ? Notebook.outOfRange : Notebook.inkSecondary
             )
             ForEach(group.rows) { row in
                 Button {
@@ -334,7 +334,7 @@ struct BiomarkersView: View {
                 if flagged > 0 {
                     Text("· \(flagged) flagged")
                         .font(Notebook.mono(.subheadline))
-                        .foregroundStyle(Notebook.signal)
+                        .foregroundStyle(Notebook.outOfRange)
                 }
             }
         }
@@ -486,7 +486,7 @@ struct LabReportsView: View {
                             }
                             Spacer()
                             if report.flagged > 0 {
-                                StatusWord(text: "\(report.flagged) flagged", color: Notebook.signal)
+                                StatusWord(text: "\(report.flagged) flagged", color: Notebook.outOfRange)
                             }
                             Image("ph.caret-right")
                                 .font(.caption2.weight(.semibold))

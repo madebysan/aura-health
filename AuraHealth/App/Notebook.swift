@@ -2,9 +2,10 @@ import SwiftUI
 
 // MARK: - Notebook palette
 //
-// Ink on paper. One signal color for results outside a range, one amber for
-// results near a limit or just outside it. Everything else is ink at
-// different strengths. Values meet WCAG AA for text on paper in both modes.
+// Ink on paper. Status uses a muted palette (decided 2026-10-18): sage for in
+// range, ochre for near a limit, brick for outside a range, only on status
+// words, range ticks and the newest trend bar. Signal stays for destructive
+// actions and errors. Values meet WCAG AA for text on paper in both modes.
 
 enum Notebook {
     static let paper = Color(light: 0xF4F2EC, dark: 0x141413)
@@ -20,6 +21,10 @@ enum Notebook {
     static let emptyBox = Color(light: 0x1A1A18, dark: 0xEDEBE4, opacity: 0.32)
     static let signal = Color(light: 0xC2410C, dark: 0xFB8A4C)
     static let near = Color(light: 0x8F5B10, dark: 0xE5B45A)
+    /// Status: in range (sage).
+    static let inRange = Color(light: 0x2F6B40, dark: 0x7FBF8F)
+    /// Status: outside a range (brick).
+    static let outOfRange = Color(light: 0xB42318, dark: 0xF07A6A)
 
     // MARK: Type
 

@@ -15,7 +15,7 @@ The visual direction is **Notebook**: a personal lab notebook. Ink on paper, num
 ## Platform
 
 - iPhone only for v1.
-- Minimum deployment target: iOS 17.
+- Minimum deployment target: iOS 26 (decided 2026-10-18). Liquid Glass, the `Tab` API and Apple's on-device Foundation Models are always available; no `#available` branches.
 - Support the smallest and largest current iPhone layouts.
 - Remain functional if Apple runs the iPhone build in iPad compatibility mode.
 - Use system typography, Dynamic Type, VoiceOver labels, and native interaction patterns.
@@ -31,11 +31,13 @@ The visual direction is **Notebook**: a personal lab notebook. Ink on paper, num
 
 ## Status colors
 
-- Ink: in range or neutral. In-range status words use `inkSecondary` so they read quietly.
-- Signal (`Notebook.signal`, burnt orange): outside a range, or clearly outside a lab reference range.
-- Amber (`Notebook.near`): near a limit, or just outside it (within the 10% borderline margin).
-- There is no green. Being in range is the default state, not an achievement.
-- Under review (2026-10-18): a muted status palette with sage green for in range, ochre for near limit and brick red for out of range, applied only to status words, range ticks and the newest trend bar. Compare it with the Ink / Color switch in `design/prototypes/notebook-screens/`. Until san decides, the rule above stands.
+A muted status palette (decided 2026-10-18), used only on status words, range ticks, flag counts and the newest trend bar. Everything else stays ink.
+
+- Sage (`Notebook.inRange`, #2F6B40 / #7FBF8F): in range.
+- Ochre (`Notebook.near`, #8F5B10 / #E5B45A): near a limit, or just outside it (within the 10% borderline margin).
+- Brick (`Notebook.outOfRange`, #B42318 / #F07A6A): outside a range, or clearly outside a lab reference range.
+- Signal (`Notebook.signal`, burnt orange) is no longer a status color: it marks destructive actions and errors.
+- All four meet WCAG AA (5:1 or better) on paper and raised paper in both modes. Use the tokens through `RangePosition.color` and `AppColors.biomarkerColor`, never hard-coded.
 
 Every flag needs a word: "near limit", "↑ above range", "↓ below range". Color only adds emphasis. On Vitals, in range is the unmarked default: a row with no status word is in range (decided 2026-10-18, D01). Lab results still say "in range", because a lab report is read marker by marker.
 

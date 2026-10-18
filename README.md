@@ -5,7 +5,7 @@
 <p>Your vitals, labs, medications, habits and health notes in one private dashboard.<br>
 Built for people who want to understand their own data, not just collect it.</p>
 
-<p><strong>Version 1.0.0</strong> · iOS 17+</p>
+<p><strong>Version 1.0.0</strong> · iOS 26+</p>
 
 <p>
   <img src="https://img.shields.io/badge/Swift-f05138" alt="Swift">

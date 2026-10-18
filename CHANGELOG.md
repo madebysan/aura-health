@@ -26,6 +26,11 @@
 - Conditions and Diet are one Health Profile page under More. Each condition opens its own page showing the lab markers, vitals, meds and supplements, and habits you link to it, side by side with your notes. Common conditions list records that are often tracked with them, and you choose what to link. Meds and habits can be linked to a condition from their own forms. Existing records keep working and start unlinked; a med whose "Taken for" text matches a condition's name exactly is linked once automatically.
 - Diet is now "How I eat" on the Health Profile: the current plan, the foods you avoid and your notes. The approved-foods list is gone, the avoided foods can be edited, only one plan is current at a time, and older plans are listed under Past plans. Onboarding now fills in the avoided foods for the diet you pick.
 - The AI assistant now sees each condition's notes, diagnosis date and linked records, and what each med is taken for.
+- Aura now requires iOS 26.
+- Status words, range ticks, flag counts and the newest trend bar use a muted palette: sage for in range, ochre for near a limit, brick for outside a range.
+- Added Acknowledgements under Settings with the Phosphor icon license.
+- Sample data no longer claims to come from WHOOP: sample vitals are labeled Apple Health, and Sleep Score, Recovery and Strain samples are gone because nothing in the release provides them.
+- A Vitals row with one reading this week says "1 reading" instead of leaving the trend blank.
 - Fixed links and assistant requests that should open a screen under More (such as Settings); they only switched to the More tab.
 
 - Narrowed Aura to an iPhone-only iOS 17+ release.

@@ -86,7 +86,13 @@ struct MetricCardView: View {
     @ViewBuilder
     private var trendBlock: some View {
         if !isStale, recentValues.count >= 2 {
-            BarSparkline(values: recentValues, highlight: position == .within ? Notebook.ink : Notebook.signal)
+            BarSparkline(values: recentValues, highlight: position?.color ?? Notebook.ink)
+        } else if !isStale, recentValues.count == 1 {
+            // One reading this week: say so instead of leaving the column blank
+            Text("1 reading")
+                .font(Notebook.mono(.caption2))
+                .foregroundStyle(Notebook.inkTertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             Color.clear
         }

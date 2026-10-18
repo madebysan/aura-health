@@ -9,10 +9,15 @@ struct ConditionsView: View {
 
     @State private var showingAddCondition = false
     @State private var editingCondition: Condition?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var activeCount: Int {
+        conditions.filter { $0.status == .active }.count
+    }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 0) {
                 if conditions.isEmpty {
                     EmptyStateView(
                         icon: "stethoscope",
@@ -23,31 +28,15 @@ struct ConditionsView: View {
                         chatHint: "Try \"I have seasonal allergies, managed\" in Chat"
                     )
                 } else {
+                    NotebookSectionHeader(title: "Conditions", trailing: "\(activeCount) active")
+
                     ForEach(Array(conditions.enumerated()), id: \.element.id) { index, condition in
-                        HStack(spacing: 12) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(conditionColor(condition.status))
-                                .frame(width: 4, height: 36)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(condition.name).font(.subheadline.weight(.medium))
-                                if let date = condition.diagnosedDate {
-                                    Text("Diagnosed: \(date, format: .dateTime.month(.abbreviated).year())")
-                                        .font(.caption2).foregroundStyle(.tertiary)
-                                }
-                            }
-
-                            Spacer()
-
-                            StatusBadge(label: condition.status.displayName, color: conditionColor(condition.status))
-
-                            Image(systemName: "chevron.right")
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.quaternary)
+                        Button {
+                            editingCondition = condition
+                        } label: {
+                            conditionRow(condition)
                         }
-                        .cardStyle(padding: 12, cornerRadius: 10)
-                        .contentShape(RoundedRectangle(cornerRadius: 10))
-                        .onTapGesture { editingCondition = condition }
+                        .buttonStyle(.plain)
                         .contextMenu {
                             Button(role: .destructive) {
                                 modelContext.delete(condition)
@@ -55,15 +44,16 @@ struct ConditionsView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
-                        .hoverCard()
                         .staggeredAppearance(index: index)
                     }
                 }
             }
-            .frame(maxWidth: 600)
+            .frame(maxWidth: 700, alignment: .leading)
             .frame(maxWidth: .infinity)
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
+        .notebookBackground()
         .navigationTitle("Conditions")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
@@ -80,12 +70,42 @@ struct ConditionsView: View {
         .sheet(item: $editingCondition) { ConditionFormSheet(condition: $0) }
     }
 
-    private func conditionColor(_ status: ConditionStatus) -> Color {
-        switch status {
-        case .active: AppColors.statusRed
-        case .managed: AppColors.statusOrange
-        case .resolved: AppColors.statusGreen
+    /// Name and diagnosis date, with the status written as a mono word.
+    /// Active conditions read in ink; managed and resolved ones read quietly.
+    private func conditionRow(_ condition: Condition) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            let status = StatusWord(
+                text: condition.status.displayName.lowercased(),
+                color: condition.status == .active ? Notebook.ink : Notebook.inkSecondary
+            )
+            VStack(alignment: .leading, spacing: 4) {
+                Text(condition.name)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(Notebook.ink)
+                if let date = condition.diagnosedDate {
+                    Text("diagnosed \(date.formatted(.dateTime.month(.abbreviated).year()))")
+                        .font(Notebook.mono(.caption))
+                        .foregroundStyle(Notebook.inkSecondary)
+                }
+                // At accessibility sizes the status word moves under the name
+                if dynamicTypeSize.isAccessibilitySize { status }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+
+            if !dynamicTypeSize.isAccessibilitySize { status }
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Notebook.inkTertiary)
+                .accessibilityHidden(true)
         }
+        .padding(.vertical, 12)
+        .frame(minHeight: 52)
+        .ruled()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the condition editor")
     }
 }
 
@@ -99,6 +119,9 @@ struct DietPlansView: View {
 
     @State private var showingAddDiet = false
     @State private var editingDiet: DietPlan?
+    /// The plan waiting for delete confirmation.
+    @State private var planPendingDelete: DietPlan?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var activePlan: DietPlan? {
         dietPlans.first { $0.active }
@@ -106,7 +129,7 @@ struct DietPlansView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 0) {
                 if dietPlans.isEmpty {
                     EmptyStateView(
                         icon: "fork.knife",
@@ -126,12 +149,12 @@ struct DietPlansView: View {
                         let avoided = plan.avoidFoods
 
                         if !approved.isEmpty {
-                            foodSection(title: "Approved", foods: approved, color: .green, plan: plan, isApproved: true)
+                            foodSection(title: "Approved", foods: approved, plan: plan, isApproved: true)
                                 .staggeredAppearance(index: 1)
                         }
 
                         if !avoided.isEmpty {
-                            foodSection(title: "Avoided", foods: avoided, color: .red, plan: plan, isApproved: false)
+                            foodSection(title: "Avoided", foods: avoided, plan: plan, isApproved: false)
                                 .staggeredAppearance(index: 2)
                         }
                     }
@@ -139,23 +162,20 @@ struct DietPlansView: View {
                     // Other plans
                     let otherPlans = dietPlans.filter { !$0.active }
                     if !otherPlans.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Other Plans")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 4)
+                        NotebookSectionHeader(title: "Other Plans", trailing: "\(otherPlans.count)")
 
-                            ForEach(otherPlans) { plan in
-                                planRow(plan)
-                            }
+                        ForEach(otherPlans) { plan in
+                            planRow(plan)
                         }
                     }
                 }
             }
-            .frame(maxWidth: 600)
+            .frame(maxWidth: 700, alignment: .leading)
             .frame(maxWidth: .infinity)
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
+        .notebookBackground()
         .navigationTitle("Diet")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
@@ -170,118 +190,114 @@ struct DietPlansView: View {
         }
         .sheet(isPresented: $showingAddDiet) { DietPlanFormSheet() }
         .sheet(item: $editingDiet) { DietPlanFormSheet(dietPlan: $0) }
+        .confirmationDialog(
+            "Delete \(planPendingDelete?.name ?? "diet plan")?",
+            isPresented: Binding(
+                get: { planPendingDelete != nil },
+                set: { if !$0 { planPendingDelete = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: planPendingDelete
+        ) { plan in
+            Button("Delete Plan", role: .destructive) {
+                withAnimation(AppAnimation.quickToggle) {
+                    modelContext.delete(plan)
+                }
+                planPendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) { planPendingDelete = nil }
+        } message: { plan in
+            Text("This removes the \(plan.name) plan and its approved and avoided foods. Your other records stay.")
+        }
     }
 
     // MARK: - Active Plan Header
 
     private func activePlanHeader(_ plan: DietPlan) -> some View {
-        HStack(spacing: 12) {
-            let dietOption = DietTypeOption.from(plan.dietType)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    if let option = dietOption {
-                        Image(systemName: option.iconName)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(option.color)
-                    }
-                    Text(plan.name)
-                        .font(.headline)
-                }
-                if !plan.dietType.isEmpty {
+        HStack(alignment: .top, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Active plan").kicker()
+                Text(plan.name)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(Notebook.ink)
+                if !plan.dietType.isEmpty && plan.dietType != plan.name {
                     Text(plan.dietType)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(Notebook.mono(.caption))
+                        .foregroundStyle(Notebook.inkSecondary)
+                }
+                if let start = plan.startDate {
+                    Text("since \(start.formatted(.dateTime.day().month(.abbreviated).year()))")
+                        .font(Notebook.mono(.caption))
+                        .foregroundStyle(Notebook.inkSecondary)
                 }
             }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 editingDiet = plan
             } label: {
                 Image(systemName: "pencil")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.tertiary)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(Notebook.inkSecondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Edit \(plan.name)")
 
             Button {
-                withAnimation(AppAnimation.quickToggle) {
-                    modelContext.delete(plan)
-                }
+                planPendingDelete = plan
             } label: {
                 Image(systemName: "trash")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.tertiary)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(Notebook.inkSecondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Delete \(plan.name)")
         }
-        .cardStyle()
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+        .padding(.vertical, 18)
+        .ruled()
     }
 
     // MARK: - Food Section
 
-    private func foodSection(title: String, foods: [String], color: Color, plan: DietPlan, isApproved: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 8, height: 8)
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(foods.count)")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.quaternary)
-            }
-            .padding(.horizontal, 4)
+    /// One food per hairline row with a tick box: ticked when approved,
+    /// crossed when avoided. Tapping moves the food to the other list.
+    private func foodSection(title: String, foods: [String], plan: DietPlan, isApproved: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            NotebookSectionHeader(title: title, trailing: "\(foods.count)")
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 8)], spacing: 8) {
-                ForEach(foods, id: \.self) { food in
-                    let category = FoodCategory(rawValue: food)
-                    Button {
-                        withAnimation(AppAnimation.quickToggle) {
-                            toggleFood(food, plan: plan, currentlyApproved: isApproved)
-                        }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: category?.iconName ?? "circle.fill")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(isApproved ? color : .secondary)
-                                .frame(width: 18)
-
-                            Text(food)
-                                .font(.subheadline)
-                                .foregroundStyle(isApproved ? .primary : .secondary)
-                                .lineLimit(1)
-
-                            Spacer()
-
-                            Image(systemName: isApproved ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .font(.subheadline)
-                                .foregroundStyle(isApproved ? color.opacity(0.6) : Color.red.opacity(0.4))
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(
-                            isApproved ? color.opacity(0.06) : Color.primary.opacity(0.03),
-                            in: RoundedRectangle(cornerRadius: 8)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isApproved ? color.opacity(0.12) : Color.primary.opacity(0.04), lineWidth: 1)
-                        )
+            ForEach(foods, id: \.self) { food in
+                Button {
+                    withAnimation(AppAnimation.quickToggle) {
+                        toggleFood(food, plan: plan, currentlyApproved: isApproved)
                     }
-                    .buttonStyle(.plain)
-                    .help(isApproved ? "Tap to move to Avoided" : "Tap to move to Approved")
+                } label: {
+                    HStack(spacing: 12) {
+                        Text(food)
+                            .font(.callout)
+                            .foregroundStyle(isApproved ? Notebook.ink : Notebook.inkSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        NotebookCheckbox(isOn: isApproved, isCrossed: !isApproved)
+                    }
+                    .padding(.vertical, 10)
+                    .frame(minHeight: 48)
+                    .ruled()
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(food)
+                .accessibilityValue(isApproved ? "Approved" : "Avoided")
+                .accessibilityHint(isApproved ? "Moves to Avoided" : "Moves to Approved")
+                .help(isApproved ? "Tap to move to Avoided" : "Tap to move to Approved")
             }
         }
-        .cardStyle()
     }
 
     private func toggleFood(_ food: String, plan: DietPlan, currentlyApproved: Bool) {
@@ -303,28 +319,39 @@ struct DietPlansView: View {
     // MARK: - Plan Row
 
     private func planRow(_ plan: DietPlan) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "fork.knife")
-                .font(.caption2.weight(.semibold))
-                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                .foregroundStyle(.secondary)
-                .frame(width: 22, height: 22)
-                .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 5))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(plan.name).font(.subheadline.weight(.medium))
-                if !plan.dietType.isEmpty {
-                    Text(plan.dietType).font(.caption).foregroundStyle(.secondary)
+        Button {
+            editingDiet = plan
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(plan.name)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(Notebook.ink)
+                    if !plan.dietType.isEmpty {
+                        Text(plan.dietType)
+                            .font(Notebook.mono(.caption))
+                            .foregroundStyle(Notebook.inkSecondary)
+                    }
+                    if dynamicTypeSize.isAccessibilitySize { StatusWord(text: "archived") }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+
+                if !dynamicTypeSize.isAccessibilitySize { StatusWord(text: "archived") }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Notebook.inkTertiary)
+                    .accessibilityHidden(true)
             }
-
-            Spacer()
-
-            StatusBadge(label: "Archived", color: .secondary)
+            .padding(.vertical, 12)
+            .frame(minHeight: 52)
+            .ruled()
+            .contentShape(Rectangle())
         }
-        .cardStyle(padding: 12, cornerRadius: 10)
-        .contentShape(RoundedRectangle(cornerRadius: 10))
-        .onTapGesture { editingDiet = plan }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the diet plan editor")
         .contextMenu {
             Button {
                 plan.active = true
@@ -332,12 +359,11 @@ struct DietPlansView: View {
                 Label("Set as Active", systemImage: "checkmark.circle")
             }
             Button(role: .destructive) {
-                modelContext.delete(plan)
+                planPendingDelete = plan
             } label: {
                 Label("Delete", systemImage: "trash")
             }
         }
-        .hoverCard()
     }
 }
 
@@ -399,21 +425,23 @@ struct ConditionFormSheet: View {
                                 } label: {
                                     Text(conditionName)
                                         .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                                        .foregroundStyle(isSelected ? .white : .primary)
-                                        .lineLimit(1)
+                                        .foregroundStyle(isSelected ? Notebook.paper : Notebook.ink)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.center)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 8)
                                         .frame(maxWidth: .infinity, minHeight: 44)
                                         .background(
-                                            isSelected ? Color.accentColor : Color.primary.opacity(0.04),
+                                            isSelected ? Notebook.ink : Color.clear,
                                             in: RoundedRectangle(cornerRadius: 8)
                                         )
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 8)
-                                                .stroke(isSelected ? Color.clear : Color.primary.opacity(0.06), lineWidth: 1)
+                                                .stroke(isSelected ? Color.clear : Notebook.rule, lineWidth: 1)
                                         )
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityAddTraits(isSelected ? .isSelected : [])
                             }
                         }
 
@@ -424,12 +452,12 @@ struct ConditionFormSheet: View {
                             }
                         } label: {
                             HStack(spacing: 6) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                                Image(systemName: "plus")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(Notebook.ink)
                                 Text("Custom condition")
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Notebook.ink)
                             }
                         }
                         .buttonStyle(.plain)
@@ -531,25 +559,26 @@ struct DietPlanFormSheet: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: option.iconName)
                                         .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(isSelected ? .white : option.color)
+                                        .accessibilityHidden(true)
                                     Text(option.rawValue)
                                         .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                                        .foregroundStyle(isSelected ? .white : .primary)
-                                        .lineLimit(1)
+                                        .lineLimit(2)
                                 }
+                                .foregroundStyle(isSelected ? Notebook.paper : Notebook.ink)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .background(
-                                    isSelected ? option.color : Color.primary.opacity(0.04),
+                                    isSelected ? Notebook.ink : Color.clear,
                                     in: RoundedRectangle(cornerRadius: 8)
                                 )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(isSelected ? Color.clear : Color.primary.opacity(0.06), lineWidth: 1)
+                                        .stroke(isSelected ? Color.clear : Notebook.rule, lineWidth: 1)
                                 )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityAddTraits(isSelected ? .isSelected : [])
                         }
                     }
 

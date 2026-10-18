@@ -90,12 +90,22 @@ struct NotebookSectionHeader: View {
     var trailingColor: Color = Notebook.inkSecondary
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title).kicker()
-            Spacer(minLength: 8)
-            if let trailing {
-                Text(trailing).kicker(trailingColor)
+        // Stacks the count under the title when both don't fit on one line
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).kicker()
+                Spacer(minLength: 8)
+                if let trailing {
+                    Text(trailing).kicker(trailingColor)
+                }
             }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).kicker()
+                if let trailing {
+                    Text(trailing).kicker(trailingColor)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.top, 26)
         .padding(.bottom, 8)
@@ -176,11 +186,13 @@ struct StatusWord: View {
 struct NoteLine: View {
     let text: String
     var tag: String = "Note"
+    /// Signal for warnings; pass `Notebook.inkSecondary` for neutral notes.
+    var tagColor: Color = Notebook.signal
     var onDismiss: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(tag).kicker(Notebook.signal)
+            Text(tag).kicker(tagColor)
             Text(text)
                 .font(.callout)
                 .foregroundStyle(Notebook.ink)
@@ -316,13 +328,18 @@ extension View {
 
 /// Filled ink button with paper-colored text; works in both appearances.
 struct NotebookPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.semibold))
+            .multilineTextAlignment(.center)
             .foregroundStyle(Notebook.paper)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, minHeight: 50)
             .background(Notebook.ink, in: RoundedRectangle(cornerRadius: 12))
-            .opacity(configuration.isPressed ? 0.8 : 1)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.4)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
@@ -330,14 +347,53 @@ struct NotebookPrimaryButtonStyle: ButtonStyle {
 
 /// Hairline-outlined ink button for secondary actions.
 struct NotebookSecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.medium))
+            .multilineTextAlignment(.center)
             .foregroundStyle(Notebook.ink)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, minHeight: 50)
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Notebook.ink.opacity(0.35), lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: 12))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Checkbox
+
+/// The notebook's tick box: filled ink with a check when on, an empty
+/// outlined box when off, a slash when explicitly crossed out. Matches the
+/// Habits grid. Decorative; the row it sits in carries the label and state.
+struct NotebookCheckbox: View {
+    let isOn: Bool
+    var isCrossed = false
+
+    @ScaledMetric(relativeTo: .body) private var scaledSize: CGFloat = 22
+    private var size: CGFloat { min(scaledSize, 30) }
+
+    var body: some View {
+        Rectangle()
+            .fill(isOn ? Notebook.ink : Color.clear)
+            .overlay(Rectangle().stroke(isOn ? Notebook.ink : Notebook.emptyBox, lineWidth: 1.5))
+            .overlay {
+                if isOn {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: size * 0.5, weight: .heavy))
+                        .foregroundStyle(Notebook.paper)
+                } else if isCrossed {
+                    Path { p in
+                        p.move(to: CGPoint(x: size * 0.22, y: size * 0.78))
+                        p.addLine(to: CGPoint(x: size * 0.78, y: size * 0.22))
+                    }
+                    .stroke(Notebook.inkSecondary, lineWidth: 1.5)
+                }
+            }
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }

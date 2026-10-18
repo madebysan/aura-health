@@ -471,6 +471,8 @@ enum AppHaptics {
 
 // MARK: - Inline Error Banner
 
+/// A recoverable problem written as a notebook line: a mono tag and the
+/// message, with a hairline above and below. The tag word carries the meaning.
 struct InlineErrorBanner: View {
     let message: String
     var style: BannerStyle = .error
@@ -478,40 +480,35 @@ struct InlineErrorBanner: View {
     enum BannerStyle {
         case error, warning
 
-        var icon: String {
+        var tag: String {
             switch self {
-            case .error: "exclamationmark.triangle.fill"
-            case .warning: "info.circle.fill"
+            case .error: "Error"
+            case .warning: "Note"
             }
         }
 
         var color: Color {
             switch self {
-            case .error: AppColors.statusRed
-            case .warning: AppColors.statusOrange
+            case .error: Notebook.signal
+            case .warning: Notebook.near
             }
         }
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: style.icon)
-                .font(.footnote.weight(.semibold))
-                .accessibilityHidden(true)
-                .foregroundStyle(style.color)
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(style.tag).kicker(style.color)
 
             Text(message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.footnote)
+                .foregroundStyle(Notebook.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(12)
-        .background(style.color.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(style.color.opacity(0.15), lineWidth: 1)
-        )
+        .padding(.vertical, 10)
+        .ruled(.top)
+        .ruled()
+        .accessibilityElement(children: .combine)
     }
 }
 

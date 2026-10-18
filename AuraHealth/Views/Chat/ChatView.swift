@@ -36,6 +36,7 @@ struct ChatView: View {
     @State private var showingVaultPrompt = false
     @FocusState private var isInputFocused: Bool
     @State private var showingAPIKeyPrompt = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Returns existing conversation or creates one on demand (only called when sending)
     private func ensureConversation() -> Conversation {
@@ -56,10 +57,9 @@ struct ChatView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 16) {
+                LazyVStack(alignment: .leading, spacing: 22) {
                     if !aiService.isReady {
                         apiKeyBanner
-                            .padding(.horizontal)
                     }
                     if displayMessages.isEmpty {
                         chatEmptyState
@@ -76,7 +76,10 @@ struct ChatView: View {
                         errorBanner(errorMessage)
                     }
                 }
-                .padding()
+                .frame(maxWidth: 700)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
             }
             #if os(iOS)
             .scrollDismissesKeyboard(.interactively)
@@ -287,15 +290,7 @@ struct ChatView: View {
     }
 
     private func errorBanner(_ message: String) -> some View {
-        HStack {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-        .padding(.horizontal)
+        NoteLine(text: message, tag: "Error")
     }
 
     private func jpegData(from data: Data) -> Data? {
@@ -314,105 +309,97 @@ struct ChatView: View {
     // MARK: - API Key Banner
 
     private var apiKeyBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "key.fill")
-                .foregroundStyle(.secondary)
-            Text("Configure an AI provider, API key, and consent in Settings")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color.primary.opacity(0.03))
+        NoteLine(
+            text: "Configure an AI provider, API key, and consent in Settings.",
+            tag: "AI off",
+            tagColor: Notebook.inkSecondary
+        )
     }
 
     // MARK: - Empty State
 
     private var chatEmptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 48, weight: .thin))
-                .foregroundStyle(.secondary.opacity(0.5))
-
-            VStack(spacing: 4) {
-                Text("Health Assistant")
-                    .font(.title3.weight(.medium))
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Health Assistant").kicker()
                 Text("Ask questions, log measurements, or organize your health information.")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 280)
+                    .font(.title3)
+                    .foregroundStyle(Notebook.ink)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.top, 12)
 
-            VStack(spacing: 8) {
-                suggestionChip("What biomarkers are out of range?")
-                suggestionChip("How are my vitals this week?")
-                suggestionChip("Log my weight at 175 lbs")
-            }
-            .padding(.top, 4)
+            NotebookSectionHeader(title: "Try asking")
+
+            suggestionRow("What biomarkers are out of range?")
+            suggestionRow("How are my vitals this week?")
+            suggestionRow("Log my weight at 175 lbs")
 
             Text("Aura provides educational information, not diagnosis or medical advice.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 280)
-
-            Spacer()
-            Spacer()
+                .font(.footnote)
+                .foregroundStyle(Notebook.inkSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 16)
         }
-        .frame(maxHeight: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func suggestionChip(_ text: String) -> some View {
+    private func suggestionRow(_ text: String) -> some View {
         Button {
             inputText = text
         } label: {
-            Text(text)
-                .font(.subheadline)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(Color.primary.opacity(0.04), in: Capsule())
-                .overlay(Capsule().stroke(Color.primary.opacity(0.06), lineWidth: 1))
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(text)
+                    .font(.callout)
+                    .foregroundStyle(Notebook.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Image(systemName: "arrow.down.left")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(Notebook.inkSecondary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, 12)
+            .frame(minHeight: 44)
+            .ruled()
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityHint("Puts this question in the message field")
     }
 
     // MARK: - Input Bar
 
     private var inputBar: some View {
         VStack(spacing: 0) {
-            Divider()
-
             // Attachment preview
             if let fileURL = attachedFileURL {
-                HStack(spacing: 8) {
-                    Image(systemName: fileURL.pathExtension.lowercased() == "pdf" ? "doc.fill" : "photo.fill")
-                        .font(.caption)
-                        .foregroundStyle(Color.accentColor)
+                HStack(spacing: 10) {
+                    Text("Attached").kicker()
                     Text(fileURL.lastPathComponent)
-                        .font(.caption)
+                        .font(Notebook.mono(.caption))
                         .lineLimit(1)
-                        .foregroundStyle(.secondary)
-                    Spacer()
+                        .truncationMode(.middle)
+                        .foregroundStyle(Notebook.ink)
+                    Spacer(minLength: 4)
                     Button {
                         attachedFileURL = nil
                     } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.tertiary)
+                        Image(systemName: "xmark")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Notebook.inkSecondary)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Remove Attachment")
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-                .background(Color.primary.opacity(0.03))
+                .padding(.leading, 20)
+                .padding(.trailing, 8)
+                .ruled()
             }
 
-            HStack(spacing: 10) {
+            HStack(alignment: .bottom, spacing: 6) {
                 Menu {
                     Button {
                         showingPhotoPicker = true
@@ -426,70 +413,90 @@ struct ChatView: View {
                     }
                 } label: {
                     Image(systemName: "paperclip")
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.secondary)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(aiService.isReady ? Notebook.ink : Notebook.inkTertiary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 .disabled(!aiService.isReady)
                 .accessibilityLabel("Attach File")
 
-                if aiService.isReady {
-                    TextField("Ask about your health data...", text: $inputText, axis: .vertical)
-                        .focused($isInputFocused)
-                        .textFieldStyle(.plain)
-                        .lineLimit(1...4)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
-                } else {
-                    Button {
-                        showingAPIKeyPrompt = true
-                    } label: {
-                        Text("Set up AI in Settings to start chatting…")
-                            .font(.body)
-                            .foregroundStyle(.tertiary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
+                Group {
+                    if aiService.isReady {
+                        TextField("Ask about your health data...", text: $inputText, axis: .vertical)
+                            .focused($isInputFocused)
+                            .textFieldStyle(.plain)
+                            .foregroundStyle(Notebook.ink)
+                            .lineLimit(1...4)
+                    } else {
+                        Button {
+                            showingAPIKeyPrompt = true
+                        } label: {
+                            Text("Set up AI in Settings to start chatting…")
+                                .foregroundStyle(Notebook.inkSecondary)
+                                .lineLimit(2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .font(.body)
+                // The composer stays usable at the largest sizes; messages scale fully
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(minHeight: 44)
+                .background(Notebook.paperRaised, in: RoundedRectangle(cornerRadius: 22))
+                .overlay(RoundedRectangle(cornerRadius: 22).stroke(Notebook.rule, lineWidth: 1))
 
                 Button { sendMessage() } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title)
-                        .foregroundStyle(
-                            canSend ? Color.accentColor : Color.secondary.opacity(0.3)
-                        )
+                    Image(systemName: "arrow.up")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Notebook.paper)
+                        .frame(width: 36, height: 36)
+                        .background(canSend ? Notebook.ink : Notebook.emptyBox, in: Circle())
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .contentShape(Rectangle())
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                 .disabled(!canSend)
                 .accessibilityLabel("Send Message")
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.bar)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
         }
+        .background(Notebook.paper)
+        .ruled(.top)
     }
 
     // MARK: - Typing Indicator
 
     private var typingIndicator: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3, id: \.self) { i in
-                Circle()
-                    .fill(Color.secondary.opacity(0.4))
-                    .frame(width: 6, height: 6)
-                    .offset(y: aiService.isResponding ? -3 : 0)
-                    .animation(
-                        .easeInOut(duration: 0.4).repeatForever(autoreverses: true).delay(Double(i) * 0.15),
-                        value: aiService.isResponding
-                    )
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("Aura").kicker()
+            if reduceMotion {
+                Text("writing…").kicker()
+            } else {
+                HStack(spacing: 4) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle()
+                            .fill(Notebook.inkSecondary)
+                            .frame(width: 5, height: 5)
+                            .offset(y: aiService.isResponding ? -2 : 0)
+                            .animation(
+                                .easeInOut(duration: 0.4).repeatForever(autoreverses: true).delay(Double(i) * 0.15),
+                                value: aiService.isResponding
+                            )
+                    }
+                }
             }
-            Spacer()
         }
-        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Aura is writing a reply")
     }
 
     // MARK: - Send
@@ -585,49 +592,44 @@ struct ChatView: View {
 
 // MARK: - Chat Bubble
 
+/// One entry in the transcript. Aura's replies read as plain prose on the
+/// page; your own messages sit on raised paper, aligned right.
 struct ChatBubble: View {
     let message: ChatMessage
     private var isUser: Bool { message.role == .user }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            if isUser { Spacer(minLength: 60) }
+        VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
+            Text("\(isUser ? "You" : "Aura") · \(message.timestamp.formatted(.dateTime.hour().minute()))")
+                .kicker()
 
-            if !isUser {
-                Image(systemName: "sparkles")
-                    .font(.caption.weight(.semibold))
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                    .foregroundStyle(Color.accentColor)
-                    .frame(width: 26, height: 26)
-                    .background(Color.accentColor.opacity(0.1), in: Circle())
-            }
-
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
-                Group {
-                    if isUser {
-                        Text(message.content)
-                    } else if let attributed = try? AttributedString(markdown: message.content, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-                        Text(attributed)
-                    } else {
-                        Text(message.content)
-                    }
+            Group {
+                if isUser {
+                    Text(message.content)
+                } else if let attributed = try? AttributedString(markdown: message.content, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+                    Text(attributed)
+                } else {
+                    Text(message.content)
                 }
-                    .font(.body)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        isUser ? Color.accentColor : Color.primary.opacity(0.06),
-                        in: RoundedRectangle(cornerRadius: 18)
-                    )
-                    .foregroundStyle(isUser ? .white : .primary)
-
-                Text(message.timestamp, format: .dateTime.hour().minute())
-                    .font(.caption2)
-                    .foregroundStyle(.quaternary)
             }
-
-            if !isUser { Spacer(minLength: 60) }
+            .font(.body)
+            .lineSpacing(3)
+            .foregroundStyle(Notebook.ink)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
+            .padding(.horizontal, isUser ? 14 : 0)
+            .padding(.vertical, isUser ? 10 : 0)
+            .background {
+                if isUser {
+                    RoundedRectangle(cornerRadius: 16).fill(Notebook.paperRaised)
+                    RoundedRectangle(cornerRadius: 16).stroke(Notebook.rule, lineWidth: 1)
+                }
+            }
         }
+        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        .padding(.leading, isUser ? 48 : 0)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -686,16 +688,17 @@ struct ConversationHistorySheet: View {
                     VStack(spacing: 12) {
                         Image(systemName: "bubble.left.and.bubble.right")
                             .font(.system(size: 36, weight: .thin))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Notebook.inkTertiary)
+                            .accessibilityHidden(true)
                         Text("No conversations yet")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Notebook.inkSecondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
                         ForEach(groupedConversations, id: \.0) { group, convos in
-                            Section(group) {
+                            Section {
                                 ForEach(convos) { conversation in
                                     ConversationRow(
                                         conversation: conversation,
@@ -712,12 +715,19 @@ struct ConversationHistorySheet: View {
                                             Label("Delete", systemImage: "trash")
                                         }
                                     }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparatorTint(Notebook.rule)
                                 }
+                            } header: {
+                                Text(group).kicker()
                             }
                         }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
             }
+            .background(Notebook.paperRaised.ignoresSafeArea())
             .navigationTitle("Conversations")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -732,6 +742,7 @@ struct ConversationHistorySheet: View {
                     } label: {
                         Image(systemName: "plus.bubble")
                     }
+                    .accessibilityLabel("New Conversation")
                 }
             }
         }
@@ -759,45 +770,25 @@ struct ConversationRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Icon
-            Image(systemName: isActive ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right")
-                .font(.subheadline.weight(.medium))
-                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                .foregroundStyle(isActive ? Color.accentColor : .secondary)
-                .frame(width: 28, height: 28)
-                .background(
-                    (isActive ? Color.accentColor : Color.secondary).opacity(0.1),
-                    in: RoundedRectangle(cornerRadius: 6)
-                )
+        VStack(alignment: .leading, spacing: 4) {
+            Text(conversation.title)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(Notebook.ink)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 3) {
-                HStack {
-                    Text(conversation.title)
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    Text(conversation.updatedAt, format: .dateTime.month(.abbreviated).day())
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-
-                HStack(spacing: 4) {
-                    Text(preview)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    Text("\(messageCount) msgs")
-                        .font(.caption2)
-                        .foregroundStyle(.quaternary)
-                }
+            if !preview.isEmpty {
+                Text(preview)
+                    .font(.footnote)
+                    .foregroundStyle(Notebook.inkSecondary)
+                    .lineLimit(2)
             }
+
+            Text("\(conversation.updatedAt.formatted(.dateTime.month(.abbreviated).day())) · \(messageCount) msgs" + (isActive ? " · open now" : ""))
+                .font(Notebook.mono(.caption2, weight: isActive ? .semibold : .regular))
+                .foregroundStyle(isActive ? Notebook.ink : Notebook.inkSecondary)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
     }
 }

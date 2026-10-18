@@ -26,12 +26,12 @@ struct SettingsView: View {
     @State private var providerHasKey = false
     @State private var consentGranted = false
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         Form {
-            Section("Units") {
-                HStack {
-                    Text("Weight")
-                    Spacer()
+            Section {
+                unitRow("Weight") {
                     PillSegmentedPicker(
                         options: WeightUnit.allCases,
                         selection: $weightUnit,
@@ -40,9 +40,7 @@ struct SettingsView: View {
                     .fixedSize()
                 }
 
-                HStack {
-                    Text("Temperature")
-                    Spacer()
+                unitRow("Temperature") {
                     PillSegmentedPicker(
                         options: TemperatureUnit.allCases,
                         selection: $temperatureUnit,
@@ -50,20 +48,29 @@ struct SettingsView: View {
                     )
                     .fixedSize()
                 }
+            } header: {
+                sectionHeader("Units")
             }
+            .listRowBackground(Notebook.paperRaised)
 
-            Section("Apple Health") {
+            Section {
                 appleHealthSection
+            } header: {
+                sectionHeader("Apple Health")
             }
+            .listRowBackground(Notebook.paperRaised)
 
-            Section("AI") {
+            Section {
                 aiProviderSection
                 apiKeySection
                 modelPickerSection
                 consentSection
+            } header: {
+                sectionHeader("AI")
             }
+            .listRowBackground(Notebook.paperRaised)
 
-            Section("Data") {
+            Section {
                 Button {
                     exportData()
                 } label: {
@@ -79,8 +86,8 @@ struct SettingsView: View {
                 Button(role: .destructive) {
                     showingClearConfirmation = true
                 } label: {
-                    Label("Clear All Data", systemImage: "trash.fill")
-                        .foregroundStyle(.red)
+                    Label("Clear All Data", systemImage: "trash")
+                        .foregroundStyle(Notebook.signal)
                 }
                 .confirmationDialog("Clear all data?", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
                     Button("Clear Everything", role: .destructive) {
@@ -89,9 +96,12 @@ struct SettingsView: View {
                 } message: {
                     Text("This permanently deletes Aura's local health records, documents, conversations, API keys, and preferences. It does not delete data from Apple Health.")
                 }
+            } header: {
+                sectionHeader("Data")
             }
+            .listRowBackground(Notebook.paperRaised)
 
-            Section("Privacy & Support") {
+            Section {
                 NavigationLink {
                     PrivacyView()
                 } label: {
@@ -101,7 +111,10 @@ struct SettingsView: View {
                 Link(destination: URL(string: "mailto:hi@santiagoalonso.com?subject=Aura%20Health%20Support")!) {
                     Label("Contact Support", systemImage: "envelope")
                 }
+            } header: {
+                sectionHeader("Privacy & Support")
             }
+            .listRowBackground(Notebook.paperRaised)
 
             #if DEBUG
             Section {
@@ -109,30 +122,38 @@ struct SettingsView: View {
                     SampleDataService.loadSampleData(into: modelContext)
                     sampleDataLoaded = true
                 } label: {
-                    Label("Load Sample Data", systemImage: "tray.and.arrow.down.fill")
+                    Label("Load Sample Data", systemImage: "tray.and.arrow.down")
                 }
                 .disabled(sampleDataLoaded)
             } header: {
-                Text("Developer")
+                sectionHeader("Developer")
             }
+            .listRowBackground(Notebook.paperRaised)
             #endif
 
-            Section("About") {
-                HStack {
+            Section {
+                HStack(alignment: .firstTextBaseline) {
                     Text("Version")
                     Spacer()
                     Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0")
-                        .foregroundStyle(.secondary)
+                        .font(Notebook.mono(.body))
+                        .foregroundStyle(Notebook.inkSecondary)
                 }
 
                 Link(destination: URL(string: "https://santiagoalonso.com")!) {
                     HStack {
-                        Text("Made by").foregroundStyle(.secondary)
-                        Text("santiagoalonso.com").foregroundStyle(Color.accentColor)
+                        Text("Made by").foregroundStyle(Notebook.inkSecondary)
+                        Text("santiagoalonso.com")
+                            .underline()
+                            .foregroundStyle(Notebook.ink)
                     }
                 }
+            } header: {
+                sectionHeader("About")
             }
+            .listRowBackground(Notebook.paperRaised)
         }
+        .foregroundStyle(Notebook.ink)
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .notebookBackground()
@@ -174,6 +195,25 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Rows
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title).kicker()
+    }
+
+    /// A unit label and its picker; the picker moves under the label at
+    /// accessibility text sizes so neither is clipped.
+    private func unitRow<Picker: View>(_ title: String, @ViewBuilder picker: () -> Picker) -> some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+        return layout {
+            Text(title)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            picker()
+        }
+    }
+
     // MARK: - Apple Health Section
 
     private var appleHealthSection: some View {
@@ -184,17 +224,17 @@ struct SettingsView: View {
                         .font(.body)
                 } icon: {
                     Image(systemName: "heart.text.square")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Notebook.ink)
                 }
 
                 Spacer()
 
                 if healthKitService.hasRequestedAccess {
-                    StatusBadge(label: "Access Requested", color: .green)
+                    StatusWord(text: "access requested", color: Notebook.ink)
                 } else if healthKitService.isAvailable {
-                    StatusBadge(label: "Available", color: .secondary)
+                    StatusWord(text: "available")
                 } else {
-                    StatusBadge(label: "Not Available", color: .secondary)
+                    StatusWord(text: "not available")
                 }
             }
 
@@ -208,8 +248,8 @@ struct SettingsView: View {
                                 .controlSize(.small)
                             if let progress = healthKitService.syncProgress {
                                 Text("Syncing \(progress.phase)... (\(progress.imported) imported)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .font(Notebook.mono(.caption))
+                                    .foregroundStyle(Notebook.inkSecondary)
                             }
                         }
                     } else {
@@ -223,20 +263,22 @@ struct SettingsView: View {
                 } label: {
                     Label {
                         Text("Stop Syncing Apple Health")
+                            .foregroundStyle(Notebook.signal)
                     } icon: {
                         Image(systemName: "xmark.circle")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Notebook.signal)
                     }
                 }
 
                 if let lastSync = healthKitService.lastSyncDate {
                     Text("Last synced \(lastSync, format: .relative(presentation: .named))")
-                        .font(.caption).foregroundStyle(.tertiary)
+                        .font(Notebook.mono(.caption))
+                        .foregroundStyle(Notebook.inkSecondary)
                 }
 
                 Text("Manage individual permissions in Settings → Health → Data Access & Devices.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.footnote)
+                    .foregroundStyle(Notebook.inkSecondary)
             } else if healthKitService.isAvailable {
                 Button {
                     Task { await healthKitService.requestAuthorization() }
@@ -270,13 +312,14 @@ struct SettingsView: View {
                 Spacer()
 
                 if providerHasKey {
-                    StatusBadge(label: "Stored", color: .green)
+                    StatusWord(text: "stored", color: Notebook.ink)
                     Button("Remove", role: .destructive) {
                         AIKeyStore.removeValue(for: aiProvider)
                         providerHasKey = false
                         consentGranted = false
                     }
                     .font(.caption)
+                    .foregroundStyle(Notebook.signal)
                 } else {
                     Button("Add Key") { showingAPIKeyField.toggle() }
                 }
@@ -308,7 +351,7 @@ struct SettingsView: View {
                     .font(.body)
             } icon: {
                 Image(systemName: "cpu")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Notebook.ink)
             }
 
             Spacer()
@@ -340,11 +383,15 @@ struct SettingsView: View {
             }
 
             Text("When you explicitly send a message or attachment, Aura shares that content and health records returned by its read tools for that request with \(aiProvider.displayName). Nothing is sent automatically.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.footnote)
+                .foregroundStyle(Notebook.inkSecondary)
 
-            Link("Read \(aiProvider.displayName)'s privacy policy", destination: aiProvider.privacyPolicyURL)
-                .font(.caption)
+            Link(destination: aiProvider.privacyPolicyURL) {
+                Text("Read \(aiProvider.displayName)'s privacy policy")
+                    .font(.footnote)
+                    .underline()
+                    .foregroundStyle(Notebook.ink)
+            }
         }
     }
 

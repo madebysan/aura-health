@@ -11,6 +11,8 @@ struct OnboardingView: View {
     @AppStorage("aiModel") private var aiModelID = AIProviderCatalog.defaultModelID(for: .anthropic)
 
     @State private var phase: OnboardingPhase = .welcome
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .largeTitle) private var scaledIconSize: CGFloat = 88
 
     enum OnboardingPhase {
         case welcome
@@ -39,81 +41,126 @@ struct OnboardingView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: phase)
+        .notebookBackground()
+        .tint(Notebook.ink)
+    }
+
+    // MARK: - Page Layout
+
+    /// One onboarding step on paper: content sits in the middle when it fits
+    /// and scrolls when text is large or the screen is small. Actions follow.
+    private func page<Content: View, Actions: View>(
+        step: Int? = nil,
+        @ViewBuilder content: () -> Content,
+        @ViewBuilder actions: () -> Actions
+    ) -> some View {
+        let content = content()
+        let actions = actions()
+        return GeometryReader { geo in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let step {
+                        Text("Step \(step) of 4").kicker()
+                    }
+                    Spacer(minLength: 24)
+                    VStack(alignment: .leading, spacing: 28) {
+                        content
+                    }
+                    Spacer(minLength: 32)
+                    VStack(spacing: 4) {
+                        actions
+                    }
+                }
+                .frame(maxWidth: 520, alignment: .leading)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity, minHeight: geo.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+    }
+
+    private func pageTitle(_ title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.largeTitle.bold())
+                .foregroundStyle(Notebook.ink)
+                .accessibilityAddTraits(.isHeader)
+            Text(subtitle)
+                .font(.title3)
+                .foregroundStyle(Notebook.inkSecondary)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// A quiet text-only action such as "Skip for Now".
+    private func textButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(Notebook.inkSecondary)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Welcome (Mock Data Prompt)
 
     private var welcomeView: some View {
-        VStack(spacing: 32) {
-            Spacer()
+        page {
+            let iconSize = min(scaledIconSize, 140)
+            Image("AuraIcon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: iconSize, height: iconSize)
+                .clipShape(RoundedRectangle(cornerRadius: iconSize * 0.225, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: iconSize * 0.225, style: .continuous)
+                        .stroke(Notebook.rule, lineWidth: 1)
+                )
+                .accessibilityHidden(true)
 
-            Image(systemName: "heart.text.square.fill")
-                .font(.system(size: 72))
-                .foregroundStyle(.pink)
+            pageTitle("Welcome to Aura", subtitle: "Your personal health companion")
+        } actions: {
+            Text("Want to explore with sample data?")
+                .font(.subheadline)
+                .foregroundStyle(Notebook.inkSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 8)
 
-            VStack(spacing: 8) {
-                Text("Welcome to Aura")
-                    .font(.largeTitle.bold())
-                Text("Your personal health companion")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+            Button("Load Sample Data") {
+                SampleDataService.loadSampleData(into: modelContext)
+                hasCompletedOnboarding = true
             }
+            .buttonStyle(NotebookPrimaryButtonStyle())
+            .padding(.bottom, 8)
 
-            Spacer()
-
-            VStack(spacing: 12) {
-                Text("Want to explore with sample data?")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-
-                Button {
-                    SampleDataService.loadSampleData(into: modelContext)
-                    hasCompletedOnboarding = true
-                } label: {
-                    Text("Load Sample Data")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button {
-                    phase = .features
-                } label: {
-                    Text("Set Up Aura")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.bordered)
+            Button("Set Up Aura") {
+                phase = .features
             }
-            .padding(.horizontal, 40)
-
-            Spacer()
+            .buttonStyle(NotebookSecondaryButtonStyle())
         }
-        .padding()
     }
 
     // MARK: - Feature Highlights
 
     @State private var featurePage = 0
 
-    private let features: [(icon: String, color: Color, title: String, description: String)] = [
+    private let features: [(icon: String, title: String, description: String)] = [
         (
-            "heart.text.square.fill",
-            .pink,
+            "heart.text.square",
             "Track Your Vitals",
             "Monitor heart rate, HRV, sleep, recovery, and more — all in one place. See trends over time with clear charts."
         ),
         (
-            "cross.vial.fill",
-            .green,
+            "cross.vial",
             "Lab Results & Biomarkers",
             "Import your blood work and review biomarker changes across tests."
         ),
         (
-            "bubble.left.and.bubble.right.fill",
-            .cyan,
+            "bubble.left.and.bubble.right",
             "AI Health Chat",
             "Ask questions about your health data. Get personalized insights powered by Claude."
         ),
@@ -123,205 +170,159 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             TabView(selection: $featurePage) {
                 ForEach(0..<features.count, id: \.self) { index in
-                    featureCard(features[index])
-                        .tag(index)
+                    GeometryReader { geo in
+                        ScrollView {
+                            featureCard(index: index)
+                                .frame(maxWidth: 520, alignment: .leading)
+                                .padding(.horizontal, 28)
+                                .frame(maxWidth: .infinity, minHeight: geo.size.height)
+                        }
+                        .scrollBounceBehavior(.basedOnSize)
+                    }
+                    .tag(index)
                 }
             }
             #if os(iOS)
-            .tabViewStyle(.page(indexDisplayMode: .always))
+            .tabViewStyle(.page(indexDisplayMode: .never))
             #endif
 
-            Button {
-                if featurePage < features.count - 1 {
-                    withAnimation { featurePage += 1 }
-                } else {
-                    phase = .connect
+            VStack(spacing: 12) {
+                // Page marks: the current page is a solid ink bar
+                HStack(spacing: 6) {
+                    ForEach(0..<features.count, id: \.self) { index in
+                        Rectangle()
+                            .fill(index == featurePage ? Notebook.ink : Notebook.band)
+                            .frame(width: 20, height: 2)
+                    }
                 }
-            } label: {
-                Text(featurePage < features.count - 1 ? "Next" : "Get Started")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal, 40)
-            .padding(.bottom, 32)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityHidden(true)
 
-            if featurePage < features.count - 1 {
-                Button("Skip") {
-                    phase = .connect
+                Button(featurePage < features.count - 1 ? "Next" : "Get Started") {
+                    if featurePage < features.count - 1 {
+                        withAnimation { featurePage += 1 }
+                    } else {
+                        phase = .connect
+                    }
                 }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.bottom, 16)
+                .buttonStyle(NotebookPrimaryButtonStyle())
+
+                if featurePage < features.count - 1 {
+                    textButton("Skip") { phase = .connect }
+                }
             }
+            .frame(maxWidth: 520)
+            .padding(.horizontal, 28)
+            .padding(.bottom, 20)
         }
     }
 
-    private func featureCard(_ feature: (icon: String, color: Color, title: String, description: String)) -> some View {
-        VStack(spacing: 24) {
-            Spacer()
+    private func featureCard(index: Int) -> some View {
+        let feature = features[index]
+        return VStack(alignment: .leading, spacing: 18) {
+            Text(String(format: "%02d / %02d", index + 1, features.count))
+                .kicker()
+                .accessibilityLabel("Page \(index + 1) of \(features.count)")
 
             Image(systemName: feature.icon)
-                .font(.system(size: 64))
-                .foregroundStyle(feature.color)
+                .font(.system(.largeTitle, weight: .light))
+                .foregroundStyle(Notebook.ink)
+                .accessibilityHidden(true)
 
-            VStack(spacing: 12) {
-                Text(feature.title)
-                    .font(.title.bold())
+            Text(feature.title)
+                .font(.title.bold())
+                .foregroundStyle(Notebook.ink)
+                .accessibilityAddTraits(.isHeader)
 
-                Text(feature.description)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            }
-
-            Spacer()
-            Spacer()
+            Text(feature.description)
+                .font(.body)
+                .foregroundStyle(Notebook.inkSecondary)
         }
-        .padding()
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Connect Integrations
 
     private var connectView: some View {
-        VStack(spacing: 32) {
-            Spacer()
+        page(step: 1) {
+            pageTitle("Connect Your Data", subtitle: "Link a data source to get started")
 
-            VStack(spacing: 8) {
-                Text("Connect Your Data")
-                    .font(.largeTitle.bold())
-                Text("Link a data source to get started")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+            #if os(iOS)
+            integrationButton(
+                icon: "heart.text.square",
+                title: "Connect Apple Health",
+                subtitle: healthKitService.hasRequestedAccess ? "Access requested" : "Import activity, sleep, heart rate, and more",
+                connected: healthKitService.hasRequestedAccess
+            ) {
+                Task { await healthKitService.requestAuthorization() }
             }
-
-            VStack(spacing: 16) {
-                // Apple Health
-                #if os(iOS)
-                integrationButton(
-                    icon: "heart.text.square",
-                    color: .red,
-                    title: "Connect Apple Health",
-                    subtitle: healthKitService.hasRequestedAccess ? "Access requested" : "Import activity, sleep, heart rate, and more",
-                    connected: healthKitService.hasRequestedAccess
-                ) {
-                    Task { await healthKitService.requestAuthorization() }
-                }
-                #endif
+            #endif
+        } actions: {
+            Button("Continue") {
+                phase = .preferences
             }
-            .padding(.horizontal, 40)
+            .buttonStyle(NotebookPrimaryButtonStyle())
 
-            Spacer()
-
-            VStack(spacing: 12) {
-                Button {
-                    phase = .preferences
-                } label: {
-                    Text("Continue")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button {
-                    phase = .preferences
-                } label: {
-                    Text("Skip for Now")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 32)
+            textButton("Skip for Now") { phase = .preferences }
         }
-        .padding()
     }
 
     // MARK: - Preferences (Units)
 
     private var preferencesView: some View {
-        VStack(spacing: 32) {
-            Spacer()
+        page(step: 2) {
+            pageTitle("Your Preferences", subtitle: "Choose your preferred units")
 
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.gray)
-
-            VStack(spacing: 8) {
-                Text("Your Preferences")
-                    .font(.title.bold())
-                Text("Choose your preferred units")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
-
-            VStack(spacing: 20) {
-                // Weight unit
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Weight")
-                            .font(.headline)
-                        Text("Used for body weight tracking")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Picker("Weight", selection: $weightUnit) {
-                        ForEach(WeightUnit.allCases, id: \.self) { unit in
-                            Text(unit.symbol).tag(unit)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+            VStack(spacing: 0) {
+                unitRow("Weight", detail: "Used for body weight tracking") {
+                    PillSegmentedPicker(
+                        options: WeightUnit.allCases,
+                        selection: $weightUnit,
+                        label: { $0.symbol }
+                    )
                     .fixedSize()
                 }
 
-                Divider()
-
-                // Temperature unit
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Temperature")
-                            .font(.headline)
-                        Text("Used for skin temperature readings")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Picker("Temperature", selection: $temperatureUnit) {
-                        ForEach(TemperatureUnit.allCases, id: \.self) { unit in
-                            Text(unit.symbol).tag(unit)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+                unitRow("Temperature", detail: "Used for skin temperature readings") {
+                    PillSegmentedPicker(
+                        options: TemperatureUnit.allCases,
+                        selection: $temperatureUnit,
+                        label: { $0.symbol }
+                    )
                     .fixedSize()
                 }
             }
-            .padding(20)
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal, 40)
-
-            Spacer()
-
-            Button {
+            .ruled(.top)
+        } actions: {
+            Button("Continue") {
                 phase = .diet
-            } label: {
-                Text("Continue")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
             }
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal, 40)
-            .padding(.bottom, 32)
+            .buttonStyle(NotebookPrimaryButtonStyle())
         }
-        .padding()
+    }
+
+    private func unitRow<Picker: View>(_ title: String, detail: String, @ViewBuilder picker: () -> Picker) -> some View {
+        // At accessibility text sizes the picker moves under the label
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+        return layout {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(Notebook.ink)
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(Notebook.inkSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+
+            picker()
+        }
+        .padding(.vertical, 12)
+        .ruled()
     }
 
     // MARK: - Diet Setup
@@ -329,96 +330,70 @@ struct OnboardingView: View {
     @State private var selectedDietType: DietTypeOption?
 
     private var dietSetupView: some View {
-        VStack(spacing: 28) {
-            Spacer()
-
-            Image(systemName: "fork.knife")
-                .font(.system(size: 64))
-                .foregroundStyle(.orange)
-
-            VStack(spacing: 8) {
-                Text("Your Diet")
-                    .font(.title.bold())
-                Text("What best describes how you eat?")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-            }
+        page(step: 3) {
+            pageTitle("Your Diet", subtitle: "What best describes how you eat?")
 
             // Diet type list (top 6)
             let topDiets: [DietTypeOption] = [.mediterranean, .keto, .vegan, .vegetarian, .paleo, .intermittentFasting]
-            VStack(spacing: 8) {
-                ForEach(topDiets, id: \.self) { diet in
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            selectedDietType = (selectedDietType == diet) ? nil : diet
-                        }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: diet.iconName)
-                                .font(.subheadline)
-                                .foregroundStyle(selectedDietType == diet ? .white : diet.color)
-                                .frame(width: 22)
-                            Text(diet.rawValue)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(selectedDietType == diet ? .white : .primary)
-                            Spacer()
-                            if selectedDietType == diet {
-                                Image(systemName: "checkmark")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.white)
-                            }
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
-                        .background(
-                            selectedDietType == diet ? diet.color : Color.primary.opacity(0.04),
-                            in: RoundedRectangle(cornerRadius: 10)
-                        )
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(spacing: 0) {
+                    ForEach(topDiets, id: \.self) { diet in
+                        dietRow(diet)
                     }
-                    .buttonStyle(.plain)
                 }
+                .ruled(.top)
+
+                Text("And more options available in Settings")
+                    .font(.footnote)
+                    .foregroundStyle(Notebook.inkSecondary)
+                    .padding(.top, 12)
             }
-            .padding(.horizontal, 32)
-
-            Text("And more options available in Settings")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
-            Spacer()
-
-            VStack(spacing: 12) {
-                Button {
-                    if let diet = selectedDietType {
-                        let plan = DietPlan(
-                            name: diet.rawValue,
-                            dietType: diet.rawValue,
-                            startDate: Date()
-                        )
-                        modelContext.insert(plan)
-                    }
-                    phase = .chat
-                } label: {
-                    Text("Continue")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+        } actions: {
+            Button("Continue") {
+                if let diet = selectedDietType {
+                    let plan = DietPlan(
+                        name: diet.rawValue,
+                        dietType: diet.rawValue,
+                        startDate: Date()
+                    )
+                    modelContext.insert(plan)
                 }
-                .buttonStyle(.borderedProminent)
-
-                if selectedDietType == nil {
-                    Button {
-                        phase = .chat
-                    } label: {
-                        Text("Skip — I'll set this up later")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                phase = .chat
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 32)
+            .buttonStyle(NotebookPrimaryButtonStyle())
+
+            if selectedDietType == nil {
+                textButton("Skip — I'll set this up later") { phase = .chat }
+            }
         }
-        .padding()
+    }
+
+    private func dietRow(_ diet: DietTypeOption) -> some View {
+        let isSelected = selectedDietType == diet
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedDietType = isSelected ? nil : diet
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: diet.iconName)
+                    .font(.body)
+                    .foregroundStyle(Notebook.ink)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+                Text(diet.rawValue)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(Notebook.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                NotebookCheckbox(isOn: isSelected)
+            }
+            .padding(.vertical, 10)
+            .frame(minHeight: 48)
+            .ruled()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     // MARK: - Chat Setup
@@ -432,87 +407,82 @@ struct OnboardingView: View {
     }
 
     private var chatSetupView: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                Image(systemName: "bubble.left.and.bubble.right.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(.cyan)
+        page(step: 4) {
+            pageTitle(
+                "Optional AI Health Chat",
+                subtitle: "Ask about your own records or import a lab report. Aura is still fully usable without AI."
+            )
 
-                VStack(spacing: 8) {
-                    Text("Optional AI Health Chat")
-                        .font(.title.bold())
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Provider").kicker()
+                PillSegmentedPicker(
+                    options: AIProvider.allCases,
+                    selection: $aiProvider,
+                    label: { $0.displayName }
+                )
+            }
 
-                    Text("Ask about your own records or import a lab report. Aura is still fully usable without AI.")
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+            VStack(alignment: .leading, spacing: 0) {
+                chatCapability(icon: "doc.text.magnifyingglass", text: "Review PDF and image lab reports before saving")
+                chatCapability(icon: "chart.line.uptrend.xyaxis", text: "Ask about vitals, trends, and summaries")
+                chatCapability(icon: "square.and.pencil", text: "Log measurements, medications, and habits")
+            }
+            .ruled(.top)
+
+            if providerReady {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(aiProvider.displayName)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(Notebook.ink)
+                    Spacer()
+                    StatusWord(text: "ready", color: Notebook.ink)
                 }
-
-                Picker("Provider", selection: $aiProvider) {
-                    ForEach(AIProvider.allCases) { provider in
-                        Text(provider.displayName).tag(provider)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(aiProvider.displayName) is ready")
+            } else {
+                VStack(alignment: .leading, spacing: 14) {
+                    if !hasProviderKey {
+                        SecureField(aiProvider.keyPlaceholder, text: $apiKeyInput)
+                            .textContentType(.password)
+                            .font(Notebook.mono(.callout))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .frame(minHeight: 44)
+                            .background(Notebook.paperRaised, in: RoundedRectangle(cornerRadius: 10))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Notebook.rule, lineWidth: 1))
                     }
-                }
-                .pickerStyle(.segmented)
 
-                VStack(alignment: .leading, spacing: 12) {
-                    chatCapability(icon: "doc.text.magnifyingglass", color: .green, text: "Review PDF and image lab reports before saving")
-                    chatCapability(icon: "chart.line.uptrend.xyaxis", color: .pink, text: "Ask about vitals, trends, and summaries")
-                    chatCapability(icon: "square.and.pencil", color: .orange, text: "Log measurements, medications, and habits")
-                }
-                .padding(.horizontal, 8)
+                    Toggle("I allow AI processing", isOn: $consentAcknowledged)
+                        .foregroundStyle(Notebook.ink)
 
-                if providerReady {
-                    Label("\(aiProvider.displayName) is ready", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                } else {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if !hasProviderKey {
-                            SecureField(aiProvider.keyPlaceholder, text: $apiKeyInput)
-                                .textContentType(.password)
-                                .textFieldStyle(.roundedBorder)
-                        }
+                    Text("When you explicitly send a message or attachment, Aura shares that content and health records returned by its read tools for that request with \(aiProvider.displayName). Nothing is sent automatically.")
+                        .font(.footnote)
+                        .foregroundStyle(Notebook.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                        Toggle("I allow AI processing", isOn: $consentAcknowledged)
-
-                        Text("When you explicitly send a message or attachment, Aura shares that content and health records returned by its read tools for that request with \(aiProvider.displayName). Nothing is sent automatically.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Link("Read \(aiProvider.displayName)'s privacy policy", destination: aiProvider.privacyPolicyURL)
-                            .font(.caption)
-
-                        Button("Save and Enable AI") {
-                            saveAISetup()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .frame(maxWidth: .infinity)
-                        .disabled(!consentAcknowledged || (!hasProviderKey && apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+                    Link(destination: aiProvider.privacyPolicyURL) {
+                        Text("Read \(aiProvider.displayName)'s privacy policy")
+                            .font(.footnote)
+                            .underline()
+                            .foregroundStyle(Notebook.ink)
                     }
-                }
 
-                VStack(spacing: 12) {
-                    Button {
-                        hasCompletedOnboarding = true
-                    } label: {
-                        Text("Finish Setup")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                    Button("Save and Enable AI") {
+                        saveAISetup()
                     }
-                    .buttonStyle(.borderedProminent)
-
-                    if !providerReady {
-                        Button {
-                            hasCompletedOnboarding = true
-                        } label: {
-                            Text("Skip AI for Now")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    .buttonStyle(NotebookSecondaryButtonStyle())
+                    .disabled(!consentAcknowledged || (!hasProviderKey && apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
                 }
             }
-            .padding()
+        } actions: {
+            Button("Finish Setup") {
+                hasCompletedOnboarding = true
+            }
+            .buttonStyle(NotebookPrimaryButtonStyle())
+
+            if !providerReady {
+                textButton("Skip AI for Now") { hasCompletedOnboarding = true }
+            }
         }
         .onAppear {
             refreshAISetupState()
@@ -543,50 +513,59 @@ struct OnboardingView: View {
         }
     }
 
-    private func chatCapability(icon: String, color: Color, text: String) -> some View {
-        HStack(spacing: 12) {
+    private func chatCapability(icon: String, text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: icon)
                 .font(.body)
-                .foregroundStyle(color)
+                .foregroundStyle(Notebook.ink)
                 .frame(width: 28)
+                .accessibilityHidden(true)
 
             Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
+                .font(.callout)
+                .foregroundStyle(Notebook.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.vertical, 12)
+        .ruled()
     }
 
     // MARK: - Shared Components
 
-    private func integrationButton(icon: String, color: Color, title: String, subtitle: String, connected: Bool, action: @escaping () -> Void) -> some View {
+    private func integrationButton(icon: String, title: String, subtitle: String, connected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
-                    .font(.title)
-                    .foregroundStyle(color)
-                    .frame(width: 40)
+                    .font(.title2)
+                    .foregroundStyle(Notebook.ink)
+                    .frame(width: 32)
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Notebook.ink)
                     Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                        .foregroundStyle(Notebook.inkSecondary)
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
 
                 if connected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                    StatusWord(text: "requested")
                 } else {
                     Image(systemName: "chevron.right")
-                        .foregroundStyle(.tertiary)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Notebook.inkTertiary)
+                        .accessibilityHidden(true)
                 }
             }
-            .padding()
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+            .padding(.vertical, 14)
+            .ruled(.top)
+            .ruled()
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(connected)

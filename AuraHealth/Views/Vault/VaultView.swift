@@ -14,35 +14,43 @@ struct VaultView: View {
 
     var body: some View {
         ScrollView {
-            if documents.isEmpty {
-                EmptyStateView(
-                    icon: "doc.fill",
-                    title: "No Documents",
-                    message: "Upload PDFs, images, or text files to your secure vault.",
-                    actionLabel: "Upload",
-                    action: { showingUpload = true }
-                )
-                .padding(.top, 60)
-            } else {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 280))], spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                if documents.isEmpty {
+                    EmptyStateView(
+                        icon: "doc",
+                        title: "No Documents",
+                        message: "Upload PDFs, images, or text files to your secure vault.",
+                        actionLabel: "Upload",
+                        action: { showingUpload = true }
+                    )
+                    .padding(.top, 60)
+                } else {
+                    NotebookSectionHeader(title: "Documents", trailing: "\(documents.count)")
+
                     ForEach(Array(documents.enumerated()), id: \.element.id) { index, doc in
-                        DocumentCard(document: doc)
-                            .onTapGesture { selectedDocument = doc }
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    modelContext.delete(doc)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
+                        Button {
+                            selectedDocument = doc
+                        } label: {
+                            DocumentCard(document: doc)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                modelContext.delete(doc)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
                             }
-                            .staggeredAppearance(index: index)
+                        }
+                        .staggeredAppearance(index: index)
                     }
                 }
-                .frame(maxWidth: 600)
-                .frame(maxWidth: .infinity)
-                .padding()
             }
+            .frame(maxWidth: 700, alignment: .leading)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
+        .notebookBackground()
         .navigationTitle("Vault")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
@@ -60,60 +68,62 @@ struct VaultView: View {
     }
 }
 
-// MARK: - Document Card
+// MARK: - Document Row
 
+/// A hairline row: monochrome file glyph, title, then type, size and date in
+/// mono. Tags follow as a quiet mono line.
 struct DocumentCard: View {
     let document: VaultDocument
 
+    @ScaledMetric(relativeTo: .body) private var glyphWidth: CGFloat = 28
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: document.fileType.iconName)
-                    .font(.title3.weight(.medium))
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-                    .foregroundStyle(fileColor)
-                    .frame(width: 36, height: 36)
-                    .background(fileColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: document.fileType.iconName)
+                .font(.body)
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                .foregroundStyle(Notebook.ink)
+                .frame(width: min(glyphWidth, 40))
+                .accessibilityHidden(true)
 
-                Spacer()
+            VStack(alignment: .leading, spacing: 4) {
+                Text(document.title)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(Notebook.ink)
+                    .lineLimit(3)
 
-                Text(formattedSize)
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.quaternary)
-            }
+                Text("\(typeLabel) · \(formattedSize) · \(document.uploadedAt.formatted(.dateTime.day().month(.abbreviated).year()))")
+                    .font(Notebook.mono(.caption))
+                    .foregroundStyle(Notebook.inkSecondary)
 
-            Text(document.title)
-                .font(.subheadline.weight(.medium))
-                .lineLimit(2)
-
-            Text(document.uploadedAt, format: .dateTime.month(.abbreviated).day().year())
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
-            if !document.tags.isEmpty {
-                FlowLayout(spacing: 4) {
-                    ForEach(document.tags, id: \.self) { tag in
-                        Text(tag)
-                            .font(.caption2.weight(.medium))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.primary.opacity(0.05), in: Capsule())
-                            .foregroundStyle(.secondary)
-                    }
+                if !document.tags.isEmpty {
+                    Text(document.tags.map { "#\($0)" }.joined(separator: " "))
+                        .font(Notebook.mono(.caption2))
+                        .foregroundStyle(Notebook.inkSecondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Notebook.inkTertiary)
+                .accessibilityHidden(true)
         }
-        .cardStyle(padding: 14, cornerRadius: 12)
-        .contentShape(RoundedRectangle(cornerRadius: 12))
-        .hoverCard()
+        .padding(.vertical, 12)
+        .frame(minHeight: 52)
+        .ruled()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the document details")
     }
 
-    private var fileColor: Color {
+    private var typeLabel: String {
         switch document.fileType {
-        case .pdf: .red
-        case .image: .blue
-        case .text: .green
-        case .video: .purple
+        case .pdf: "PDF"
+        case .image: "Image"
+        case .text: "Text"
+        case .video: "Video"
         }
     }
 
@@ -122,44 +132,6 @@ struct DocumentCard: View {
         if bytes < 1024 { return "\(bytes) B" }
         if bytes < 1024 * 1024 { return "\(bytes / 1024) KB" }
         return String(format: "%.1f MB", Double(bytes) / 1024 / 1024)
-    }
-}
-
-// MARK: - Flow Layout
-
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 4
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        arrangeSubviews(proposal: proposal, subviews: subviews).size
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = arrangeSubviews(proposal: proposal, subviews: subviews)
-        for (index, position) in result.positions.enumerated() {
-            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
-        }
-    }
-
-    private func arrangeSubviews(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
-        let maxWidth = proposal.width ?? .infinity
-        var positions: [CGPoint] = []
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > maxWidth && x > 0 {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            positions.append(CGPoint(x: x, y: y))
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
-        }
-        return (CGSize(width: maxWidth, height: y + rowHeight), positions)
     }
 }
 
@@ -201,8 +173,8 @@ struct VaultUploadSheet: View {
                         }
                     } else if selectedPhotoData != nil {
                         HStack {
-                            Image(systemName: "photo.fill")
-                                .foregroundStyle(.blue)
+                            Image(systemName: "photo")
+                                .foregroundStyle(.secondary)
                             Text(selectedPhotoName ?? "Photo")
                                 .font(.subheadline)
                             Spacer()

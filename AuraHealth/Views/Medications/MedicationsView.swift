@@ -20,13 +20,18 @@ struct MedicationsView: View {
         }
     }
 
+    private var listTitle: String {
+        if let typeFilter { return typeFilter.displayName }
+        return showArchived ? "All medications" : "Active"
+    }
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 0) {
                 // Filters — only show when there are medications
                 if !medications.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 18) {
                             FilterPill(label: "All", isActive: typeFilter == nil) {
                                 withAnimation(AppAnimation.viewSwitch) { typeFilter = nil }
                             }
@@ -40,6 +45,8 @@ struct MedicationsView: View {
                             }
                         }
                     }
+                    .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                    .ruled()
                 }
 
                 if filteredMedications.isEmpty {
@@ -53,30 +60,38 @@ struct MedicationsView: View {
                     )
                     .padding(.top, 20)
                 } else {
+                    NotebookSectionHeader(title: listTitle, trailing: "\(filteredMedications.count)")
+
                     ForEach(Array(filteredMedications.enumerated()), id: \.element.id) { index, medication in
-                        MedicationCardView(medication: medication)
-                            .onTapGesture { editingMedication = medication }
-                            .contextMenu {
-                                Button {
-                                    medication.active.toggle()
-                                } label: {
-                                    Label(medication.active ? "Archive" : "Unarchive",
-                                          systemImage: medication.active ? "archivebox" : "archivebox.fill")
-                                }
-                                Button(role: .destructive) {
-                                    modelContext.delete(medication)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
+                        Button {
+                            editingMedication = medication
+                        } label: {
+                            MedicationCardView(medication: medication)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button {
+                                medication.active.toggle()
+                            } label: {
+                                Label(medication.active ? "Archive" : "Unarchive",
+                                      systemImage: medication.active ? "archivebox" : "archivebox.fill")
                             }
-                            .staggeredAppearance(index: index)
+                            Button(role: .destructive) {
+                                modelContext.delete(medication)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .staggeredAppearance(index: index)
                     }
                 }
             }
-            .frame(maxWidth: 600)
+            .frame(maxWidth: 700, alignment: .leading)
             .frame(maxWidth: .infinity)
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
+        .notebookBackground()
         .navigationTitle("Medications")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
@@ -98,56 +113,48 @@ struct MedicationsView: View {
     }
 }
 
-// MARK: - Medication Card
+// MARK: - Medication Row
 
+/// A hairline row: name, then dose and schedule in mono. The type is written
+/// as a word, not a color.
 struct MedicationCardView: View {
     let medication: Medication
 
-    private var typeColor: Color {
-        switch medication.type {
-        case .rx: .blue
-        case .supplement: .green
-        case .otc: .orange
-        }
+    private var detail: String {
+        var parts = [medication.type.displayName]
+        if !medication.dosage.isEmpty { parts.append(medication.dosage) }
+        parts.append(medication.frequency.displayName)
+        parts.append(medication.timing.displayName)
+        return parts.joined(separator: " · ")
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Type indicator
-            RoundedRectangle(cornerRadius: 2)
-                .fill(typeColor)
-                .frame(width: 4, height: 40)
-
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(medication.name)
-                        .font(.subheadline.weight(.medium))
-                    if !medication.active {
-                        StatusBadge(label: "Archived", color: .secondary)
-                    }
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(medication.name)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(medication.active ? Notebook.ink : Notebook.inkSecondary)
+                Text(detail)
+                    .font(Notebook.mono(.caption))
+                    .foregroundStyle(Notebook.inkSecondary)
+                if !medication.active {
+                    StatusWord(text: "archived")
                 }
-                HStack(spacing: 8) {
-                    if !medication.dosage.isEmpty {
-                        Text(medication.dosage)
-                    }
-                    Text(medication.frequency.displayName)
-                    Text(medication.timing.displayName)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
-
-            Spacer()
-
-            StatusBadge(label: medication.type.displayName, color: typeColor, style: .outlined)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
 
             Image(systemName: "chevron.right")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.quaternary)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Notebook.inkTertiary)
+                .accessibilityHidden(true)
         }
-        .cardStyle(padding: 12, cornerRadius: 10)
-        .contentShape(RoundedRectangle(cornerRadius: 10))
-        .hoverCard()
+        .padding(.vertical, 12)
+        .frame(minHeight: 52)
+        .ruled()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the medication editor")
     }
 }
 

@@ -56,7 +56,8 @@ Every status also needs a word: "in range", "near limit", "â†‘ above range", "â†
 - `StatusWord`: the mono status text next to a value.
 - `ReferenceRangeBar` and `MiniRangeBar`: the band is the range, a tick marks the value, labels sit at the band edges. Pass `nil` for a missing limit.
 - `BarSparkline`: small bars, latest bar solid. Pass `floor` for bounded scores.
-- `NotebookPrimaryButtonStyle` / `NotebookSecondaryButtonStyle`: filled ink and hairline-outlined buttons.
+- `NotebookPrimaryButtonStyle` / `NotebookSecondaryButtonStyle`: filled ink and hairline-outlined buttons. Disabled buttons fade to 40%.
+- `NotebookCheckbox`: the Habits tick box (filled with a check, empty, or crossed). Use for selections and approved/avoided lists; the row carries the label.
 - `EmptyStateView`: explanation plus one primary action.
 - `InlineErrorBanner`: recoverable errors without modal interruption.
 

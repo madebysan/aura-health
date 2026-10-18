@@ -3,10 +3,6 @@ import SwiftData
 import Charts
 
 struct BiomarkersView: View {
-    @ScaledMetric(relativeTo: .caption2) private var scaledSummaryBarHeight: CGFloat = 16
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    private var summaryBarHeight: CGFloat { min(scaledSummaryBarHeight, 28) }
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: \Biomarker.testDate, order: .reverse)
@@ -15,15 +11,24 @@ struct BiomarkersView: View {
     @Query private var labSessions: [LabSession]
 
     @State private var searchText = ""
-    @State private var statusFilter: BiomarkerStatus?
+    @State private var flaggedOnly = false
     @State private var showingAddSheet = false
     @State private var showingLabImport = false
     @State private var selectedBiomarker: Biomarker?
-    @State private var selectedSnapshotIndex = -1  // -1 = "All", 0+ = specific lab date
+    @State private var selectedSnapshotIndex = -1  // -1 = latest per marker, 0+ = specific lab date
     @State private var showOlderMarkers = false
     @State private var showingLabNotes = false
 
     @State private var aiService = AIService()
+
+    /// One list row: the reading shown for the selected session and the one before it.
+    struct MarkerRow: Identifiable {
+        let marker: String
+        let shown: Biomarker
+        let previous: Biomarker?
+        let history: [Biomarker]
+        var id: String { marker }
+    }
 
     // MARK: - Snapshot Data
 
@@ -34,32 +39,19 @@ struct BiomarkersView: View {
         return dates.sorted(by: >)
     }
 
-    /// Whether "All" is selected (no specific snapshot)
     private var isShowingAll: Bool { selectedSnapshotIndex == -1 }
 
-    /// The currently selected snapshot date
     private var selectedDate: Date? {
         guard !isShowingAll, !labDates.isEmpty else { return nil }
-        let idx = min(selectedSnapshotIndex, labDates.count - 1)
-        return labDates[idx]
+        return labDates[min(selectedSnapshotIndex, labDates.count - 1)]
     }
 
-    /// Biomarkers from the selected snapshot date (all markers when showing "All")
-    private var snapshotBiomarkers: Set<String> {
-        if isShowingAll { return Set(biomarkers.map(\.marker)) }
-        guard let date = selectedDate else { return [] }
-        let cal = Calendar.current
-        return Set(biomarkers.filter { cal.isDate($0.testDate, inSameDayAs: date) }.map(\.marker))
-    }
-
-    /// Lab session for the currently selected date
     private var currentLabSession: LabSession? {
         guard let date = selectedDate else { return nil }
         let cal = Calendar.current
         return labSessions.first { cal.isDate($0.date, inSameDayAs: date) }
     }
 
-    /// Find or create a lab session for a date
     private func labSession(for date: Date) -> LabSession {
         let cal = Calendar.current
         if let existing = labSessions.first(where: { cal.isDate($0.date, inSameDayAs: date) }) {
@@ -70,191 +62,147 @@ struct BiomarkersView: View {
         return session
     }
 
-    /// Whether the most recent lab is older than 3 months
     private var labsAreStale: Bool {
         guard let newest = labDates.first else { return false }
         let threeMonthsAgo = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
         return newest < threeMonthsAgo
     }
 
-    /// Latest value for each marker, respecting search & status filters
-    private var groupedByMarker: [(marker: String, latest: Biomarker, history: [Biomarker])] {
-        let filtered = biomarkers.filter { bio in
-            let matchesSearch = searchText.isEmpty || bio.marker.localizedCaseInsensitiveContains(searchText)
-            let matchesStatus = statusFilter == nil || bio.status == statusFilter
-            return matchesSearch && matchesStatus
-        }
-        let grouped = Dictionary(grouping: filtered, by: \.marker)
-        return grouped.map { marker, items in
-            let sorted = items.sorted { $0.testDate > $1.testDate }
-            return (marker: marker, latest: sorted[0], history: sorted)
+    private var historyByMarker: [String: [Biomarker]] {
+        Dictionary(grouping: biomarkers, by: \.marker).mapValues { $0.sorted { $0.testDate > $1.testDate } }
+    }
+
+    /// Rows for the selected session (or the latest reading of every marker),
+    /// before search and the flagged filter.
+    private var sessionRows: [MarkerRow] {
+        let cal = Calendar.current
+        return historyByMarker.compactMap { marker, history in
+            if let date = selectedDate {
+                guard let index = history.firstIndex(where: { cal.isDate($0.testDate, inSameDayAs: date) }) else { return nil }
+                return MarkerRow(marker: marker, shown: history[index], previous: history.indices.contains(index + 1) ? history[index + 1] : nil, history: history)
+            }
+            return MarkerRow(marker: marker, shown: history[0], previous: history.count > 1 ? history[1] : nil, history: history)
         }
         .sorted { $0.marker < $1.marker }
     }
 
-    /// Markers grouped by body system
-    private var groupedBySystem: [(system: BodySystem, markers: [(marker: String, latest: Biomarker, history: [Biomarker])])] {
-        let systemGrouped = Dictionary(grouping: groupedByMarker) { group in
-            BiomarkerReference.system(for: group.marker)
+    /// Markers without a reading in the selected session, showing their latest value.
+    private var olderRows: [MarkerRow] {
+        guard selectedDate != nil else { return [] }
+        let inSession = Set(sessionRows.map(\.marker))
+        return historyByMarker
+            .filter { !inSession.contains($0.key) }
+            .map { MarkerRow(marker: $0.key, shown: $0.value[0], previous: $0.value.count > 1 ? $0.value[1] : nil, history: $0.value) }
+            .sorted { $0.marker < $1.marker }
+    }
+
+    private func applyFilters(_ rows: [MarkerRow]) -> [MarkerRow] {
+        rows.filter { row in
+            (searchText.isEmpty || row.marker.localizedCaseInsensitiveContains(searchText))
+                && (!flaggedOnly || row.shown.status == .borderline || row.shown.status == .abnormal)
         }
+    }
+
+    private func groupedBySystem(_ rows: [MarkerRow]) -> [(system: BodySystem, rows: [MarkerRow])] {
+        let grouped = Dictionary(grouping: rows) { BiomarkerReference.system(for: $0.marker) }
         return BodySystem.allCases.compactMap { system in
-            guard let markers = systemGrouped[system], !markers.isEmpty else { return nil }
-            return (system: system, markers: markers)
+            guard let rows = grouped[system], !rows.isEmpty else { return nil }
+            return (system: system, rows: rows)
         }
     }
 
-    /// Markers from the selected snapshot, grouped by system
-    private var snapshotGroupedBySystem: [(system: BodySystem, markers: [(marker: String, latest: Biomarker, history: [Biomarker])])] {
-        groupedBySystem.compactMap { systemGroup in
-            let filtered = systemGroup.markers.filter { snapshotBiomarkers.contains($0.marker) }
-            guard !filtered.isEmpty else { return nil }
-            return (system: systemGroup.system, markers: filtered)
-        }
-    }
-
-    /// Markers NOT in the selected snapshot, grouped by system
-    private var olderGroupedBySystem: [(system: BodySystem, markers: [(marker: String, latest: Biomarker, history: [Biomarker])])] {
-        groupedBySystem.compactMap { systemGroup in
-            let filtered = systemGroup.markers.filter { !snapshotBiomarkers.contains($0.marker) }
-            guard !filtered.isEmpty else { return nil }
-            return (system: systemGroup.system, markers: filtered)
-        }
+    private var flaggedCount: Int {
+        sessionRows.filter { $0.shown.status == .borderline || $0.shown.status == .abnormal }.count
     }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 0) {
                 if biomarkers.isEmpty {
                     VStack(spacing: 12) {
                         EmptyStateView(
-                            icon: "drop.fill",
+                            icon: "drop",
                             title: "No Biomarkers",
                             message: "Upload a lab report in Chat to import biomarkers automatically, or add them manually.",
                             actionLabel: "Upload Lab Results in Chat",
                             action: { NotificationCenter.default.post(name: .switchToChat, object: nil) }
                         )
                         Button("Add Manually") { showingAddSheet = true }
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(Notebook.mono(.footnote))
+                            .underline()
+                            .foregroundStyle(Notebook.inkSecondary)
+                            .frame(minHeight: 44)
                     }
+                    .frame(maxWidth: .infinity)
                     .padding(.top, 40)
                 } else {
-                    // Stale labs banner
-                    if labsAreStale {
-                        staleBanner
-                    }
+                    Text(headerKicker)
+                        .kicker()
+                        .padding(.bottom, 10)
 
-                    // Snapshot date picker
                     snapshotPicker
 
-                    // Lab session notes card
+                    if labsAreStale {
+                        NoteLine(text: "Your most recent results are over 3 months old. Consider scheduling a follow-up with your doctor.", tag: "Labs")
+                    }
+
+                    statusSummary
+
                     if !isShowingAll, let date = selectedDate {
-                        labNotesCard(for: date)
+                        labNotesRow(for: date)
                     }
 
-                    // Search
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                            .font(.subheadline)
-                            .accessibilityHidden(true)
-                        TextField("Search biomarkers", text: $searchText)
-                            .textFieldStyle(.plain)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+                    toolsRow
 
-                    // Status summary bar
-                    statusSummaryBar
-                        .staggeredAppearance(index: 0)
-
-                    // Filters
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            FilterPill(label: "All", isActive: statusFilter == nil) {
-                                withAnimation(AppAnimation.viewSwitch) { statusFilter = nil }
-                            }
-                            FilterPill(label: "In range", isActive: statusFilter == .normal) {
-                                withAnimation(AppAnimation.viewSwitch) { statusFilter = .normal }
-                            }
-                            FilterPill(label: "Near limit", isActive: statusFilter == .borderline) {
-                                withAnimation(AppAnimation.viewSwitch) { statusFilter = .borderline }
-                            }
-                            FilterPill(label: "Out of range", isActive: statusFilter == .abnormal) {
-                                withAnimation(AppAnimation.viewSwitch) { statusFilter = .abnormal }
-                            }
-                        }
-                    }
-
-                    if isShowingAll {
-                        // All biomarkers — latest value per marker, no fading
-                        ForEach(groupedBySystem, id: \.system) { systemGroup in
-                            biomarkerSystemSection(systemGroup, isFaded: false)
-                        }
+                    let visible = applyFilters(sessionRows)
+                    if visible.isEmpty {
+                        Text(searchText.isEmpty ? "No flagged markers in this session." : "No markers match “\(searchText)”.")
+                            .font(Notebook.mono(.footnote))
+                            .foregroundStyle(Notebook.inkSecondary)
+                            .padding(.vertical, 28)
                     } else {
-                        // Snapshot biomarkers (from selected lab date)
-                        ForEach(snapshotGroupedBySystem, id: \.system) { systemGroup in
-                            biomarkerSystemSection(systemGroup, isFaded: false)
+                        ForEach(groupedBySystem(visible), id: \.system) { group in
+                            systemSection(group, isFaded: false)
                         }
+                    }
 
-                        // Older biomarkers (not in selected snapshot)
-                        if !olderGroupedBySystem.isEmpty {
-                            if showOlderMarkers {
-                                Divider()
-                                    .padding(.vertical, 4)
-
-                                HStack {
-                                    Text("Older Results")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.tertiary)
-                                    Spacer()
-                                    Button {
-                                        withAnimation(AppAnimation.viewSwitch) {
-                                            showOlderMarkers = false
-                                        }
-                                    } label: {
-                                        Text("Hide")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                .padding(.horizontal, 4)
-
-                                ForEach(olderGroupedBySystem, id: \.system) { systemGroup in
-                                    biomarkerSystemSection(systemGroup, isFaded: true)
-                                }
-                            } else {
-                                let olderCount = olderGroupedBySystem.reduce(0) { $0 + $1.markers.count }
-                                Button {
-                                    withAnimation(AppAnimation.expand) {
-                                        showOlderMarkers = true
-                                    }
-                                } label: {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "clock.arrow.circlepath")
-                                            .font(.subheadline)
-                                        Text("Show \(olderCount) older biomarkers")
-                                            .font(.subheadline.weight(.medium))
-                                        Spacer()
-                                        Image(systemName: "chevron.down")
-                                            .font(.caption2.weight(.semibold))
-                                    }
-                                    .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                    .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 10))
-                                }
-                                .buttonStyle(.plain)
+                    // Markers not measured in the selected session
+                    let older = applyFilters(olderRows)
+                    if !older.isEmpty {
+                        if showOlderMarkers {
+                            NotebookSectionHeader(title: "Not in this session", trailing: "\(older.count)")
+                            ForEach(groupedBySystem(older), id: \.system) { group in
+                                systemSection(group, isFaded: true)
                             }
+                            Button("Hide older results") {
+                                withAnimation(AppAnimation.viewSwitch) { showOlderMarkers = false }
+                            }
+                            .font(Notebook.mono(.footnote))
+                            .underline()
+                            .foregroundStyle(Notebook.inkSecondary)
+                            .frame(minHeight: 44)
+                        } else {
+                            Button {
+                                withAnimation(AppAnimation.expand) { showOlderMarkers = true }
+                            } label: {
+                                Text("Show \(older.count) markers not in this session")
+                                    .font(Notebook.mono(.footnote))
+                                    .underline()
+                                    .foregroundStyle(Notebook.inkSecondary)
+                                    .frame(minHeight: 44)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 12)
                         }
                     }
                 }
             }
-            .frame(maxWidth: 600)
+            .frame(maxWidth: 600, alignment: .leading)
             .frame(maxWidth: .infinity)
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
+        .notebookBackground()
         .navigationTitle("Biomarkers")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
@@ -285,300 +233,281 @@ struct BiomarkersView: View {
             LabImportSheet(aiService: aiService)
         }
         .sheet(item: $selectedBiomarker) { biomarker in
-            BiomarkerDetailSheet(marker: biomarker.marker, biomarkers: biomarkers)
+            BiomarkerDetailSheet(marker: biomarker.marker, biomarkers: biomarkers, focusDate: biomarker.testDate)
         }
         .onChange(of: selectedSnapshotIndex) {
             showOlderMarkers = false
         }
     }
 
-    // MARK: - Biomarker System Section
+    private var headerKicker: String {
+        let labs = Set(biomarkers.map(\.lab).filter { !$0.isEmpty })
+        let markers = Set(biomarkers.map(\.marker)).count
+        let source = labs.count == 1 ? labs.first! : "\(labDates.count) sessions"
+        return "\(source) · \(markers) markers"
+    }
 
-    private func biomarkerSystemSection(
-        _ systemGroup: (system: BodySystem, markers: [(marker: String, latest: Biomarker, history: [Biomarker])]),
-        isFaded: Bool
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: systemGroup.system.iconName)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(systemGroup.system.swiftColor)
-                Text(systemGroup.system.rawValue)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 4)
+    // MARK: - System Section
 
-            ForEach(systemGroup.markers, id: \.marker) { group in
+    private func systemSection(_ group: (system: BodySystem, rows: [MarkerRow]), isFaded: Bool) -> some View {
+        let flagged = group.rows.filter { $0.shown.status == .borderline || $0.shown.status == .abnormal }.count
+        return VStack(alignment: .leading, spacing: 0) {
+            NotebookSectionHeader(
+                title: group.system.rawValue,
+                trailing: flagged > 0 ? "\(flagged) flagged" : "\(group.rows.count)",
+                trailingColor: flagged > 0 ? Notebook.signal : Notebook.inkSecondary
+            )
+            ForEach(group.rows) { row in
                 Button {
-                    selectedBiomarker = group.latest
+                    selectedBiomarker = row.shown
                 } label: {
-                    BiomarkerCardView(
-                        biomarker: group.latest,
-                        historyCount: group.history.count,
-                        isFaded: isFaded
-                    )
+                    BiomarkerCardView(biomarker: row.shown, previous: row.previous, historyCount: row.history.count, isFaded: isFaded)
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
                     Button(role: .destructive) {
-                        for bio in group.history {
+                        for bio in row.history {
                             modelContext.delete(bio)
                         }
                     } label: {
-                        Label("Delete All \(group.marker) Records", systemImage: "trash")
+                        Label("Delete All \(row.marker) Records", systemImage: "trash")
                     }
                 }
             }
         }
-    }
-
-    // MARK: - Stale Banner
-
-    private var staleBanner: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .font(.callout)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Labs may be outdated")
-                    .font(.subheadline.weight(.medium))
-                Text("Your most recent results are over 3 months old. Consider scheduling a follow-up with your doctor.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(12)
-        .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.2), lineWidth: 1))
     }
 
     // MARK: - Snapshot Picker
 
     private var snapshotPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                FilterPill(label: "Latest", isActive: isShowingAll) {
-                    withAnimation(AppAnimation.viewSwitch) { selectedSnapshotIndex = -1 }
-                }
-
-                ForEach(Array(labDates.enumerated()), id: \.element) { index, date in
-                    let cal = Calendar.current
-                    let session = labSessions.first { cal.isDate($0.date, inSameDayAs: date) }
-                    let label = if let name = session?.name, !name.isEmpty {
-                        name
-                    } else {
-                        date.formatted(.dateTime.month(.abbreviated).day().year(.twoDigits))
-                    }
-                    FilterPill(
-                        label: label,
-                        isActive: index == selectedSnapshotIndex
-                    ) {
-                        withAnimation(AppAnimation.viewSwitch) { selectedSnapshotIndex = index }
-                    }
-                }
+        UnderlineTabs(options: [-1] + Array(labDates.indices), selection: $selectedSnapshotIndex) { index in
+            guard index >= 0 else { return "Latest" }
+            let date = labDates[index]
+            let cal = Calendar.current
+            if let name = labSessions.first(where: { cal.isDate($0.date, inSameDayAs: date) })?.name, !name.isEmpty {
+                return name
             }
+            return date.formatted(.dateTime.month(.abbreviated).day())
         }
     }
 
-    // MARK: - Lab Notes Card
+    // MARK: - Status Summary
 
-    private func labNotesCard(for date: Date) -> some View {
+    private var statusSummary: some View {
+        let rows = sessionRows
+        let normal = rows.filter { $0.shown.status == .normal }.count
+        let borderline = rows.filter { $0.shown.status == .borderline }.count
+        let abnormal = rows.filter { $0.shown.status == .abnormal }.count
+        let clearlyOut = rows.contains { $0.shown.status == .abnormal && !$0.shown.isMarginallyOutOfRange }
+        let severity: (Biomarker) -> Int = { $0.status == .abnormal ? 2 : $0.status == .borderline ? 1 : 0 }
+        let ordered = rows.map(\.shown).sorted { severity($0) < severity($1) }
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(selectedDate.map { $0.formatted(date: .abbreviated, time: .omitted) } ?? "Latest results").kicker()
+            BigNumber(value: "\(normal)", suffix: "/\(rows.count) in range")
+
+            HStack(spacing: 3) {
+                ForEach(Array(ordered.enumerated()), id: \.offset) { _, bio in
+                    Rectangle()
+                        .fill(bio.status == .normal ? Notebook.ink.opacity(0.2) : AppColors.biomarkerColor(bio))
+                        .frame(height: 18)
+                }
+            }
+            .accessibilityHidden(true)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) { legendItems(normal: normal, borderline: borderline, abnormal: abnormal, clearlyOut: clearlyOut) }
+                VStack(alignment: .leading, spacing: 4) { legendItems(normal: normal, borderline: borderline, abnormal: abnormal, clearlyOut: clearlyOut) }
+            }
+        }
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .ruled()
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func legendItems(normal: Int, borderline: Int, abnormal: Int, clearlyOut: Bool) -> some View {
+        legendItem(count: normal, label: "in range", color: Notebook.ink.opacity(0.25))
+        legendItem(count: borderline, label: "near limit", color: Notebook.near)
+        legendItem(count: abnormal, label: "out of range", color: clearlyOut ? Notebook.signal : Notebook.near)
+    }
+
+    private func legendItem(count: Int, label: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Rectangle().fill(color).frame(width: 9, height: 9).accessibilityHidden(true)
+            Text("\(count)").foregroundStyle(Notebook.ink)
+            Text(label).foregroundStyle(Notebook.inkSecondary)
+        }
+        .font(Notebook.mono(.caption))
+    }
+
+    // MARK: - Search and Filter
+
+    private var toolsRow: some View {
+        // Side by side when they fit; stacked at large text sizes
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 16) {
+                searchField
+                flaggedButton(fixed: true)
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                searchField
+                flaggedButton(fixed: false)
+            }
+        }
+        .padding(.top, 6)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.footnote)
+                .foregroundStyle(Notebook.inkTertiary)
+                .accessibilityHidden(true)
+            TextField("Search markers", text: $searchText)
+                .font(Notebook.mono(.subheadline))
+                .textFieldStyle(.plain)
+                .submitLabel(.search)
+        }
+        .frame(minHeight: 44)
+        .ruled()
+    }
+
+    private func flaggedButton(fixed: Bool) -> some View {
+        Button {
+            withAnimation(AppAnimation.viewSwitch) { flaggedOnly.toggle() }
+        } label: {
+            Text("Flagged only (\(flaggedCount))")
+                .font(Notebook.mono(.caption))
+                .underline(true, pattern: .solid)
+                .fontWeight(flaggedOnly ? .semibold : .regular)
+                .foregroundStyle(flaggedOnly ? Notebook.ink : Notebook.inkSecondary)
+                .fixedSize(horizontal: fixed, vertical: false)
+                .frame(minHeight: 44)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(flaggedOnly ? .isSelected : [])
+    }
+
+    // MARK: - Lab Notes
+
+    private func labNotesRow(for date: Date) -> some View {
         let session = currentLabSession
-        let hasContent = session != nil && (!session!.name.isEmpty || !session!.notes.isEmpty)
+        let name = session?.name ?? ""
+        let notes = session?.notes ?? ""
+        let hasContent = !name.isEmpty || !notes.isEmpty
 
         return Button {
             showingLabNotes = true
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: hasContent ? "note.text" : "square.and.pencil")
-                    .font(.subheadline)
-                    .foregroundStyle(hasContent ? .primary : .tertiary)
-                    .frame(width: 20)
-
-                if hasContent, let session {
-                    VStack(alignment: .leading, spacing: 2) {
-                        if !session.name.isEmpty {
-                            Text(session.name)
-                                .font(.subheadline.weight(.medium))
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("Notes").kicker()
+                VStack(alignment: .leading, spacing: 2) {
+                    if hasContent {
+                        if !name.isEmpty {
+                            Text(name).font(.subheadline.weight(.medium)).foregroundStyle(Notebook.ink)
                         }
-                        if !session.notes.isEmpty {
-                            Text(session.notes)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
+                        if !notes.isEmpty {
+                            Text(notes).font(.footnote).foregroundStyle(Notebook.inkSecondary).lineLimit(2)
                         }
+                    } else {
+                        Text("Add notes for this session").font(.subheadline).foregroundStyle(Notebook.inkSecondary)
                     }
-                } else {
-                    Text("Add lab notes")
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
                 }
-
                 Spacer()
-
                 Image(systemName: "chevron.right")
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.quaternary)
+                    .foregroundStyle(Notebook.inkTertiary)
             }
-            .padding(12)
-            .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 10))
+            .padding(.vertical, 14)
+            .ruled()
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showingLabNotes) {
             LabNotesSheet(date: date, labSession: labSession(for: date))
         }
     }
-
-    // MARK: - Status Summary
-
-    private var statusSummaryBar: some View {
-        let counts = statusCounts
-        let total = counts.normal + counts.borderline + counts.abnormal
-        guard total > 0 else { return AnyView(EmptyView()) }
-
-        return AnyView(
-            VStack(spacing: 8) {
-                GeometryReader { geo in
-                    let width = geo.size.width
-                    HStack(spacing: 2) {
-                        if counts.normal > 0 {
-                            statusSegment(count: counts.normal, total: total, width: width, color: AppColors.statusGreen, label: "In range")
-                        }
-                        if counts.borderline > 0 {
-                            statusSegment(count: counts.borderline, total: total, width: width, color: AppColors.statusOrange, label: "Near limit")
-                        }
-                        if counts.abnormal > 0 {
-                            statusSegment(count: counts.abnormal, total: total, width: width, color: outOfRangeColor, label: "Out of range")
-                        }
-                    }
-                }
-                .frame(height: summaryBarHeight)
-                .clipShape(RoundedRectangle(cornerRadius: summaryBarHeight / 2))
-                .accessibilityHidden(true)
-
-                (dynamicTypeSize.isAccessibilitySize
-                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-                    : AnyLayout(HStackLayout(spacing: 12))) {
-                    if counts.normal > 0 {
-                        statusLegendItem(count: counts.normal, label: "In range", color: AppColors.statusGreen)
-                    }
-                    if counts.borderline > 0 {
-                        statusLegendItem(count: counts.borderline, label: "Near limit", color: AppColors.statusOrange)
-                    }
-                    if counts.abnormal > 0 {
-                        statusLegendItem(count: counts.abnormal, label: "Out of range", color: outOfRangeColor)
-                    }
-                    if !dynamicTypeSize.isAccessibilitySize {
-                        Spacer()
-                    }
-                    Text("\(total) markers")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .accessibilityElement(children: .combine)
-        )
-    }
-
-    private func statusLegendItem(count: Int, label: String, color: Color) -> some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-            Text("\(count) \(label)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private func statusSegment(count: Int, total: Int, width: CGFloat, color: Color, label: String) -> some View {
-        let segmentCount = [statusCounts.normal > 0, statusCounts.borderline > 0, statusCounts.abnormal > 0].filter(\.self).count
-        let spacing = CGFloat(segmentCount - 1) * 2
-        let segmentWidth = max(40, (width - spacing) * CGFloat(count) / CGFloat(total))
-
-        return Text("\(count)")
-            .font(.caption2.weight(.bold))
-            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-            .foregroundStyle(.white)
-            .frame(width: segmentWidth, height: summaryBarHeight)
-            .background(color.opacity(0.7))
-    }
-
-    /// Red only when at least one result is clearly out of range; orange when
-    /// every out-of-range result is marginal, matching the row colors.
-    private var outOfRangeColor: Color {
-        let clearlyOut = groupedByMarker.map(\.latest).contains {
-            $0.status == .abnormal && !$0.isMarginallyOutOfRange
-        }
-        return clearlyOut ? AppColors.statusRed : AppColors.statusOrange
-    }
-
-    private var statusCounts: (normal: Int, borderline: Int, abnormal: Int) {
-        let latest = groupedByMarker.map(\.latest)
-        return (
-            normal: latest.filter { $0.status == .normal }.count,
-            borderline: latest.filter { $0.status == .borderline }.count,
-            abnormal: latest.filter { $0.status == .abnormal }.count
-        )
-    }
 }
 
-// MARK: - Biomarker Card
+// MARK: - Biomarker Row
 
+/// One lab result: name, status word and previous value; the mono value; and
+/// an inline range bar. Stacks at accessibility text sizes.
 struct BiomarkerCardView: View {
     let biomarker: Biomarker
+    var previous: Biomarker?
     let historyCount: Int
     var isFaded: Bool = false
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Status indicator
-            RoundedRectangle(cornerRadius: 2)
-                .fill(AppColors.biomarkerColor(biomarker))
-                .frame(width: 4)
-                .frame(minHeight: 36)
-                .accessibilityHidden(true)
-
-            // Name, status and value stack at accessibility sizes so names never break mid-word
-            let layout = dynamicTypeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-                : AnyLayout(HStackLayout(spacing: 12))
-
-            layout {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(biomarker.marker)
-                        .font(.subheadline.weight(.medium))
-                    Text(biomarker.testDate, format: .dateTime.month(.abbreviated).day().year())
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 6) {
+                    nameBlock
+                    valueBlock(alignment: .leading)
+                    rangeBlock
                 }
-
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Spacer()
-                }
-
-                StatusBadge(label: biomarker.statusLabel, color: AppColors.biomarkerColor(biomarker))
-
-                VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
-                    Text(AppFormat.number(biomarker.value))
-                        .font(.body.monospacedDigit().bold())
-                    Text(biomarker.unit)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 14) {
+                    nameBlock.frame(maxWidth: .infinity, alignment: .leading)
+                    valueBlock(alignment: .trailing)
+                    rangeBlock.frame(width: 72)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .cardStyle(padding: 12, cornerRadius: 10)
-        .contentShape(RoundedRectangle(cornerRadius: 10))
-        .hoverCard()
-        .opacity(isFaded ? 0.4 : 1.0)
+        .padding(.vertical, 13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .ruled()
+        .contentShape(Rectangle())
+        .opacity(isFaded ? 0.5 : 1.0)
         .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens details")
+    }
+
+    private var statusText: String {
+        switch biomarker.status {
+        case .abnormal: biomarker.rangePosition == .below ? "↓ below range" : "↑ above range"
+        default: biomarker.statusLabel.lowercased()
+        }
+    }
+
+    private var nameBlock: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(biomarker.marker)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(Notebook.ink)
+            HStack(spacing: 0) {
+                StatusWord(text: statusText, color: AppColors.biomarkerWordColor(biomarker))
+                if let previous {
+                    StatusWord(text: " · was \(AppFormat.number(previous.value))")
+                }
+            }
+        }
+    }
+
+    private func valueBlock(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 1) {
+            Text(AppFormat.number(biomarker.value))
+                .font(Notebook.mono(.title3, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(Notebook.ink)
+            Text(biomarker.unit)
+                .font(Notebook.mono(.caption2))
+                .foregroundStyle(Notebook.inkSecondary)
+        }
+    }
+
+    @ViewBuilder
+    private var rangeBlock: some View {
+        if biomarker.lowerLimit != nil || biomarker.upperLimit != nil {
+            MiniRangeBar(value: biomarker.value, low: biomarker.lowerLimit, high: biomarker.upperLimit, color: AppColors.biomarkerColor(biomarker))
+        } else {
+            Color.clear.frame(height: 18)
+        }
     }
 }
 
@@ -663,6 +592,8 @@ struct BiomarkerDetailSheet: View {
 
     let marker: String
     let biomarkers: [Biomarker]
+    /// The session the user tapped; defaults to the latest reading.
+    var focusDate: Date?
 
     @State private var selectedDate: Date?
     @ScaledMetric(relativeTo: .largeTitle) private var heroValueSize: CGFloat = 52
@@ -671,166 +602,144 @@ struct BiomarkerDetailSheet: View {
         biomarkers.filter { $0.marker == marker }.sorted { $0.testDate > $1.testDate }
     }
 
-    private var latest: Biomarker? { history.first }
+    private var focused: Biomarker? {
+        if let focusDate, let match = history.first(where: { Calendar.current.isDate($0.testDate, inSameDayAs: focusDate) }) {
+            return match
+        }
+        return history.first
+    }
+
+    /// "Improving since April" when the oldest reading was outside the range
+    /// and later readings moved back toward it.
+    private var trendTitle: String {
+        guard history.count > 1, let oldest = history.last, let newest = history.first else { return "Across sessions" }
+        let towardRange: Bool
+        if let high = oldest.upperLimit, oldest.value > high { towardRange = newest.value < oldest.value }
+        else if let low = oldest.lowerLimit, oldest.value < low { towardRange = newest.value > oldest.value }
+        else { towardRange = false }
+        return towardRange ? "Improving since \(oldest.testDate.formatted(.dateTime.month(.wide)))" : "Across sessions"
+    }
+
+    private func statusText(_ bio: Biomarker) -> String {
+        switch bio.status {
+        case .abnormal: bio.rangePosition == .below ? "↓ below range" : "↑ above range"
+        default: bio.statusLabel.lowercased()
+        }
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    if let latest {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let latest = focused {
                         // Value + status
-                        VStack(spacing: 6) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(AppFormat.number(latest.value))
-                                .font(.system(size: heroValueSize, weight: .bold, design: .rounded))
+                                .font(.system(size: heroValueSize, weight: .medium, design: .monospaced))
                                 .monospacedDigit()
-                                .minimumScaleFactor(0.7)
+                                .minimumScaleFactor(0.6)
                                 .lineLimit(1)
+                                .foregroundStyle(Notebook.ink)
                                 .contentTransition(.numericText())
-
-                            Text(latest.unit)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.secondary)
-
-                            StatusBadge(label: latest.statusLabel, color: AppColors.biomarkerColor(latest))
+                            Text("\(latest.unit) · \(latest.testDate.formatted(date: .abbreviated, time: .omitted))")
+                                .font(Notebook.mono(.footnote))
+                                .foregroundStyle(Notebook.inkSecondary)
+                            StatusWord(text: statusText(latest), color: AppColors.biomarkerWordColor(latest))
+                                .padding(.top, 6)
                         }
-                        .padding(.vertical, 8)
+                        .notebookBlock()
 
                         // Range bar
                         if latest.lowerLimit != nil || latest.upperLimit != nil {
-                            rangeBar(for: latest)
-                                .cardStyle()
+                            ReferenceRangeBar(
+                                value: latest.value,
+                                low: latest.lowerLimit,
+                                high: latest.upperLimit,
+                                valueColor: AppColors.biomarkerColor(latest),
+                                unit: latest.unit
+                            )
+                            .notebookBlock()
                         }
 
                         // Trend chart
                         if history.count > 1 {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Trend")
-                                    .font(.headline)
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(trendTitle).kicker()
+                                trendChart(latest: latest)
+                            }
+                            .notebookBlock()
+                        }
 
-                                Chart(history.reversed(), id: \.id) { bio in
-                                    LineMark(
-                                        x: .value("Date", bio.testDate),
-                                        y: .value("Value", bio.value)
-                                    )
-                                    .interpolationMethod(.catmullRom)
-                                    .foregroundStyle(Color.secondary.opacity(0.5))
-                                    .lineStyle(StrokeStyle(lineWidth: 2))
-
-                                    PointMark(
-                                        x: .value("Date", bio.testDate),
-                                        y: .value("Value", bio.value)
-                                    )
-                                    .foregroundStyle(AppColors.biomarkerColor(bio))
-                                    .symbolSize(40)
-
-                                    if let selectedDate,
-                                       Calendar.current.isDate(bio.testDate, inSameDayAs: selectedDate) {
-                                        RuleMark(x: .value("Date", bio.testDate))
-                                            .foregroundStyle(Color.secondary.opacity(0.3))
-                                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                                            .annotation(position: .top, spacing: 6) {
-                                                VStack(spacing: 2) {
-                                                    Text(String(format: "%.1f", bio.value) + " " + bio.unit)
-                                                        .font(.caption.weight(.semibold))
-                                                    Text(bio.testDate, format: .dateTime.month(.abbreviated).day().year())
-                                                        .font(.caption2)
-                                                        .foregroundStyle(.secondary)
-                                                }
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 4)
-                                                .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 6))
-                                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.08), lineWidth: 1))
-                                            }
+                        // History
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("History").kicker().padding(.bottom, 8)
+                            ForEach(history, id: \.id) { bio in
+                                ViewThatFits(in: .horizontal) {
+                                    HStack {
+                                        Text(bio.testDate, format: .dateTime.month(.abbreviated).day().year())
+                                        Spacer()
+                                        Text("\(AppFormat.number(bio.value)) \(bio.unit)")
+                                        Text(statusText(bio))
+                                            .foregroundStyle(AppColors.biomarkerWordColor(bio))
+                                            .frame(minWidth: 110, alignment: .trailing)
+                                    }
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(bio.testDate, format: .dateTime.month(.abbreviated).day().year())
+                                        Text("\(AppFormat.number(bio.value)) \(bio.unit) · \(statusText(bio))")
+                                            .foregroundStyle(AppColors.biomarkerWordColor(bio))
                                     }
                                 }
-                                .chartXSelection(value: $selectedDate)
-                                .frame(height: 160)
-                                .accessibilityLabel("\(marker) trend")
-                                .accessibilityValue(ChartSummary.trend(points: history.map { ($0.testDate, $0.value) }, unit: latest.unit))
+                                .font(Notebook.mono(.subheadline))
+                                .foregroundStyle(Notebook.ink)
+                                .padding(.vertical, 9)
+                                .accessibilityElement(children: .combine)
+                                if bio.id != history.last?.id {
+                                    Rectangle().fill(Notebook.rule).frame(height: 1)
+                                }
                             }
-                            .cardStyle()
                         }
+                        .notebookBlock()
 
                         // Educational info
                         if let info = BiomarkerReference.info(for: marker) {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("About This Marker")
-                                    .font(.headline)
-
+                                Text("About this marker").kicker()
                                 Text(info.description)
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Label {
-                                        Text("**Why it matters:** \(info.whyItMatters)")
-                                            .font(.subheadline)
-                                    } icon: {
-                                        Image(systemName: "exclamationmark.circle.fill")
-                                            .foregroundStyle(.orange)
-                                            .font(.caption)
-                                    }
-
-                                    if latest.status != .normal {
-                                        Label {
-                                            Text("**Questions to discuss:** \(info.ifOutOfRange)")
-                                                .font(.subheadline)
-                                        } icon: {
-                                            Image(systemName: "arrow.right.circle.fill")
-                                                .foregroundStyle(.blue)
-                                                .font(.caption)
-                                        }
-                                    }
+                                    .foregroundStyle(Notebook.ink)
+                                Text("Why it matters: \(info.whyItMatters)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Notebook.inkSecondary)
+                                if latest.status != .normal {
+                                    Text("Questions to discuss: \(info.ifOutOfRange)")
+                                        .font(.subheadline)
+                                        .foregroundStyle(Notebook.inkSecondary)
                                 }
-
-                                Text("Educational context only. Reference ranges vary by laboratory and individual; consult a qualified healthcare professional before making medical decisions.")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
                             }
-                            .cardStyle()
+                            .notebookBlock()
                         }
+
+                        Text("Educational context only. Reference ranges vary by laboratory and individual; consult a qualified healthcare professional before making medical decisions.")
+                            .font(Notebook.mono(.caption2))
+                            .foregroundStyle(Notebook.inkSecondary)
+                            .padding(.top, 16)
 
                         // Chat about this marker
                         Button {
-                            // Post notification with marker context so chat can pre-fill
                             let context = "Tell me about my \(marker) level of \(AppFormat.number(latest.value)) \(latest.unit). Is this good? What should I know?"
                             NotificationCenter.default.post(name: .switchToChat, object: context)
                             dismiss()
                         } label: {
-                            Label("Chat about this", systemImage: "bubble.left.fill")
-                                .font(.body.weight(.medium))
-                                .frame(maxWidth: .infinity)
+                            Label("Chat about this", systemImage: "bubble.left")
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-
-                        // History
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("History")
-                                .font(.headline)
-
-                            ForEach(history, id: \.id) { bio in
-                                HStack {
-                                    Text(bio.testDate, format: .dateTime.month(.abbreviated).day().year())
-                                        .font(.subheadline)
-                                    Spacer()
-                                    Text(AppFormat.number(bio.value))
-                                        .font(.subheadline.monospacedDigit().bold())
-                                    Text(bio.unit)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    RangeStatusIcon(position: bio.rangePosition, color: AppColors.biomarkerColor(bio))
-                                }
-                                if bio.id != history.last?.id {
-                                    Divider()
-                                }
-                            }
-                        }
-                        .cardStyle()
+                        .buttonStyle(NotebookSecondaryButtonStyle())
+                        .padding(.top, 20)
                     }
                 }
-                .padding()
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
+            .background(Notebook.paperRaised.ignoresSafeArea())
             .navigationTitle(marker)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -844,14 +753,66 @@ struct BiomarkerDetailSheet: View {
         #endif
     }
 
-    private func rangeBar(for biomarker: Biomarker) -> some View {
-        ReferenceRangeBar(
-            value: biomarker.value,
-            low: biomarker.lowerLimit,
-            high: biomarker.upperLimit,
-            valueColor: AppColors.biomarkerColor(biomarker),
-            unit: biomarker.unit
-        )
+    private func trendChart(latest: Biomarker) -> some View {
+        Chart {
+            if let high = latest.upperLimit {
+                RectangleMark(
+                    yStart: .value("Low", latest.lowerLimit ?? 0),
+                    yEnd: .value("High", high)
+                )
+                .foregroundStyle(Notebook.band.opacity(0.5))
+            }
+
+            ForEach(history.reversed(), id: \.id) { bio in
+                LineMark(
+                    x: .value("Date", bio.testDate),
+                    y: .value("Value", bio.value)
+                )
+                .foregroundStyle(Notebook.ink)
+                .lineStyle(StrokeStyle(lineWidth: 1.5))
+
+                PointMark(
+                    x: .value("Date", bio.testDate),
+                    y: .value("Value", bio.value)
+                )
+                .foregroundStyle(AppColors.biomarkerColor(bio))
+                .symbol(.square)
+                .symbolSize(44)
+
+                if let selectedDate, Calendar.current.isDate(bio.testDate, inSameDayAs: selectedDate) {
+                    RuleMark(x: .value("Date", bio.testDate))
+                        .foregroundStyle(Notebook.inkTertiary)
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        .annotation(position: .top, spacing: 6) {
+                            Text("\(AppFormat.number(bio.value)) \(bio.unit)")
+                                .font(Notebook.mono(.caption, weight: .medium))
+                                .foregroundStyle(Notebook.ink)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Notebook.paperRaised)
+                                .overlay(Rectangle().stroke(Notebook.rule, lineWidth: 1))
+                        }
+                }
+            }
+        }
+        .chartXSelection(value: $selectedDate)
+        .chartXScale(range: .plotDimension(startPadding: 12, endPadding: 28))
+        .chartXAxis {
+            AxisMarks(values: history.map(\.testDate)) { _ in
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    .font(Notebook.mono(.caption2))
+                    .foregroundStyle(Notebook.inkSecondary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(Notebook.rule)
+                AxisValueLabel().font(Notebook.mono(.caption2)).foregroundStyle(Notebook.inkSecondary)
+            }
+        }
+        .frame(height: 160)
+        .accessibilityLabel("\(marker) trend")
+        .accessibilityValue(ChartSummary.trend(points: history.map { ($0.testDate, $0.value) }, unit: latest.unit))
     }
 }
 

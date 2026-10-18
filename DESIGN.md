@@ -2,6 +2,8 @@
 
 Aura is a calm, native iPhone health dashboard. The interface should make dense personal information legible without looking clinical, alarming, or gamified.
 
+The visual direction is **Notebook**: a personal lab notebook. Ink on paper, numbers in SF Mono, hairline rules instead of cards, and one signal color for results that need attention. It was chosen on 2026-10-18 after comparing three directions; the prototypes are in `design/prototypes/`.
+
 ## Principles
 
 1. **Personal, not diagnostic.** Show records, trends, and educational context without presenting medical conclusions.
@@ -20,41 +22,45 @@ Aura is a calm, native iPhone health dashboard. The interface should make dense 
 
 ## Visual language
 
-- Default to system light and dark appearances; do not force a theme.
-- Use the system background as the canvas.
-- Use regular material or secondary system backgrounds for cards.
-- Standard card radius: 14 points.
-- Standard card padding: 16 points.
-- Borders are subtle, normally `Color.primary.opacity(0.06)`.
-- The app accent is the system accent blue. Health categories may use semantic supporting colors.
+- Tokens live in `AuraHealth/App/Notebook.swift`. Use them instead of system colors on Aura's own screens.
+- Canvas: `Notebook.paper` (warm off-white, near-black in dark mode). Sheets use `Notebook.paperRaised`.
+- Text: `Notebook.ink`, `inkSecondary` and `inkTertiary`. All meet WCAG AA on paper in both modes; tertiary is for inactive tabs and placeholders only.
+- Structure comes from hairline rules (`.ruled()`) and spacing, not cards, shadows or materials. `cardStyle` remains for secondary screens as a flat raised-paper surface with a hairline.
+- System chrome (tab bar, toolbar, sheets) stays native Liquid Glass. The app tint is ink. Do not restyle bars.
+- No decorative color. Category colors, colored icon tiles and per-metric chart colors are gone; icons are monochrome ink.
 
 ## Status colors
 
-- Green: in range, complete, or safely configured.
-- Orange: borderline, incomplete, or needs attention.
-- Red: out of range or destructive action.
-- Gray: unavailable, unknown, or neutral.
+- Ink: in range or neutral. In-range status words use `inkSecondary` so they read quietly.
+- Signal (`Notebook.signal`, burnt orange): outside a range, or clearly outside a lab reference range.
+- Amber (`Notebook.near`): near a limit, or just outside it (within the 10% borderline margin).
+- There is no green. Being in range is the default state, not an achievement.
 
-Every status also needs a label, icon, value, or pattern. A red or green dot alone is insufficient.
+Every status also needs a word: "in range", "near limit", "↑ above range", "↓ below range". Color only adds emphasis.
 
 ## Typography
 
-- Screen titles use native large-title navigation styling.
-- Section headings use `.headline` or `.title3.bold()`.
-- Primary values are visually dominant and use tabular numbers when comparison matters.
-- Supporting explanations use `.subheadline` or `.caption` with secondary foreground style.
+- Screen titles use native large-title navigation styling (SF Pro).
+- Names, sentences and explanations use SF Pro text styles.
+- Numbers, units, dates, status words and labels use SF Mono via `Notebook.mono(_:)`, always with Dynamic Type text styles.
+- Small labels ("kickers") are uppercase mono with light tracking: `.kicker()`.
+- Primary values are the largest mono text on a row or page; units sit beside or under them in secondary ink.
 - Do not lock explanatory health text to a single line.
 
 ## Components
 
-- `cardStyle`: grouped health summaries and detail surfaces.
-- `StatusBadge`: short labeled states such as In Range or Access Requested.
-- `FilterPill`: time ranges and compact filters.
-- `PillSegmentedPicker`: small mutually exclusive choices.
+- `UnderlineTabs`: mono uppercase tabs with one sliding underline (250 ms). Use for time ranges, lab sessions and view modes.
+- `NotebookSectionHeader`: uppercase label, optional trailing count, hairline below.
+- `NoteLine`: an insight or warning written as a line ("NOTE … Dismiss"), not a banner.
+- `BigNumber`: a large mono value with a quiet suffix ("15/16 in range").
+- `StatusWord`: the mono status text next to a value.
+- `ReferenceRangeBar` and `MiniRangeBar`: the band is the range, a tick marks the value, labels sit at the band edges. Pass `nil` for a missing limit.
+- `BarSparkline`: small bars, latest bar solid. Pass `floor` for bounded scores.
+- `NotebookPrimaryButtonStyle` / `NotebookSecondaryButtonStyle`: filled ink and hairline-outlined buttons.
 - `EmptyStateView`: explanation plus one primary action.
 - `InlineErrorBanner`: recoverable errors without modal interruption.
 
-Prefer these existing primitives before creating another local variant.
+Prefer these primitives before creating another local variant.
 
 ## Navigation
 

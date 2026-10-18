@@ -62,19 +62,13 @@ struct VitalsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(Date(), format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).year())
+                    .kicker()
+                    .padding(.bottom, 10)
+
                 // Range picker
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(VitalsRange.allCases) { range in
-                            FilterPill(label: range.rawValue, isActive: selectedRange == range) {
-                                withAnimation(AppAnimation.viewSwitch) {
-                                    selectedRange = range
-                                }
-                            }
-                        }
-                    }
-                }
+                UnderlineTabs(options: VitalsRange.allCases, selection: $selectedRange) { $0.rawValue }
 
                 if selectedRange == .today {
                     todayContent
@@ -82,9 +76,10 @@ struct VitalsView: View {
                     trendsContent
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
+        .notebookBackground()
         .navigationTitle("Vitals")
         .toolbar {
             ToolbarItem(placement: .automatic) {
@@ -138,16 +133,8 @@ struct VitalsView: View {
     }
 
     private var todayContent: some View {
-        VStack(spacing: 16) {
-            // Date header
-            HStack {
-                Text(Date(), format: .dateTime.weekday(.wide).month(.wide).day())
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-
-            // 1. Daily Health Score — full width hero
+        VStack(alignment: .leading, spacing: 0) {
+            // 1. Daily Health summary
             HealthScoreHeroCard(
                 score: dailyHealthScore,
                 recentScores: recentHealthScores,
@@ -155,42 +142,56 @@ struct VitalsView: View {
             )
             .staggeredAppearance(index: 0)
 
-            // 2. Insights — stacked card deck (swipe to dismiss)
+            // 2. Insights: one note at a time, dismiss to see the next
             let insights = activeInsights
-            if !insights.isEmpty {
-                InsightCardStack(insights: insights) { message in
+            if let first = insights.first {
+                NoteLine(text: first.message, tag: insights.count > 1 ? "Note 1/\(insights.count)" : "Note") {
                     withAnimation(AppAnimation.appear) {
-                        dismissInsight(message)
+                        dismissInsight(first.message)
                     }
                 }
+                .id(first.message)
+                .transition(.opacity)
                 .staggeredAppearance(index: 1)
             }
 
-            // 3. Vitals grid
-            LazyVGrid(columns: gridColumns, spacing: 14) {
-                ForEach(Array(todayVisibleMetrics.enumerated()), id: \.element) { index, metricType in
-                    MetricCardView(
-                        metricType: metricType,
-                        latest: latestMeasurement(for: metricType),
-                        previous: previousMeasurement(for: metricType),
-                        recentValues: recentValues(for: metricType, days: 7),
-                        onAdd: {
-                            if latestMeasurement(for: metricType) != nil {
-                                detailMetricType = metricType
-                            } else {
-                                selectedMetricType = metricType
-                            }
-                        }
-                    )
-                    .contextMenu {
-                        Button {
+            // 3. Vitals table
+            HStack {
+                Text("Measure")
+                Spacer()
+                Text("Latest")
+                    .frame(alignment: .trailing)
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Text("Trend").frame(width: 64, alignment: .leading)
+                }
+            }
+            .kicker(Notebook.inkTertiary)
+            .padding(.top, 20)
+            .padding(.bottom, 8)
+            .accessibilityHidden(true)
+
+            ForEach(Array(todayVisibleMetrics.enumerated()), id: \.element) { index, metricType in
+                MetricCardView(
+                    metricType: metricType,
+                    latest: latestMeasurement(for: metricType),
+                    previous: previousMeasurement(for: metricType),
+                    recentValues: recentValues(for: metricType, days: 7),
+                    onAdd: {
+                        if latestMeasurement(for: metricType) != nil {
+                            detailMetricType = metricType
+                        } else {
                             selectedMetricType = metricType
-                        } label: {
-                            Label("Add Measurement", systemImage: "plus")
                         }
                     }
-                    .staggeredAppearance(index: index + insights.count + 2)
+                )
+                .contextMenu {
+                    Button {
+                        selectedMetricType = metricType
+                    } label: {
+                        Label("Add Measurement", systemImage: "plus")
+                    }
                 }
+                .staggeredAppearance(index: index + 2)
             }
         }
     }
@@ -198,7 +199,7 @@ struct VitalsView: View {
     // MARK: - Trends Content (charts for selected range)
 
     private var trendsContent: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 0) {
             let filtered = filteredMeasurements()
             if filtered.isEmpty {
                 EmptyStateView(
@@ -215,7 +216,7 @@ struct VitalsView: View {
                     if aHasData != bHasData { return aHasData }
                     return false
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 300, maximum: 520))], spacing: 14) {
+                LazyVStack(spacing: 0) {
                     ForEach(Array(sortedMetrics.enumerated()), id: \.element) { index, metricType in
                         let data = filteredMeasurements(for: metricType)
                         if !data.isEmpty {
@@ -239,17 +240,6 @@ struct VitalsView: View {
             }
             return typeMatch && dateMatch
         }
-    }
-
-    private var gridColumns: [GridItem] {
-        #if os(macOS)
-        [GridItem(.adaptive(minimum: 300, maximum: 520), spacing: 14)]
-        #else
-        // One column at accessibility text sizes so values and labels never clip
-        dynamicTypeSize.isAccessibilitySize
-            ? [GridItem(.flexible())]
-            : [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
-        #endif
     }
 
     // MARK: - Auto-only Metrics (hide when no data)
@@ -429,58 +419,44 @@ struct HealthScoreHeroCard: View {
     let recentScores: [Double]
     var contributors: String = "No data yet"
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .title) private var ringSize: CGFloat = 96
-
-    private var scoreColor: Color {
-        AppColors.scoreColor(for: score)
-    }
-
     var body: some View {
-        // Ring above the text at accessibility sizes, beside it otherwise
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
-            : AnyLayout(HStackLayout(spacing: 16))
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Daily health").kicker()
 
-        layout {
-            // Ring
-            HealthScoreRingView(score: score, label: "Health", size: min(ringSize, 160))
-
-            // Details
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Daily Health")
-                    .font(.headline)
-
-                if score > 0 {
-                    Text(scoreLabel)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(scoreColor)
-
-                    // 7-day sparkline
-                    if recentScores.count >= 2 {
-                        SparklineView(values: recentScores, color: scoreColor)
-                            .frame(height: 28)
-                            .clipped()
-                            .accessibilityLabel("Daily Health, last 7 days")
-                            .accessibilityValue(ChartSummary.direction(from: recentScores.first ?? 0, to: recentScores.last ?? 0))
-                    }
-
-                    Text(contributors)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                } else {
-                    Text("No data yet")
-                        .font(.subheadline)
-                        .foregroundStyle(.quaternary)
-                    Text("Connect a data source to see your score")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+            if score > 0 {
+                HStack(alignment: .firstTextBaseline) {
+                    BigNumber(value: "\(Int(score))", suffix: "/100")
+                    Spacer()
+                    Text(scoreLabel).kicker()
                 }
+
+                // Last 7 days, today solid
+                if recentScores.count >= 2 {
+                    BarSparkline(values: recentScores, floor: 40)
+                        .frame(height: 22)
+                        .padding(.top, 4)
+                        .accessibilityLabel("Daily health, last 7 days")
+                        .accessibilityValue(ChartSummary.direction(from: recentScores.first ?? 0, to: recentScores.last ?? 0))
+                }
+
+                Text(contributors)
+                    .font(Notebook.mono(.caption))
+                    .foregroundStyle(Notebook.inkSecondary)
+                    .padding(.top, 4)
+            } else {
+                Text("No data yet")
+                    .font(Notebook.mono(.title3))
+                    .foregroundStyle(Notebook.inkSecondary)
+                Text("Connect Apple Health or add a measurement to see your score.")
+                    .font(.footnote)
+                    .foregroundStyle(Notebook.inkSecondary)
             }
         }
+        .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle(padding: 16, cornerRadius: 14)
-        .hoverCard()
+        .ruled()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(score > 0 ? "Daily health \(Int(score)) out of 100, \(scoreLabel)" : "Daily health, no data yet")
     }
 
     private var scoreLabel: String {
@@ -497,131 +473,6 @@ struct SuggestedStep {
     enum StepType { case warning, suggestion, info }
     let type: StepType
     let message: String
-}
-
-// MARK: - Insight Card Stack (WHOOP-style)
-
-struct InsightCardStack: View {
-    let insights: [SuggestedStep]
-    let onDismiss: (String) -> Void
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            // Background cards (show actual content)
-            ForEach(Array(insights.enumerated().reversed()), id: \.element.message) { index, step in
-                if index > 0 && index <= 2 {
-                    InsightCard(step: step, interactive: false) {}
-                        .offset(y: CGFloat(index) * 4)
-                        .scaleEffect(1.0 - CGFloat(index) * 0.03, anchor: .top)
-                        .opacity(1.0 - Double(index) * 0.25)
-                        .allowsHitTesting(false)
-                }
-            }
-
-            // Top card (interactive)
-            if let topInsight = insights.first {
-                InsightCard(step: topInsight) {
-                    onDismiss(topInsight.message)
-                }
-                .transition(.asymmetric(
-                    insertion: .identity,
-                    removal: .move(edge: .leading).combined(with: .opacity)
-                ))
-                .id(topInsight.message)
-            }
-        }
-        .padding(.bottom, min(CGFloat(insights.count - 1), 2) * 4)
-    }
-}
-
-struct InsightCard: View {
-    let step: SuggestedStep
-    var interactive: Bool = true
-    let onDismiss: () -> Void
-
-    @State private var dragOffset: CGFloat = 0
-    @ScaledMetric(relativeTo: .footnote) private var iconSize: CGFloat = 26
-
-    private func animateDismiss() {
-        withAnimation(.easeIn(duration: 0.2)) {
-            dragOffset = -400
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            onDismiss()
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: iconName)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: iconSize, height: iconSize)
-                .background(iconColor, in: RoundedRectangle(cornerRadius: 6))
-                .accessibilityHidden(true)
-
-            Text(step.message)
-                .font(.subheadline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if interactive {
-                Button {
-                    animateDismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 22, height: 22)
-                        .background(Color.primary.opacity(0.06), in: Circle())
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss Insight")
-            }
-        }
-        .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        )
-        .offset(x: interactive ? dragOffset : 0)
-        .opacity(interactive ? 1.0 - Double(abs(dragOffset)) / 300.0 : 1.0)
-        .gesture(
-            DragGesture(minimumDistance: interactive ? 10 : .infinity)
-                .onChanged { value in
-                    if value.translation.width < 0 {
-                        dragOffset = value.translation.width
-                    }
-                }
-                .onEnded { value in
-                    if value.translation.width < -100 {
-                        animateDismiss()
-                    } else {
-                        withAnimation(.spring(response: 0.3)) {
-                            dragOffset = 0
-                        }
-                    }
-                }
-        )
-    }
-
-    private var iconName: String {
-        switch step.type {
-        case .warning: "exclamationmark.triangle.fill"
-        case .suggestion: "lightbulb.fill"
-        case .info: "info.circle.fill"
-        }
-    }
-
-    private var iconColor: Color {
-        switch step.type {
-        case .warning: .orange
-        case .suggestion: .blue
-        case .info: .secondary
-        }
-    }
 }
 
 // MARK: - Add Measurement Sheet

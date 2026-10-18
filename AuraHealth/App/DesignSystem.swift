@@ -66,20 +66,25 @@ enum AppColors {
     // Biomarker status
     static func biomarkerColor(_ status: BiomarkerStatus) -> Color {
         switch status {
-        case .normal: .green
-        case .borderline: .orange
-        case .abnormal: .red
-        case .unknown: .gray
+        case .normal: Notebook.ink
+        case .borderline: Notebook.near
+        case .abnormal: Notebook.signal
+        case .unknown: Notebook.inkTertiary
         }
     }
 
-    /// Color for one result: values just outside the range use orange, so red
-    /// is kept for results clearly outside it.
+    /// Color for one result: values just outside the range use amber, so the
+    /// signal color is kept for results clearly outside it.
     static func biomarkerColor(_ biomarker: Biomarker) -> Color {
         if biomarker.status == .abnormal && biomarker.isMarginallyOutOfRange {
-            return statusOrange
+            return Notebook.near
         }
         return biomarkerColor(biomarker.status)
+    }
+
+    /// Color for a status word: in range reads quietly, flags stand out.
+    static func biomarkerWordColor(_ biomarker: Biomarker) -> Color {
+        biomarker.status == .normal ? Notebook.inkSecondary : biomarkerColor(biomarker)
     }
 }
 
@@ -106,13 +111,18 @@ enum AppFormat {
 // MARK: - Range Position
 
 extension RangePosition {
-    /// Neutral-to-attention colors; in range stays green, outside is orange.
+    /// Ink when in range, the signal color when outside.
     var color: Color {
         switch self {
-        case .within: AppColors.statusGreen
-        case .below, .above: AppColors.statusOrange
-        case .unknown: .gray
+        case .within: Notebook.ink
+        case .below, .above: Notebook.signal
+        case .unknown: Notebook.inkTertiary
         }
+    }
+
+    /// Color for the status word next to a value.
+    var wordColor: Color {
+        self == .within ? Notebook.inkSecondary : color
     }
 
     var label: String {
@@ -219,58 +229,44 @@ struct ReferenceRangeBar: View {
     var unit: String = ""
     var title: String = "Reference range"
 
-    @ScaledMetric(relativeTo: .caption2) private var barHeight: CGFloat = 8
-    @ScaledMetric(relativeTo: .caption2) private var dotSize: CGFloat = 14
+    @ScaledMetric(relativeTo: .caption2) private var tickHeight: CGFloat = 18
     @ScaledMetric(relativeTo: .caption2) private var labelHeight: CGFloat = 16
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let scale = RangeScale(value: value, low: low, high: high)
+        VStack(alignment: .leading, spacing: 8) {
             GeometryReader { geo in
                 let width = geo.size.width
-                let bandStart = x(for: low ?? domain.lowerBound, width: width)
-                let bandEnd = x(for: high ?? domain.upperBound, width: width)
-                let valueX = x(for: value, width: width)
-
+                let bandStart = scale.x(low ?? scale.lower) * width
+                let bandEnd = scale.x(high ?? scale.upper) * width
                 ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.primary.opacity(0.08))
-                        .frame(height: barHeight)
-
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: low == nil ? barHeight / 2 : 0,
-                        bottomLeadingRadius: low == nil ? barHeight / 2 : 0,
-                        bottomTrailingRadius: high == nil ? barHeight / 2 : 0,
-                        topTrailingRadius: high == nil ? barHeight / 2 : 0
-                    )
-                    .fill(AppColors.statusGreen.opacity(0.35))
-                    .frame(width: max(bandEnd - bandStart, 2), height: barHeight)
-                    .offset(x: bandStart)
-
-                    Circle()
-                        .fill(valueColor)
-                        .overlay(Circle().stroke(.background, lineWidth: 2))
-                        .frame(width: dotSize, height: dotSize)
-                        .offset(x: min(max(valueX - dotSize / 2, 0), width - dotSize))
+                    Rectangle().fill(Notebook.track).frame(height: 4)
+                    Rectangle().fill(Notebook.band)
+                        .frame(width: max(bandEnd - bandStart, 2), height: 4)
+                        .offset(x: bandStart)
+                    Rectangle().fill(valueColor)
+                        .frame(width: 4, height: tickHeight)
+                        .offset(x: min(max(scale.x(value) * width - 2, 0), width - 4))
                 }
-                .frame(height: dotSize)
+                .frame(maxHeight: .infinity)
             }
-            .frame(height: dotSize)
+            .frame(height: tickHeight)
 
             // Limit labels, placed under the band edges they describe
             GeometryReader { geo in
                 let width = geo.size.width
                 if let low {
-                    limitLabel(low, x: x(for: low, width: width), width: width)
+                    limitLabel(low, x: scale.x(low) * width, width: width)
                 }
                 if let high {
-                    limitLabel(high, x: x(for: high, width: width), width: width)
+                    limitLabel(high, x: scale.x(high) * width, width: width)
                 }
             }
             .frame(height: labelHeight)
 
             Text("\(title): \(AppFormat.range(low: low, high: high, unit: unit))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(Notebook.mono(.caption))
+                .foregroundStyle(Notebook.inkSecondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
@@ -279,29 +275,10 @@ struct ReferenceRangeBar: View {
 
     private func limitLabel(_ limit: Double, x: CGFloat, width: CGFloat) -> some View {
         Text(AppFormat.number(limit))
-            .font(.caption2.monospacedDigit())
-            .foregroundStyle(.secondary)
+            .font(Notebook.mono(.caption2))
+            .foregroundStyle(Notebook.inkSecondary)
             .fixedSize()
             .position(x: min(max(x, 14), width - 14), y: labelHeight / 2)
-    }
-
-    /// Visible scale: the range plus padding, widened to include the value.
-    /// With no lower limit the scale starts at zero for positive ranges.
-    private var domain: ClosedRange<Double> {
-        let anchorLow = low ?? min(0, value)
-        let anchorHigh = high ?? max((low ?? 0) * 2, value)
-        let span = max(anchorHigh - anchorLow, abs(anchorHigh) * 0.1, 0.0001)
-        let padding = span * 0.3
-        var lower = low == nil ? anchorLow : anchorLow - padding
-        var upper = anchorHigh + padding
-        lower = min(lower, value - span * 0.05)
-        upper = max(upper, value + span * 0.05)
-        return lower...upper
-    }
-
-    private func x(for v: Double, width: CGFloat) -> CGFloat {
-        let fraction = (v - domain.lowerBound) / (domain.upperBound - domain.lowerBound)
-        return CGFloat(min(max(fraction, 0), 1)) * width
     }
 
     private var accessibilityValue: String {
@@ -320,6 +297,7 @@ struct ReferenceRangeBar: View {
 
 // MARK: - Card Style Modifier
 
+/// Notebook surfaces are flat: raised paper and a hairline, no material or shadow.
 struct CardStyle: ViewModifier {
     var padding: CGFloat = 16
     var cornerRadius: CGFloat = 14
@@ -327,16 +305,8 @@ struct CardStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            #if os(macOS)
-            .background(AppColors.cardBackground, in: RoundedRectangle(cornerRadius: cornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(AppColors.cardBorder, lineWidth: 1))
-            .shadow(color: .black.opacity(0.10), radius: 8, y: 3)
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            #else
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
-            .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Color.primary.opacity(0.06), lineWidth: 0.5))
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-            #endif
+            .background(Notebook.paperRaised, in: RoundedRectangle(cornerRadius: cornerRadius))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius).stroke(Notebook.rule, lineWidth: 1))
     }
 }
 
@@ -418,6 +388,8 @@ struct SectionHeader: View {
 
 // MARK: - Status Badge
 
+/// A short labeled state, written as a mono word. `style` is kept for
+/// compatibility; outlined badges get a hairline box.
 struct StatusBadge: View {
     let label: String
     let color: Color
@@ -429,26 +401,19 @@ struct StatusBadge: View {
 
     var body: some View {
         Text(label)
-            .font(.caption2.weight(.medium))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(
-                style == .filled
-                    ? AnyShapeStyle(color.opacity(0.12))
-                    : AnyShapeStyle(Color.clear),
-                in: Capsule()
-            )
-            .overlay(
-                style == .outlined
-                    ? Capsule().stroke(color.opacity(0.3), lineWidth: 1)
-                    : nil
-            )
+            .font(Notebook.mono(.caption2, weight: .medium))
+            .textCase(.lowercase)
+            .padding(.horizontal, style == .outlined ? 6 : 0)
+            .padding(.vertical, style == .outlined ? 2 : 0)
+            .overlay(style == .outlined ? Rectangle().stroke(color.opacity(0.4), lineWidth: 1) : nil)
             .foregroundStyle(color)
     }
 }
 
 // MARK: - Filter Pill
 
+/// A mono, uppercase filter in the notebook tab style: ink and underlined when
+/// active, secondary otherwise. 44 pt tall.
 struct FilterPill: View {
     let label: String
     let isActive: Bool
@@ -457,65 +422,32 @@ struct FilterPill: View {
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(.subheadline.weight(isActive ? .semibold : .regular))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(isActive ? Color.accentColor.opacity(0.16) : Color.secondary.opacity(0.08), in: Capsule())
-                .overlay(isActive ? Capsule().stroke(Color.accentColor.opacity(0.2), lineWidth: 1) : nil)
-                .foregroundStyle(isActive ? Color.accentColor : .secondary)
+                .font(Notebook.mono(.footnote))
+                .tracking(0.6)
+                .textCase(.uppercase)
+                .foregroundStyle(isActive ? Notebook.ink : Notebook.inkTertiary)
+                .padding(.horizontal, 2)
+                .frame(minHeight: 44)
+                .overlay(alignment: .bottom) {
+                    if isActive { Rectangle().fill(Notebook.ink).frame(height: 2) }
+                }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .contentShape(Capsule())
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }
 
 // MARK: - Pill Segmented Picker
 
+/// Small mutually exclusive choices, drawn as notebook underline tabs.
 struct PillSegmentedPicker<T: Hashable>: View {
     let options: [T]
     @Binding var selection: T
     let label: (T) -> String
 
-    @Namespace private var pillNS
-
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(options.enumerated()), id: \.element) { index, option in
-                let isSelected = selection == option
-                Button {
-                    withAnimation(AppAnimation.viewSwitch) {
-                        selection = option
-                    }
-                } label: {
-                    Text(label(option))
-                        .font(.subheadline.weight(isSelected ? .medium : .regular))
-                        .foregroundStyle(isSelected ? .primary : .secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity)
-                        .background {
-                            if isSelected {
-                                Capsule()
-                                    .fill(.background)
-                                    .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
-                                    .matchedGeometryEffect(id: "pill", in: pillNS)
-                            }
-                        }
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-
-                // Divider between non-selected items
-                let nextIsSelected = index + 1 < options.count && selection == options[index + 1]
-                if index < options.count - 1 && !isSelected && !nextIsSelected {
-                    Divider()
-                        .frame(height: 14)
-                        .opacity(0.3)
-                }
-            }
-        }
-        .padding(3)
-        .background(Color.primary.opacity(0.06), in: Capsule())
+        UnderlineTabs(options: options, selection: $selection, label: label)
     }
 }
 
@@ -599,14 +531,16 @@ struct EmptyStateView: View {
         VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 48, weight: .thin))
-                .foregroundStyle(.secondary.opacity(0.5))
+                .foregroundStyle(Notebook.inkTertiary)
+                .accessibilityHidden(true)
 
             Text(title)
                 .font(.title3.weight(.medium))
+                .foregroundStyle(Notebook.ink)
 
             Text(message)
                 .font(.body)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Notebook.inkSecondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 300)
 
@@ -619,8 +553,8 @@ struct EmptyStateView: View {
 
             if let chatHint {
                 Label(chatHint, systemImage: "bubble.left.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(Notebook.mono(.caption))
+                    .foregroundStyle(Notebook.inkSecondary)
                     .padding(.top, 6)
             }
         }

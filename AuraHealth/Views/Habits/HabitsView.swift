@@ -1,6 +1,42 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - Habit day helpers
+
+extension Habit {
+    /// The log for a calendar day, if any.
+    func log(on day: Date) -> HabitLog? {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: day)
+        return (logs ?? []).first { cal.startOfDay(for: $0.date) == start }
+    }
+
+    /// Consecutive done days ending today, or ending yesterday when today has
+    /// no entry yet (so an unlogged morning doesn't reset the streak).
+    var currentStreak: Int {
+        let cal = Calendar.current
+        var day = cal.startOfDay(for: Date())
+        if log(on: day) == nil { day = cal.date(byAdding: .day, value: -1, to: day)! }
+        var count = 0
+        while let entry = log(on: day), entry.done {
+            count += 1
+            day = cal.date(byAdding: .day, value: -1, to: day)!
+        }
+        return count
+    }
+
+    /// Share of the last `days` days (before today) marked done, 0–100.
+    func doneRate(lastDays days: Int) -> Int {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let done = (1...days).filter { offset in
+            guard let day = cal.date(byAdding: .day, value: -offset, to: today) else { return false }
+            return log(on: day)?.done == true
+        }.count
+        return Int((Double(done) / Double(days) * 100).rounded())
+    }
+}
+
 // MARK: - Tracking View (Habits + Adherence)
 
 struct HabitsView: View {
@@ -19,10 +55,11 @@ struct HabitsView: View {
     @State private var lastToggledHabitID: UUID?
     @State private var draggingHabit: Habit?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .subheadline) private var scaledDayColumnWidth: CGFloat = 36
+    @ScaledMetric(relativeTo: .subheadline) private var scaledDayColumnWidth: CGFloat = 44
 
-    /// Day columns grow with text size up to a cap so five days always fit.
-    private var dayColumnWidth: CGFloat { min(scaledDayColumnWidth, 50) }
+    /// Day columns are 44 pt touch targets that grow with text size up to a cap
+    /// so five days always fit.
+    private var dayColumnWidth: CGFloat { min(scaledDayColumnWidth, 52) }
 
     private var activeHabits: [Habit] {
         allHabits.filter(\.active)
@@ -33,23 +70,31 @@ struct HabitsView: View {
         return GridSection.allCases.filter { grouped[$0]?.isEmpty == false }
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            PillSegmentedPicker(
-                options: [0, 1],
-                selection: $selectedTab,
-                label: { $0 == 0 ? "Daily Grid" : "Adherence" }
-            )
-            .padding()
+    private var doneTodayCount: Int {
+        activeHabits.filter { $0.log(on: Date())?.done == true }.count
+    }
 
-            ScrollView {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(Date().formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))) · \(doneTodayCount) of \(activeHabits.count) done today")
+                    .kicker()
+                    .padding(.bottom, 10)
+
+                UnderlineTabs(options: [0, 1], selection: $selectedTab) { $0 == 0 ? "Daily" : "Adherence" }
+
                 if selectedTab == 0 {
                     dailyGridTab
                 } else {
                     adherenceTab
                 }
             }
+            .frame(maxWidth: 700, alignment: .leading)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
+        .notebookBackground()
         .navigationTitle("Habits")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -85,10 +130,6 @@ struct HabitsView: View {
             } else {
                 // Day columns header
                 dayColumnsHeader
-                    .padding(.horizontal)
-
-                Divider()
-                    .padding(.horizontal)
 
                 // Habit rows grouped by section with drag and drop.
                 let manualGrouped = Dictionary(grouping: activeHabits, by: \.gridSection)
@@ -123,17 +164,12 @@ struct HabitsView: View {
                                         moveHabit(source, to: habit)
                                         return true
                                     }
-                                Divider()
-                                    .padding(.leading, 16)
                             }
                         }
                     }
                 }
             }
         }
-        .frame(maxWidth: 700)
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 20)
     }
 
     // MARK: - Drag & Drop
@@ -186,65 +222,42 @@ struct HabitsView: View {
                 let cal = Calendar.current
                 let isToday = cal.isDateInToday(date)
                 VStack(spacing: 2) {
-                    Text(date, format: .dateTime.weekday(.abbreviated))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(isToday ? Color.accentColor : Color.secondary.opacity(0.6))
+                    Text(String(date.formatted(.dateTime.weekday(.abbreviated)).prefix(2)))
+                        .font(Notebook.mono(.caption2, weight: isToday ? .semibold : .regular))
                         .textCase(.uppercase)
                     Text("\(cal.component(.day, from: date))")
-                        .font(.caption.weight(isToday ? .bold : .medium))
-                        .foregroundStyle(isToday ? Color.accentColor : .secondary)
+                        .font(Notebook.mono(.footnote, weight: isToday ? .semibold : .regular))
+                        .overlay(alignment: .bottom) {
+                            if isToday { Rectangle().fill(Notebook.ink).frame(height: 2).offset(y: 3) }
+                        }
                 }
+                .foregroundStyle(isToday ? Notebook.ink : Notebook.inkTertiary)
                 #if os(macOS)
                 .frame(width: 32)
                 #else
                 .frame(width: dayColumnWidth)
                 #endif
-                .opacity(isToday ? 1.0 : 0.5)
                 .accessibilityElement(children: .combine)
                 // Grid chrome stops growing at the largest standard size
                 .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
         }
-        .padding(.vertical, 10)
-    }
-
-    /// Returns the SF Symbol name for a time-of-day section.
-    private func iconName(for section: GridSection) -> String {
-        switch section {
-        case .any:       "clock.fill"
-        case .morning:   "sunrise.fill"
-        case .afternoon: "sun.max.fill"
-        case .evening:   "sunset.fill"
-        case .night:     "moon.stars.fill"
-        }
-    }
-
-    /// Returns the accent color for a time-of-day section.
-    private func iconColor(for section: GridSection) -> Color {
-        switch section {
-        case .any:       .gray
-        case .morning:   .orange
-        case .afternoon: .yellow
-        case .evening:   .pink
-        case .night:     .indigo
-        }
+        .padding(.vertical, 12)
+        .ruled()
     }
 
     private func sectionHeader(_ section: GridSection) -> some View {
-        HStack(spacing: 6) {
-            // Section icon gives a quick visual cue of the time of day.
-            Image(systemName: iconName(for: section))
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(iconColor(for: section))
-            Text(section.displayName.uppercased())
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .tracking(0.6)
+        let habits = activeHabits.filter { $0.gridSection == section }
+        let done = habits.filter { $0.log(on: Date())?.done == true }.count
+        return HStack(alignment: .firstTextBaseline) {
+            Text(section.displayName).kicker()
             Spacer()
+            Text("\(done)/\(habits.count) today").kicker()
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 4)
+        .padding(.top, 22)
+        .padding(.bottom, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 
     private func habitRow(_ habit: Habit) -> some View {
@@ -258,16 +271,17 @@ struct HabitsView: View {
             Button {
                 editingHabit = habit
             } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "pencil")
-                        .font(.caption2)
-                        .foregroundStyle(.quaternary)
+                VStack(alignment: .leading, spacing: 2) {
                     Text(habit.name)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(Notebook.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text((habit.trackingType == .quantity && !habit.unit.isEmpty ? "\(habit.unit) · " : "") + "streak \(habit.currentStreak)d")
+                        .font(Notebook.mono(.caption2))
+                        .foregroundStyle(Notebook.inkSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 8)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Edit \(habit.name)")
@@ -291,20 +305,21 @@ struct HabitsView: View {
                     #else
                     .frame(width: dayColumnWidth, height: dayColumnWidth)
                     #endif
-                    .opacity(isToday ? 1.0 : 0.5)
+                    .opacity(isToday ? 1.0 : 0.62)
                 }
             }
             .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 6)
+        .frame(minHeight: 52)
+        .ruled()
         .contentShape(Rectangle())
     }
 
     // MARK: - Adherence Tab
 
     private var adherenceTab: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
             if activeHabits.isEmpty {
                 EmptyStateView(
                     icon: "checkmark.circle",
@@ -312,15 +327,22 @@ struct HabitsView: View {
                     message: "Add habits to see your adherence stats."
                 )
             } else {
-                ForEach(Array(activeHabits.enumerated()), id: \.element.id) { index, habit in
-                    AdherenceRow(habit: habit)
+                let rates = activeHabits.map { (habit: $0, rate: $0.doneRate(lastDays: 30)) }.sorted { $0.rate > $1.rate }
+                let overall = rates.isEmpty ? 0 : rates.map(\.rate).reduce(0, +) / rates.count
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Last 30 days").kicker()
+                    BigNumber(value: "\(overall)", suffix: "% overall")
+                }
+                .padding(.vertical, 18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .ruled()
+
+                ForEach(Array(rates.enumerated()), id: \.element.habit.id) { index, item in
+                    AdherenceRow(habit: item.habit, rate: item.rate)
                         .staggeredAppearance(index: index)
                 }
             }
         }
-        .frame(maxWidth: 600)
-        .frame(maxWidth: .infinity)
-        .padding()
     }
 }
 
@@ -352,42 +374,43 @@ struct DayCell: View {
         Calendar.current.startOfDay(for: date) > Calendar.current.startOfDay(for: Date())
     }
 
+    @ScaledMetric(relativeTo: .subheadline) private var scaledBox: CGFloat = 22
+    @State private var popScale: CGFloat = 1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var boxSize: CGFloat { min(scaledBox, 30) }
+
     var body: some View {
         Button {
             guard !isFuture else { return }
             toggleDay()
         } label: {
             ZStack {
-                if isFuture {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.clear)
-                } else if isDone {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(AppColors.statusGreen)
-                        .frame(width: squareSize, height: squareSize)
-                        .overlay(
-                            Image(systemName: "checkmark")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.white)
-                        )
-                } else if logForDay != nil {
-                    // Explicitly marked as not done
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.secondary.opacity(0.15))
-                        .frame(width: squareSize, height: squareSize)
-                        .overlay(
-                            Image(systemName: "xmark")
-                                .font(.caption2.weight(.medium))
-                                .foregroundStyle(.secondary.opacity(0.5))
-                        )
-                } else {
-                    // No log — empty cell
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.primary.opacity(0.04))
-                        .frame(width: squareSize, height: squareSize)
+                if !isFuture {
+                    Rectangle()
+                        .fill(isDone ? Notebook.ink : Color.clear)
+                        .overlay(Rectangle().stroke(isDone ? Notebook.ink : Notebook.emptyBox, lineWidth: 1.5))
+                        .overlay {
+                            if isDone {
+                                Image(systemName: "checkmark")
+                                    .font(.caption2.weight(.heavy))
+                                    .foregroundStyle(Notebook.paper)
+                            } else if logForDay != nil {
+                                // Explicitly marked as not done: a slash, like a crossed box
+                                Path { p in
+                                    p.move(to: CGPoint(x: boxSize * 0.22, y: boxSize * 0.78))
+                                    p.addLine(to: CGPoint(x: boxSize * 0.78, y: boxSize * 0.22))
+                                }
+                                .stroke(Notebook.inkTertiary, lineWidth: 1.5)
+                            }
+                        }
+                        .frame(width: boxSize, height: boxSize)
+                        .scaleEffect(popScale)
+                        .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.15), value: isDone)
                 }
             }
-            .symbolEffect(.bounce, value: justToggled)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(isFuture)
@@ -405,6 +428,14 @@ struct DayCell: View {
     private func toggleDay() {
         justToggled.toggle()
         onToggle?()
+        let becomesDone = logForDay == nil
+        if becomesDone && !reduceMotion {
+            // Small press-in and spring back when a day is checked off
+            withAnimation(.easeOut(duration: 0.1)) { popScale = 0.82 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.45)) { popScale = 1 }
+            }
+        }
         withAnimation(AppAnimation.quickToggle) {
             if let log = logForDay {
                 if log.done {
@@ -427,76 +458,48 @@ struct DayCell: View {
 
 struct AdherenceRow: View {
     let habit: Habit
+    let rate: Int
 
-    private var adherenceRate: Double {
-        let logs = habit.logs ?? []
-        guard !logs.isEmpty else { return 0 }
-        return Double(logs.filter(\.done).count) / Double(logs.count) * 100
-    }
-
-    private var streak: Int {
+    /// The last 30 days before today, oldest first.
+    private var days: [(date: Date, log: HabitLog?)] {
         let cal = Calendar.current
-        let sortedLogs = (habit.logs ?? []).sorted(by: { $0.date > $1.date })
-        var count = 0
-        var expectedDay = cal.startOfDay(for: Date())
-        for log in sortedLogs {
-            let logDay = cal.startOfDay(for: log.date)
-            // Skip future logs
-            if logDay > expectedDay { continue }
-            // Skip days without logs (gap breaks streak)
-            if logDay < expectedDay { break }
-            if log.done {
-                count += 1
-                expectedDay = cal.date(byAdding: .day, value: -1, to: expectedDay)!
-            } else {
-                break
-            }
+        let today = cal.startOfDay(for: Date())
+        return (1...30).reversed().compactMap { offset in
+            cal.date(byAdding: .day, value: -offset, to: today).map { ($0, habit.log(on: $0)) }
         }
-        return count
-    }
-
-    private var rateColor: Color {
-        adherenceRate >= 80 ? AppColors.statusGreen : adherenceRate >= 50 ? AppColors.statusOrange : AppColors.statusRed
-    }
-
-    private var heatmapData: [Date: Bool] {
-        var map: [Date: Bool] = [:]
-        for log in habit.logs ?? [] {
-            map[Calendar.current.startOfDay(for: log.date)] = log.done
-        }
-        return map
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Header
-            HStack {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(habit.name)
-                    .font(.subheadline.weight(.medium))
-
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(Notebook.ink)
                 Spacer()
+                Text("\(rate)%")
+                    .font(Notebook.mono(.title3, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(Notebook.ink)
+            }
+            Text("last 30 days · streak \(habit.currentStreak)d")
+                .font(Notebook.mono(.caption))
+                .foregroundStyle(Notebook.inkSecondary)
 
-                HStack(spacing: 12) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "flame.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                        Text("\(streak)d")
-                            .font(.caption.weight(.medium).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Text("\(Int(adherenceRate))%")
-                        .font(.subheadline.bold().monospacedDigit())
-                        .foregroundStyle(rateColor)
+            // One square per day: filled done, outlined missed, faint when not logged
+            HStack(spacing: 2) {
+                ForEach(days, id: \.date) { day in
+                    Rectangle()
+                        .fill(day.log?.done == true ? Notebook.ink : Color.clear)
+                        .overlay(Rectangle().stroke(day.log == nil ? Notebook.track : (day.log!.done ? Notebook.ink : Notebook.emptyBox), lineWidth: 1))
+                        .aspectRatio(1, contentMode: .fit)
                 }
             }
-
-            // Mini heatmap (60 days)
-            HeatmapView(data: heatmapData, months: 2)
+            .accessibilityHidden(true)
         }
-        .cardStyle(padding: 14, cornerRadius: 12)
-        .hoverCard()
+        .padding(.vertical, 16)
+        .ruled()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(habit.name), \(rate) percent over the last 30 days, streak \(habit.currentStreak) days")
     }
 }
 

@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// One vitals row in the notebook table: name, status and change on the left,
+/// the mono value in the middle, a bar sparkline on the right.
 struct MetricCardView: View {
     let metricType: MetricType
     let latest: Measurement?
@@ -10,8 +12,7 @@ struct MetricCardView: View {
     /// Readings older than this get the muted "Last logged" state.
     private static let staleAfterDays = 7
 
-    @ScaledMetric(relativeTo: .caption) private var iconSize: CGFloat = 20
-    @ScaledMetric(relativeTo: .caption) private var sparklineHeight: CGFloat = 30
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var isStale: Bool {
         guard let latest,
@@ -20,171 +21,103 @@ struct MetricCardView: View {
         return latest.timestamp < cutoff
     }
 
+    private var position: RangePosition? {
+        latest.map { metricType.rangePosition(of: $0.value) }
+    }
+
     var body: some View {
         Button(action: onAdd) {
-            VStack(alignment: .leading, spacing: 10) {
-                // Header
-                HStack(spacing: 6) {
-                    Image(systemName: metricType.iconName)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(metricType.iconColor)
-                        .frame(width: iconSize, height: iconSize)
-                        .background(metricType.iconColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 5))
-                        .accessibilityHidden(true)
-
-                    Text(metricType.displayName)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-
-                    Spacer(minLength: 4)
-
-                    // Status icon (shape-coded, not color alone)
-                    if let latest, !isStale {
-                        statusIndicator(for: latest)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 6) {
+                        nameBlock
+                        valueBlock(alignment: .leading)
                     }
-                }
-
-                // Value
-                ViewThatFits(in: .horizontal) {
-                    valueRow(axis: .horizontal)
-                    valueRow(axis: .vertical)
-                }
-
-                if isStale {
-                    // Old reading: say so instead of showing an empty chart
-                    Text("No readings in the last \(Self.staleAfterDays) days")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: sparklineHeight, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
-                    // Delta (always reserve space so cards align)
-                    if let delta = deltaInfo {
-                        HStack(spacing: 3) {
-                            Image(systemName: delta.direction == .up ? "arrow.up.right" : delta.direction == .down ? "arrow.down.right" : "arrow.right")
-                                .font(.caption2.weight(.bold))
-                                .accessibilityHidden(true)
-                            Text(delta.text)
-                                .font(.caption2.weight(.medium))
-                        }
-                        .foregroundStyle(delta.color)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Change since previous: \(delta.text)")
-                    } else {
-                        Text(" ")
-                            .font(.caption2)
-                            .accessibilityHidden(true)
+                    HStack(alignment: .center, spacing: 14) {
+                        nameBlock
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        valueBlock(alignment: .trailing)
+                        trendBlock
+                            .frame(width: 64, height: 28)
                     }
-
-                    // Sparkline (always reserve space)
-                    if recentValues.count >= 2 {
-                        SparklineView(values: recentValues, color: metricType.iconColor)
-                            .frame(height: sparklineHeight)
-                            .clipped()
-                            .accessibilityHidden(true)
-                    } else {
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(height: sparklineHeight)
-                            .accessibilityHidden(true)
-                    }
-                }
-
-                // Footer (always at bottom, same position)
-                if let latest {
-                    if isStale {
-                        Text("Last logged \(latest.timestamp.formatted(.dateTime.month(.abbreviated).day()))")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text(latest.timestamp, format: .relative(presentation: .named))
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                } else {
-                    Text("Tap to add")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .cardStyle(padding: 14, cornerRadius: 12)
-            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.vertical, 14)
+            .ruled(.top)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .hoverCard()
         .accessibilityElement(children: .combine)
         .accessibilityHint(latest == nil ? "Adds a measurement" : "Opens details")
     }
 
-    @ViewBuilder
-    private func valueRow(axis: Axis) -> some View {
-        let layout = axis == .horizontal
-            ? AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 3))
-            : AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
-        layout {
+    private var nameBlock: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(metricType.displayName)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(Notebook.ink)
             if let latest {
-                Text(latest.displayValue)
-                    .font(.title2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(isStale ? HierarchicalShapeStyle.secondary : .primary)
-                    .contentTransition(.numericText())
-
-                Text(metricType.unit)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.tertiary)
+                if isStale {
+                    StatusWord(text: "last logged \(latest.timestamp.formatted(.dateTime.month(.abbreviated).day()))")
+                } else {
+                    if let position { statusIndicator(for: position) }
+                    if let delta = deltaText {
+                        StatusWord(text: delta)
+                    }
+                }
             } else {
-                Text("--")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.quaternary)
-                    .accessibilityLabel("No data")
+                StatusWord(text: "tap to add")
             }
+        }
+    }
+
+    private func valueBlock(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 1) {
+            Text(latest?.displayValue ?? "--")
+                .font(Notebook.mono(.title3, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(latest == nil || isStale ? Notebook.inkTertiary : Notebook.ink)
+                .contentTransition(.numericText())
+            Text(metricType.unit)
+                .font(Notebook.mono(.caption2))
+                .foregroundStyle(Notebook.inkSecondary)
+        }
+    }
+
+    @ViewBuilder
+    private var trendBlock: some View {
+        if !isStale, recentValues.count >= 2 {
+            BarSparkline(values: recentValues, highlight: position == .within ? Notebook.ink : Notebook.signal)
+        } else {
+            Color.clear
         }
     }
 
     // MARK: - Status Indicator
 
-    private func statusIndicator(for measurement: Measurement) -> some View {
-        let position = metricType.rangePosition(of: measurement.value)
-        return RangeStatusIcon(position: position, color: position.color)
+    private func statusIndicator(for position: RangePosition) -> some View {
+        let word = switch position {
+        case .within: "in range"
+        case .above: "↑ above typical"
+        case .below: "↓ below typical"
+        case .unknown: "no range"
+        }
+        return StatusWord(text: word, color: position.wordColor)
     }
 
     // MARK: - Delta
 
-    private enum Direction { case up, down, flat }
-
-    private struct DeltaInfo {
-        let text: String
-        let color: Color
-        let direction: Direction
-    }
-
-    private var deltaInfo: DeltaInfo? {
+    /// "+0.4 kg since last", or nil when there is no previous reading.
+    private var deltaText: String? {
         guard let latest, let previous else { return nil }
         let diff = latest.value - previous.value
-        if abs(diff) < 0.01 { return nil }
-
-        let sign = diff > 0 ? "+" : ""
-        let text: String
-        if diff == diff.rounded() {
-            text = "\(sign)\(Int(diff)) \(metricType.unit)"
-        } else {
-            text = "\(sign)\(String(format: "%.1f", diff)) \(metricType.unit)"
-        }
-
-        let direction: Direction = diff > 0 ? .up : .down
-        let color: Color
-        switch metricType {
-        case .recovery, .sleepScore, .hrv, .spo2, .sleepDuration, .steps, .activeMinutes:
-            // Higher is better
-            color = diff > 0 ? AppColors.statusGreen : AppColors.statusOrange
-        case .heartRate, .strain:
-            // Lower is generally better at rest
-            color = diff < 0 ? AppColors.statusGreen : AppColors.statusOrange
-        default:
-            color = .secondary
-        }
-
-        return DeltaInfo(text: text, color: color, direction: direction)
+        if abs(diff) < 0.01 { return "no change since last" }
+        let sign = diff > 0 ? "+" : "−"
+        let magnitude = abs(diff) == abs(diff).rounded() ? "\(Int(abs(diff)))" : String(format: "%.1f", abs(diff))
+        let unit = metricType.unit == "%" ? "%" : " \(metricType.unit)"
+        return "\(sign)\(magnitude)\(unit) since last"
     }
 }
 
@@ -211,7 +144,7 @@ extension MetricType {
 }
 
 #Preview {
-    LazyVGrid(columns: [GridItem(.adaptive(minimum: 180))], spacing: 12) {
+    VStack(spacing: 0) {
         MetricCardView(
             metricType: .heartRate,
             latest: Measurement(metricType: .heartRate, value: 72),

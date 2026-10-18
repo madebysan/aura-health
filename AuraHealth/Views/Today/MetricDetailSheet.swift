@@ -29,68 +29,62 @@ struct MetricDetailSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 0) {
                     if let latest {
                         // Large current value
-                        VStack(spacing: 6) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(latest.displayValue)
-                                .font(.system(size: heroValueSize, weight: .bold, design: .rounded))
+                                .font(.system(size: heroValueSize, weight: .medium, design: .monospaced))
                                 .monospacedDigit()
-                                .minimumScaleFactor(0.7)
+                                .minimumScaleFactor(0.6)
                                 .lineLimit(1)
+                                .foregroundStyle(Notebook.ink)
                                 .contentTransition(.numericText())
 
-                            Text(metricType.unit)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.secondary)
+                            Text("\(metricType.unit) · \(latest.timestamp.formatted(.relative(presentation: .named)))")
+                                .font(Notebook.mono(.footnote))
+                                .foregroundStyle(Notebook.inkSecondary)
 
                             // Status
                             let position = metricType.rangePosition(of: latest.value)
-                            StatusBadge(label: position.label, color: position.color)
-
-                            // Timestamp
-                            Text(latest.timestamp, format: .relative(presentation: .named))
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                                .padding(.top, 2)
+                            StatusWord(text: position.label.lowercased(), color: position.wordColor)
+                                .padding(.top, 6)
                         }
-                        .padding(.vertical, 8)
+                        .notebookBlock()
 
                         // Delta from previous
                         if let previous {
                             deltaSection(latest: latest, previous: previous)
-                                .cardStyle()
+                                .notebookBlock()
                         }
 
                         // Reference range bar
                         rangeBar(value: latest.value)
-                            .cardStyle()
-
-                        // About this metric
-                        metricContextSection
-                            .cardStyle()
+                            .notebookBlock()
 
                         // Trend chart (last 30 days)
                         if last30Days.count > 1 {
                             trendChart
-                                .cardStyle()
+                                .notebookBlock()
                         }
 
                         // History list
                         historySection
-                            .cardStyle()
+                            .notebookBlock()
+
+                        // About this metric
+                        metricContextSection
+                            .notebookBlock()
                     }
 
                     // Add Measurement button
                     Button {
                         showingAddSheet = true
                     } label: {
-                        Label("Add Measurement", systemImage: "plus.circle.fill")
-                            .font(.body.weight(.medium))
-                            .frame(maxWidth: .infinity)
+                        Label("Add Measurement", systemImage: "plus")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonStyle(NotebookPrimaryButtonStyle())
+                    .padding(.top, 24)
 
                     // Chat about this metric
                     if let latest {
@@ -99,16 +93,16 @@ struct MetricDetailSheet: View {
                             NotificationCenter.default.post(name: .switchToChat, object: context)
                             dismiss()
                         } label: {
-                            Label("Chat about this", systemImage: "bubble.left.fill")
-                                .font(.body.weight(.medium))
-                                .frame(maxWidth: .infinity)
+                            Label("Chat about this", systemImage: "bubble.left")
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
+                        .buttonStyle(NotebookSecondaryButtonStyle())
+                        .padding(.top, 10)
                     }
                 }
-                .padding()
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
+            .background(Notebook.paperRaised.ignoresSafeArea())
             .navigationTitle(metricType.displayName)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -140,9 +134,8 @@ struct MetricDetailSheet: View {
                 }
             } label: {
                 HStack {
-                    Label("About \(metricType.displayName)", systemImage: "info.circle")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
+                    Text("About \(metricType.displayName)")
+                        .kicker()
                     Spacer()
                     Image(systemName: "chevron.down")
                         .font(.caption.weight(.semibold))
@@ -156,7 +149,7 @@ struct MetricDetailSheet: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(ctx.description)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Notebook.inkSecondary)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Why it matters")
@@ -164,12 +157,12 @@ struct MetricDetailSheet: View {
                             .foregroundStyle(.primary)
                         Text(ctx.whyItMatters)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Notebook.inkSecondary)
                     }
 
                     Text("Educational context only. Consult a qualified healthcare professional before making medical decisions.")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(Notebook.mono(.caption2))
+                        .foregroundStyle(Notebook.inkSecondary)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Reference range")
@@ -177,7 +170,7 @@ struct MetricDetailSheet: View {
                             .foregroundStyle(.primary)
                         Text(ctx.rangeExplanation)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Notebook.inkSecondary)
                     }
                 }
                 .padding(.top, 12)
@@ -211,16 +204,15 @@ struct MetricDetailSheet: View {
         let iconName = diff > 0 ? "arrow.up.right" : (diff < 0 ? "arrow.down.right" : "arrow.right")
 
         return HStack {
-            Text("vs Previous")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            Text("Since last reading")
+                .kicker()
             Spacer()
             HStack(spacing: 4) {
                 Image(systemName: iconName)
                     .font(.caption.weight(.bold))
                     .accessibilityHidden(true)
                 Text(formatted)
-                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .font(Notebook.mono(.subheadline, weight: .medium))
             }
             .foregroundStyle(color)
         }
@@ -252,16 +244,23 @@ struct MetricDetailSheet: View {
 
     private var trendChart: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Last 30 Days")
-                .font(.headline)
+            Text("Last 30 days")
+                .kicker()
 
-            Chart(last30Days, id: \.id) { measurement in
+            Chart {
+                RectangleMark(
+                    yStart: .value("Low", metricType.defaultRange.low),
+                    yEnd: .value("High", metricType.defaultRange.high)
+                )
+                .foregroundStyle(Notebook.band.opacity(0.5))
+
+                ForEach(last30Days, id: \.id) { measurement in
                 if metricType == .bloodPressure {
                     LineMark(
                         x: .value("Date", measurement.timestamp),
                         y: .value("Systolic", measurement.value)
                     )
-                    .foregroundStyle(Color.red)
+                    .foregroundStyle(Notebook.ink)
                     .lineStyle(StrokeStyle(lineWidth: 1.5))
                     .interpolationMethod(.monotone)
 
@@ -270,8 +269,8 @@ struct MetricDetailSheet: View {
                             x: .value("Date", measurement.timestamp),
                             y: .value("Diastolic", diastolic)
                         )
-                        .foregroundStyle(Color.blue.opacity(0.6))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .foregroundStyle(Notebook.inkSecondary)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
                         .interpolationMethod(.monotone)
                     }
                 } else {
@@ -279,22 +278,17 @@ struct MetricDetailSheet: View {
                         x: .value("Date", measurement.timestamp),
                         y: .value("Value", measurement.value)
                     )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [metricType.iconColor.opacity(0.1), metricType.iconColor.opacity(0.0)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .foregroundStyle(Notebook.ink.opacity(0.05))
                     .interpolationMethod(.catmullRom)
 
                     LineMark(
                         x: .value("Date", measurement.timestamp),
                         y: .value("Value", measurement.value)
                     )
-                    .foregroundStyle(metricType.iconColor)
-                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    .foregroundStyle(Notebook.ink)
+                    .lineStyle(StrokeStyle(lineWidth: 1.5))
                     .interpolationMethod(.catmullRom)
+                }
                 }
             }
             .chartXAxis {
@@ -330,12 +324,12 @@ struct MetricDetailSheet: View {
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("History")
-                .font(.headline)
+                .kicker()
 
             ForEach(history, id: \.id) { measurement in
                 HStack {
                     Text(measurement.timestamp, format: .dateTime.month(.abbreviated).day().year())
-                        .font(.subheadline)
+                        .font(Notebook.mono(.subheadline))
 
                     if !measurement.notes.isEmpty {
                         Image(systemName: "note.text")
@@ -345,15 +339,16 @@ struct MetricDetailSheet: View {
 
                     Spacer()
 
-                    Text(measurement.displayValue)
-                        .font(.subheadline.monospacedDigit().bold())
-
-                    Text(metricType.unit)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("\(measurement.displayValue) \(metricType.unit)")
+                        .font(Notebook.mono(.subheadline, weight: .medium))
 
                     let position = metricType.rangePosition(of: measurement.value)
-                    RangeStatusIcon(position: position, color: position.color)
+                    if position != .within {
+                        Text(position == .above ? "↑" : "↓")
+                            .font(Notebook.mono(.subheadline))
+                            .foregroundStyle(position.color)
+                            .accessibilityLabel(position.label)
+                    }
                 }
                 .contextMenu {
                     Button(role: .destructive) {

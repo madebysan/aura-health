@@ -134,6 +134,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .notebookBackground()
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
         .fileImporter(

@@ -101,6 +101,7 @@ struct ChatView: View {
             }
         }
         #endif
+        .notebookBackground()
         .navigationTitle("Chat")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

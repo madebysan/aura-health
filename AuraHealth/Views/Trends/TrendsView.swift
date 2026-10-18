@@ -21,19 +21,9 @@ struct CorrelationsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 0) {
                 // Range selector
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(TimeRange.allCases) { range in
-                            FilterPill(label: range.rawValue, isActive: selectedRange == range) {
-                                withAnimation(AppAnimation.viewSwitch) {
-                                    selectedRange = range
-                                }
-                            }
-                        }
-                    }
-                }
+                UnderlineTabs(options: TimeRange.allCases, selection: $selectedRange) { $0.rawValue }
 
                 let filtered = filteredMeasurements()
                 let availablePairs = correlationPairs.filter { pair in
@@ -48,7 +38,7 @@ struct CorrelationsView: View {
                     )
                     .padding(.top, 40)
                 } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 300, maximum: 520))], spacing: 14) {
+                    LazyVStack(spacing: 0) {
                         ForEach(Array(availablePairs.enumerated()), id: \.element.2) { index, pair in
                             CorrelationCard(
                                 title: pair.2,
@@ -61,8 +51,10 @@ struct CorrelationsView: View {
                     }
                 }
             }
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
+        .notebookBackground()
         .navigationTitle("Correlations")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
@@ -118,21 +110,14 @@ struct TrendChartCard: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header
             HStack(spacing: 8) {
-                Image(systemName: metricType.iconName)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(metricType.iconColor)
-                    .frame(width: iconSize, height: iconSize)
-                    .accessibilityHidden(true)
-                    .background(metricType.iconColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 5))
-
                 Text(metricType.displayName)
                     .font(.headline)
+                    .foregroundStyle(Notebook.ink)
 
                 Spacer()
 
-                Text("\(measurements.count) pts")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.quaternary)
+                Text("\(measurements.count) readings")
+                    .kicker()
             }
 
             // Chart
@@ -142,7 +127,7 @@ struct TrendChartCard: View {
                         x: .value("Date", measurement.timestamp),
                         y: .value("Systolic", measurement.value)
                     )
-                    .foregroundStyle(Color.red)
+                    .foregroundStyle(Notebook.ink)
                     .lineStyle(StrokeStyle(lineWidth: 1.5))
                     .interpolationMethod(.monotone)
 
@@ -151,8 +136,8 @@ struct TrendChartCard: View {
                             x: .value("Date", measurement.timestamp),
                             y: .value("Diastolic", diastolic)
                         )
-                        .foregroundStyle(Color.blue.opacity(0.6))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                        .foregroundStyle(Notebook.inkSecondary)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
                         .interpolationMethod(.monotone)
                     }
                 } else {
@@ -160,21 +145,15 @@ struct TrendChartCard: View {
                         x: .value("Date", measurement.timestamp),
                         y: .value("Value", measurement.value)
                     )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [metricType.iconColor.opacity(0.1), metricType.iconColor.opacity(0.0)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .foregroundStyle(Notebook.ink.opacity(0.06))
                     .interpolationMethod(.catmullRom)
 
                     LineMark(
                         x: .value("Date", measurement.timestamp),
                         y: .value("Value", measurement.value)
                     )
-                    .foregroundStyle(metricType.iconColor)
-                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    .foregroundStyle(Notebook.ink)
+                    .lineStyle(StrokeStyle(lineWidth: 1.5))
                     .interpolationMethod(.catmullRom)
                 }
 
@@ -229,25 +208,23 @@ struct TrendChartCard: View {
 
             // Stats
             HStack(spacing: 0) {
-                statPill("Avg", value: stats.avg, color: metricType.iconColor)
+                statPill("Avg", value: stats.avg, color: Notebook.ink)
                 Spacer()
-                statPill("Min", value: stats.min, color: .secondary)
+                statPill("Min", value: stats.min, color: Notebook.inkSecondary)
                 Spacer()
-                statPill("Max", value: stats.max, color: .secondary)
+                statPill("Max", value: stats.max, color: Notebook.inkSecondary)
             }
         }
-        .cardStyle()
-        .hoverCard()
+        .padding(.vertical, 18)
+        .ruled()
     }
 
     private func statPill(_ label: String, value: Double, color: Color) -> some View {
         VStack(alignment: .center, spacing: 2) {
             Text(label)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.tertiary)
-                .textCase(.uppercase)
+                .kicker(Notebook.inkTertiary)
             Text(value == value.rounded() ? "\(Int(value))" : String(format: "%.1f", value))
-                .font(.callout.monospacedDigit().bold())
+                .font(Notebook.mono(.callout, weight: .medium))
                 .foregroundStyle(color)
         }
     }
@@ -294,9 +271,8 @@ struct CorrelationCard: View {
                 Text(title)
                     .font(.headline)
                 Spacer()
-                Text("\(pairedData.count) pts")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(.quaternary)
+                Text("\(pairedData.count) days")
+                    .kicker()
             }
 
             if pairedData.count >= 3 {
@@ -304,8 +280,8 @@ struct CorrelationCard: View {
                     Spacer()
                     let r = correlationCoefficient
                     Text("r = \(String(format: "%.2f", r))")
-                        .font(.caption.monospacedDigit().bold())
-                        .foregroundStyle(abs(r) > 0.5 ? Color.accentColor : .secondary)
+                        .font(Notebook.mono(.caption, weight: .medium))
+                        .foregroundStyle(abs(r) > 0.5 ? Notebook.ink : Notebook.inkSecondary)
                         .accessibilityLabel(ChartSummary.correlation(r))
                 }
 
@@ -314,8 +290,9 @@ struct CorrelationCard: View {
                         x: .value(typeA.displayName, pairedData[i].a),
                         y: .value(typeB.displayName, pairedData[i].b)
                     )
-                    .foregroundStyle(Color.accentColor.opacity(0.6))
-                    .symbolSize(30)
+                    .foregroundStyle(Notebook.ink.opacity(0.7))
+                    .symbol(.square)
+                    .symbolSize(24)
                 }
                 .chartXAxisLabel(typeA.displayName)
                 .chartYAxisLabel(typeB.displayName)
@@ -348,8 +325,8 @@ struct CorrelationCard: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .cardStyle()
-        .hoverCard()
+        .padding(.vertical, 18)
+        .ruled()
     }
 }
 

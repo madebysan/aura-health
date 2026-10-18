@@ -99,6 +99,7 @@ struct ContentView: View {
                 }
                 .tag(AppSection.settings)
         }
+        .tint(Notebook.ink)
         .onReceive(NotificationCenter.default.publisher(for: .switchToChat)) { notification in
             if let prefill = notification.object as? String {
                 chatPrefill = prefill
@@ -156,6 +157,8 @@ struct MoreMenuView: View {
                     ForEach(appSections, content: moreRow)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .notebookBackground()
             .navigationTitle("More")
             .navigationDestination(for: AppSection.self) { section in
                 DetailView(section: section)
@@ -169,18 +172,18 @@ struct MoreMenuView: View {
     private func moreRow(_ section: AppSection) -> some View {
         NavigationLink(value: section) {
             HStack(spacing: 14) {
-                // Colored icon badge (matches iOS Settings style)
+                // Monochrome ink glyph, notebook style
                 Image(systemName: section.iconName)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .font(.body)
+                    .foregroundStyle(Notebook.ink)
                     .frame(width: iconSize, height: iconSize)
                     .accessibilityHidden(true)
-                    .background(section.iconColor, in: RoundedRectangle(cornerRadius: 7))
 
                 Text(section.label)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Notebook.ink)
             }
         }
+        .listRowBackground(Notebook.paperRaised)
     }
 }
 

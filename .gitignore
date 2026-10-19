@@ -32,11 +32,5 @@ Pods/
 # Secrets
 Secrets.local.xcconfig
 
-
-# Tracking files (local only)
-plan.md
-backlog.md
-CHAT_TEST_PLAN.md
-
 # Landing page (separate project)
 landing/

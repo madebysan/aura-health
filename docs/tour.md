@@ -12,7 +12,7 @@ Habits, medications, supplements, conditions, diet notes, and lab sessions live 
 
 The health assistant runs on Apple's on-device model, so nothing leaves the iPhone. It answers questions from your vitals, labs, medications, conditions and habits, and logs a reading or habit when you ask, after you approve the change. Lab reports import from a PDF or photo on the Labs screen. For harder reports, you can add your own Anthropic or OpenRouter key in Settings; the assistant can then also read attachments, and nothing is sent until you allow processing.
 
-<img src="../fastlane/screenshots/en-US/04-chat.png" width="320" alt="Aura's assistant answering what changed in the labs, with sample data">
+<img src="images/chat.png" width="320" alt="Aura's assistant answering what changed in the labs, with sample data">
 
 ## Tech stack
 

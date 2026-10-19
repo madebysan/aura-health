@@ -2,8 +2,7 @@ import Foundation
 import SwiftData
 
 /// Generates realistic sample health data. Ships in release builds: onboarding
-/// offers it, and the App Review notes point reviewers to it
-/// (fastlane/metadata/review_information/notes.txt).
+/// offers it, and the App Review notes point reviewers to it.
 struct SampleDataService {
 
     /// Fills each empty area with examples. Each category is checked on its

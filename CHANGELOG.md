@@ -14,7 +14,7 @@
 - Blood pressure charts draw systolic and diastolic as separate lines.
 - Deleting a diet plan asks for confirmation.
 - Replaced SF Symbols with Phosphor Light icons throughout the app. Fruits no longer uses the Apple logo.
-- Simplified every screen after a UI audit (decision board, 2026-10-18):
+- Simplified every screen:
   - Vitals opens with one plain sentence about what is outside your typical range, then a Flagged group and everything else. Rows only carry a status word when flagged, the "since last" line and the Notes list are gone, and the Daily health score is replaced by the sentence. Metrics without a reading in 30 days leave the list until the next one; a + button adds any measurement.
   - Time ranges moved from the top of Vitals into each metric's sheet. The sheet lists the latest 10 readings with "Show all", draws the typical band only when it fits the chart, and no longer repeats the range as a sentence.
   - Habits is one view: no Adherence tab (each habit's 30-day rate is in its edit sheet and the overall rate in the header), no per-section counts, streaks from 2 days, and no Category picker.
@@ -37,7 +37,6 @@
 - Chat says "1 message", not "1 messages".
 - An empty Labs screen offers to import a lab report instead of sending you to Chat, and empty screens no longer suggest chat requests the on-device assistant can't do.
 - A vital's status now matches the number on screen: 6.96 hours, shown as "7.0", is no longer flagged below a 7–9 hour range.
-- App Store screenshots and the README image show the current light Notebook look: Vitals, Habits, Labs, Chat and Privacy.
 - Fixed links and assistant requests that should open a screen under More (such as Settings); they only switched to the More tab.
 
 - Narrowed Aura to an iPhone-only iOS 17+ release.
@@ -51,15 +50,12 @@
 
 ### Added
 
-- Unit tests for backup, restore, deletion, local storage, AI consent, and OpenRouter transport formats, plus biomarker status rules and sample-data loading.
 - An in-app privacy and support view.
 - A privacy manifest covering Aura's UserDefaults access.
-- App Store metadata, reviewer notes, guarded Fastlane lanes, and current iPhone screenshots.
-- `PRIVACY.md`, `SUPPORT.md`, and `DESIGN.md` release documentation.
 
 ### Removed
 
 - CloudKit and iCloud entitlements.
 - Native macOS and iPad target support.
-- Clinical Health Records, direct FHIR, WHOOP, and Health Auto Export release scope.
+- Clinical Health Records, direct FHIR, WHOOP, and Health Auto Export support.
 - Automatic AI-generated daily protocol behavior.

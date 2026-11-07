@@ -13,8 +13,6 @@ Built for people who want to understand their own data, not just collect it.</p>
   <img src="https://img.shields.io/badge/HealthKit-fc3158" alt="HealthKit">
 </p>
 
-<p><a href="#install">Build Aura from source</a></p>
-
 https://github.com/user-attachments/assets/a90cf41c-90cd-432d-a799-c17845141dd6
 
 I started Aura after the spreadsheet where I tracked biomarkers, habits and health notes became harder to read than the data in it. It began as a web app; moving to Swift made a private iPhone app with Apple Health possible.
